@@ -1,0 +1,53 @@
+# Visit https://github.com/mdsol/platform-standards/blob/main/schemas/v1alpha1.schema.md for all the details of this file format.
+
+# This YAML file starts starts with '---', which is the separator for YAML documents within the same file.
+# If the repository contains more than one component, use multiple YAML documents in this same file to document each of them.
+
+# Instructions:
+# Read the comments on each line for quick on-spot instructions or the file format above for complete overview.
+# Update all values in <>.
+# Remove all the unnecesary extra comments from the file.
+---
+apiVersion: backstage.io/v1alpha1 # This is a constant, just leave as is.
+kind: Uninitialized # values: Uninitialized or Component. Use `Component` once this repository is past the initial commit.
+spec:
+  type: <choose a type> # web_backend == only API, web_frontend == only UI, web_fullstack == both, background_job, mobile, library, documentation, other
+  lifecycle: experimental # values: production, experimental, sunsetting, or deprecated. `production` means development towards production even if not in production yet.
+  owner: <team or person email>@mdsol.com  # it does not matter if the email does not exist
+  experience: <choose an experience> # values: patient, data, study, or enablement. The Experience this component supports. All components of the same product should belong to the same Experience. Enablement represents Platform & Infrastructure.
+
+metadata:
+  json_schema: https://github.com/mdsol/platform-standards/tree/main/schemas/v1alpha1.schema.json # This is a constant, just leave as is.
+
+  name: <Name in lowercase kebab-case>  # Name of this entity in lowercase using kebab-case. Ex: plinth, rave-edc, astinus-java, etc.
+  title: <Human readable title>  # Use spaces to separate words for readibility. Ex: Rave EDC
+  description: <Description of this entity>
+#  aliases: ["", ""] # Optional: Add a list of extra names if this entity has other names
+
+# Optional: Uncomment and fill in the security section if this repository holds the codebase of a service.
+#  security:
+#    authentication: [mauth] # List all the authentication methods used in our service. See the json schema for options.
+#    network_accessiblity: [private] # `private` == internal vpn only, `public` == directly accesible outside the vpn
+#    data_types: [clinical] # List the type of data used in your service.
+
+  teams:  # REQUIRED: If multiple teams work on this repo, please list them all
+    - number: <Team number> # Must be a number, e.g.: 51
+      name: <Team name> # OPTIONAL, only include if the team has a known name without number (e.g. AE, Devtools, etc.)
+
+  people:
+    # NOTE: roles beyond technical owner and product owner will not be displayed in DevOps Central
+    - role: technical owner   # REQUIRED. Technical owner is someone who can answer technical questions
+      email: <technical owner>@mdsol.com
+    - role: product owner  # Optional: product owner is someone who can answer product related questions
+      email: <product owner>@mdsol.com
+
+  channels: # Use public Slack channels or email mailing list.
+    - url: https://mdsol.slack.com/archives/<channel ID>  # Use a channel ID.
+      role: slack
+      automated_messaging: false # optional
+
+  annotations:  # Anything extra, for instance links.
+    arc42: https://learn.mdsol.com/<path to arc42 docs>
+    docs: https://learn.mdsol.com/<path to other docs>
+    medistrano: https://medistrano.imedidata.net/projects/<project ID>
+    jira: https://jira.mdsol.com/secure/RapidBoard.jspa?rapidView=<board ID>
