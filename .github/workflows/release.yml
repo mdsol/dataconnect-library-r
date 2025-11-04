@@ -1,0 +1,213 @@
+name: Release R Package
+
+on:
+  push:
+    branches: [ main ]  # Only run on main branch after testing
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (leave empty for auto)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.event.pull_request.number || github.ref }}-ci
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Important for generating release notes from commit history
+        fetch-tags: true  # Explicitly fetch all tags
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        version: 3.x
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      env:
+        DOCKER_BUILDKIT: 1
+        DOCKER_CLI_EXPERIMENTAL: enabled
+        CI_PROGRESS: plain
+        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+      run: task build-docker
+
+    - name: Generate documentation
+      run: task document
+
+    - name: Check package
+      run: task check
+
+    - name: Build library
+      run: task build-library
+
+    - name: Get package info
+      id: pkg-info
+      run: |
+        PKG_VERSION=$(grep "Version:" DESCRIPTION | awk '{print $2}')
+        PKG_NAME=$(grep "Package:" DESCRIPTION | awk '{print $2}')
+        echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
+        echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+        echo "filename=target/${PKG_NAME}_${PKG_VERSION}.tar.gz" >> $GITHUB_OUTPUT
+
+    - name: Check existing tag
+      id: check_tag
+      run: |
+        if git rev-parse "v${{ steps.pkg-info.outputs.version }}" >/dev/null 2>&1; then
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Tag v${{ steps.pkg-info.outputs.version }} already exists, will not create duplicate"
+        else
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+          echo "Tag v${{ steps.pkg-info.outputs.version }} does not exist yet"
+        fi
+
+    - name: Find previous tag
+      id: find-previous-tag
+      if: steps.check_tag.outputs.tag_exists != 'true'
+      run: |
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        if [ -z "$PREVIOUS_TAG" ]; then
+          echo "No previous tag found - will generate changelog from all commits"
+          echo "previous_tag=" >> $GITHUB_OUTPUT
+          echo "from_ref=$(git rev-list --max-parents=0 HEAD)" >> $GITHUB_OUTPUT
+        else
+          echo "Previous tag found: $PREVIOUS_TAG"
+          echo "previous_tag=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          echo "from_ref=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate changelog
+      id: generate-changelog
+      if: steps.check_tag.outputs.tag_exists != 'true'
+      run: |
+        # Default range (if no previous tag)
+        FROM_REF="${{ steps.find-previous-tag.outputs.from_ref }}"
+        
+        echo "Generating changelog from $FROM_REF to HEAD..."
+        
+        # Create directory for changelog
+        mkdir -p .github
+        
+        # Get current version and date
+        CURRENT_VERSION="${{ steps.pkg-info.outputs.version }}"
+        CURRENT_DATE=$(date +"%Y-%m-%d")
+        
+        # Check for Jira tickets in branch name
+        BRANCH_NAME=$(git branch --show-current)
+        JIRA_TICKETS=$(echo "$BRANCH_NAME" | grep -o 'MCC-[0-9]*' | sort -u | tr '\n' ' ')
+        
+        # Initialize changelog file with version and date
+        echo "# Release Notes for v$CURRENT_VERSION ($CURRENT_DATE)" > .github/release-notes.md
+        echo "" >> .github/release-notes.md
+        
+        # Add Jira ticket references if any found
+        if [ ! -z "$JIRA_TICKETS" ]; then
+          echo "## Related Issues" >> .github/release-notes.md
+          for ticket in $JIRA_TICKETS; do
+            echo "- $ticket" >> .github/release-notes.md
+          done
+          echo "" >> .github/release-notes.md
+        fi
+        
+        # Extract all conventional commits first
+        git log $FROM_REF..HEAD --pretty=format:"%s" > .github/all-commits.txt
+        
+        # Function to extract and format commits by type
+        extract_commits() {
+          local type=$1
+          local emoji=$2
+          local title=$3
+          
+          # Create temporary file for this section
+          echo "## $emoji $title" > .github/section-$type.md
+          
+          # FIXED: Extract commits of this type including breaking changes with !
+          grep -E "^$type(\([^)]*\))?!?:" .github/all-commits.txt | 
+            sed -E "s/^$type(\([^)]*\))?!?:\s*/- /" >> .github/section-$type.md
+
+          # Look for Jira tickets in commit messages and add them to each line
+          if [ -f .github/section-$type.md ]; then
+            # Create a temporary file for the processed output
+            touch .github/section-$type-with-tickets.md
+            
+            while IFS= read -r line; do
+              if [[ "$line" =~ ^##\ .* ]]; then
+                # This is a header line, just copy it
+                echo "$line" >> .github/section-$type-with-tickets.md
+              else
+                # For content lines, look for Jira tickets
+                COMMIT_TICKETS=$(echo "$line" | grep -o 'MCC-[0-9]*' | sort -u | tr '\n' ' ')
+                
+                if [ ! -z "$COMMIT_TICKETS" ]; then
+                  # If tickets found, append them as references
+                  echo "$line ($COMMIT_TICKETS)" >> .github/section-$type-with-tickets.md
+                else
+                  # Otherwise just copy the line
+                  echo "$line" >> .github/section-$type-with-tickets.md
+                fi
+              fi
+            done < .github/section-$type.md
+            
+            # Replace the original file with the processed one
+            mv .github/section-$type-with-tickets.md .github/section-$type.md
+          fi
+
+          # Only include section if it has content
+          if [ $(wc -l < .github/section-$type.md) -gt 1 ]; then
+            cat .github/section-$type.md >> .github/release-notes.md
+            echo "" >> .github/release-notes.md
+            return 0
+          else
+            return 1
+          fi
+        }
+
+        # Extract each type of commit
+        extract_commits "feat" "🚀" "Features" || true
+        extract_commits "fix" "🐛" "Bug Fixes" || true
+        extract_commits "perf" "⚡" "Performance Improvements" || true
+        extract_commits "refactor" "♻️" "Refactors" || true
+        extract_commits "docs" "📝" "Documentation" || true
+        extract_commits "test" "🧪" "Tests" || true
+        extract_commits "ci" "⚙️" "CI/CD" || true
+        extract_commits "chore" "🔧" "Chores" || true
+        extract_commits "style" "💄" "Styles" || true
+        extract_commits "build" "📦" "Build System" || true
+        
+        # Check if any sections were added
+        if [ $(grep -c "^##" .github/release-notes.md) -eq 1 ]; then
+          echo "No conventional commits found in this range." >> .github/release-notes.md
+        fi
+
+    - name: Display release notes content
+      if: steps.check_tag.outputs.tag_exists != 'true'
+      run: |
+        echo "--- Release Notes Content ---"
+        cat .github/release-notes.md || echo "No release notes were generated"
+        echo "-----------------------------"
+
+    - name: Create Release
+      if: steps.check_tag.outputs.tag_exists != 'true'
+      uses: ncipollo/release-action@v1
+      with:
+        name: "Release ${{ steps.pkg-info.outputs.version }}"
+        tag: "v${{ steps.pkg-info.outputs.version }}"
+        commit: ${{ github.sha }}
+        artifacts: "${{ steps.pkg-info.outputs.filename }}"
+        bodyFile: .github/release-notes.md
+        token: ${{ secrets.GITHUB_TOKEN }}
+        draft: false
+        prerelease: ${{ contains(steps.pkg-info.outputs.version, '-rc') || contains(steps.pkg-info.outputs.version, '-b') || contains(steps.pkg-info.outputs.version, '-a') }}
+        skipIfReleaseExists: true

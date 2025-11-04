@@ -1,0 +1,286 @@
+---
+title: "R Data Connect SDK - Usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{R Data Connect SDK - Usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+***To set up Data Connect SDK, please follow these [instructions](SDK_SETUP.html).***
+
+### Initialize Data Connect connection
+
+***Please restart R session in RStudio before proceeding***
+
+```{r eval=FALSE}
+
+library(dataconnect)
+use_miniforge_env()
+
+```
+
+### Load vignettes in R Studio if needed
+
+```{r eval=FALSE}
+
+vignette("SDK_USAGE", package = "dataconnect")
+
+```
+
+
+### create a Data Connect client instance
+
+```{r eval=FALSE}
+
+dc <-init(token = "<authentication_token_here>")
+
+```
+
+### Ad Hoc Exploration and Analysis
+
+```{r eval=FALSE}
+
+library(dplyr)
+library(tidyverse)
+
+```
+
+#### Fetch study environments
+
+```{r eval=FALSE}
+
+count <- 0
+study_envs <- dc$study_environments()
+
+# Process them lazily across all pages with one call
+results <- study_envs %::% {
+  count <<- count + 1
+  cat("## Study Environment ", count, "\n\n")
+  # to_frame is a helper for pretty printing the data elements out
+  table_output <- to_frame(data)
+
+  # Print each line of the table separately
+  cat(paste(table_output, collapse = "\n"))
+  cat("\n\n")
+
+  flush.console()
+
+  data
+}
+
+print(paste("Total study environments:", count))
+
+```
+
+#### Fetch datasets in a study environment
+
+```{r eval=FALSE}
+
+count <- 0
+datasets <- dc$datasets(
+  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
+  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
+  search_dataset_name="demo")
+
+# Process them lazily across all pages with one call
+results <- datasets %::% {
+  count <<- count + 1
+  
+  cat("## Dataset ", count, "\n\n")
+  # to_frame is a helper for pretty printing the data elements out
+  table_output <- to_frame(data)
+  
+  print(table_output)
+
+  flush.console()
+
+  data
+}
+
+print(paste("Total datasets:", count))
+
+```
+
+#### Fetch versions of a specific dataset
+
+```{r eval=FALSE}
+
+dataset_versions <- dc$dataset_versions(
+  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
+  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
+  dataset_uuid = "0a4aaf73-1ebf-3f14-b955-f74d56fd7010")
+
+for(dataset_version in dataset_versions) {
+  print(to_frame(dataset_version))
+}
+
+```
+
+#### Fetch data of a specific dataset
+
+```{r eval=FALSE}
+
+data <- dc$fetch_data(
+  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
+  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
+  dataset_uuid="14b75660-8a52-3e1b-a670-a91ddace7a49"
+)
+
+df_output <- data$frame %>% head(5)
+df_output
+
+# or to fetch all data
+# data$frame %>% collect()
+
+```
+
+### Data Transformation Example Using Dplyr
+
+#### Using client side native dplyr capability in R
+
+```{r get-dataset, eval=FALSE}
+
+# The $frame is a lazy DataConnectRef
+tbl <- data$frame
+
+# MATERIALIZE LOCALLY: bring the data into memory as a data.frame
+# Caution: This downloads the dataset. Consider server-side filters first if the dataset is large.
+df <- tbl %>% collect()
+
+# Peek at a few rows locally
+head(df, 3)
+
+```
+
+#### Using dplyr verbs (client-side on a local data.frame)
+
+All operations below are pure dplyr on `df` (an in-memory data.frame). Use `tibble::as_tibble(df)` if you prefer a tibble.
+
+```{r dplyr-basic, eval=FALSE}
+
+# Example: projection + filtering + sorting + limiting (all client-side)
+result_df <- df %>%
+  filter(lbtest == "Relaxin2", lbstresc > 9) %>%
+  arrange(dplyr::desc(lbseq)) %>%
+  slice_head(n = 100)
+
+result_df %>% head()
+
+```
+
+##### Grouping and counting
+
+`count()` and `group_by()` + `summarise()` work natively on the local data.
+
+```{r dplyr-count, eval=FALSE}
+
+lbtest_counts <- df %>%
+  count(lbtest, sort = TRUE)
+
+lbtest_counts %>% head()
+
+```
+
+```{r dplyr-summarise, eval=FALSE}
+
+summary_df <- df %>%
+  group_by(lbtest) %>%
+  summarise(n = dplyr::n(), .groups = "drop") %>%
+  arrange(dplyr::desc(n))
+
+summary_df %>% head()
+
+```
+
+##### Pattern matching and null checks (client-side)
+
+Use `stringr::str_detect()` (or `grepl()`) for substring matching and `is.na()` for missing values.
+
+```{r dplyr-patterns, eval=FALSE}
+
+# Case-insensitive substring search for "Base"
+pattern_df <- df %>%
+  filter(
+    str_detect(visit, regex("Base", ignore_case = TRUE)),
+    lbtest == "Relaxin2"
+  ) 
+
+# Rows where 'code' is NA (missing)
+null_rows <- df %>%
+  filter(is.na(lbstresc))
+  
+```
+
+#### Tips and notes
+
+-   Client-side workflow: We first `collect()` to bring data into memory, then use dplyr natively.
+-   Sorting: Use `dplyr::desc()` inside `arrange()` on your local data.
+-   Row limiting: Use `slice_head(n = ...)`, `slice_tail()`, or `slice_sample()` after sorting/filtering locally.
+-   Large datasets: If the dataset is large, consider use `head()` on the server (with the lazy `tbl`) before `collect()` to reduce data volume, then finish with client-side dplyr.
+
+### Publishing
+
+#### Fetch project token from Data Connect Transformation Page
+
+```{r eval=FALSE}
+
+project_token <- "<project_token_here>"
+dataset_name <- "your_dataset_name_here"
+key_columns <- list("int32_col")
+source_datasets <- list("0a4aaf73-1ebf-3f14-b955-f74d56fd7010")
+
+sample_data <- data.frame(
+  PATIENT_ID = c("10101097", "10421089", "10011029"),
+  VISIT_NAME = c("Adverse Events", "Adverse Events", "Adverse Events"),
+  SITE_ID = c("1010", "1042", "1001"),
+  bool_col = c(TRUE, FALSE, FALSE), #bool
+	int32_col = as.integer(c(1L, 2L, 3L)), #int32
+	int64_col = bit64::as.integer64(c(1, 2, 3)), #int64
+	double_col = as.numeric(c(1.23, 2.2, 3.3)), #double
+	char_col = c("a", "b", "c"), #string
+	date32_col = as.Date(c("2020-01-01", "2020-01-02", "2020-01-03")), #date32[day]
+	timestamp_col1 = as.POSIXct(c("2020-01-01", "2020-01-02", "2020-01-03"), tz = "UTC"), #timestamp[us, tz=UTC]
+	timestamp_col2 = as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00", "2020-01-03 14:00:00"), tz = "UTC"), #timestamp[us, tz=UTC]
+	stringsAsFactors = FALSE
+)
+
+```
+
+#### Dry publish to validate the config
+
+```{r eval=FALSE}
+
+dry_publish_result <- dc$dry_publish(
+  project_token = project_token,
+  dataset_name = dataset_name,
+  key_columns = key_columns,
+  source_datasets = source_datasets,
+  data = sample_data)
+
+print(dry_publish_result)
+
+```
+
+#### Publish dataset
+
+```{r eval=FALSE}
+
+publish_result <- dc$publish(
+  project_token = project_token,
+  dataset_name = dataset_name,
+  key_columns = key_columns,
+  source_datasets = source_datasets,
+  data = sample_data)
+
+print(publish_result$success)
+
+if (publish_result$success) {
+  print(publish_result$message)
+} else {
+  print(publish_result$error_type)
+  print(publish_result$error_message)
+}
+
+```
+
