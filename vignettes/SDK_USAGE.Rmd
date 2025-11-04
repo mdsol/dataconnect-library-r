@@ -33,7 +33,7 @@ vignette("SDK_USAGE", package = "dataconnect")
 
 ```{r eval=FALSE}
 
-dc <-init(token = "<authenication_token_here>")
+dc <-init(token = "<authentication_token_here>")
 
 ```
 
