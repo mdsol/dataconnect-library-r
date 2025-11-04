@@ -78,7 +78,7 @@ jobs:
         if-no-files-found: error
 
     - name: Publish Test Results
-      uses: mikepenz/action-junit-report@v5
+      uses: mikepenz/action-junit-report@v6
       if: always()
       with:
         report_paths: target/junit-results.xml
