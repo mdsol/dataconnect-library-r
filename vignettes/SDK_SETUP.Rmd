@@ -1,0 +1,52 @@
+---
+title: "R Data Connect SDK - Setup"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{R Data Connect SDK - Setup}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+**Prerequisite: Install R & RStudio if you have not installed before.**
+
+#### Install devtools, if it was not already installed before.
+
+```{r eval=FALSE}
+
+install.packages("devtools")
+
+```
+
+#### Install reticulate, if it was not already installed before.
+
+```{r eval=FALSE}
+
+install.packages("reticulate")
+
+```
+
+#### Install dataconnect library from GitHub
+
+```{r eval=FALSE}
+
+try({remove.packages("dataconnect")}, silent=TRUE)
+
+devtools::install_github(
+  repo = "mdsol/dataconnect-library-r", 
+  build_vignettes = TRUE, 
+  upgrade = FALSE)
+
+```
+
+#### Setup virtual environment, only if it was not created before. It is not required to run this step when updated package is installed.
+
+```{r eval=FALSE}
+
+library(dataconnect)
+install_miniforge()
+
+```
+
+
+***For usage, please refer this [guide](SDK_USAGE.html).***
+

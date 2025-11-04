@@ -1,0 +1,93 @@
+name: Build & Validate R Package
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.event.pull_request.number }}-ci
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  conventional-commits-check:
+    name: Conventional Commits Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: webiny/action-conventional-commits@v1.3.0
+        name: Check Commit Messages
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          allowed-commit-types: 'feat,fix,docs,style,refactor,perf,test,build,ci,chore,revert'
+
+  ci-build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        install: true
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        version: 3.x
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ github.repository_owner }}/dataconnect
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,format=short
+
+    - name: Build Docker image
+      id: docker_build
+      run: task build-docker
+      env:
+        DOCKER_BUILDKIT: 1
+        DOCKER_CLI_EXPERIMENTAL: enabled
+        CI_PROGRESS: plain
+        GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+
+    - name: Run tests
+      run: task test
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: target/junit-results.xml
+        retention-days: 5
+        if-no-files-found: error
+
+    - name: Publish Test Results
+      uses: mikepenz/action-junit-report@v5
+      if: always()
+      with:
+        report_paths: target/junit-results.xml
+        check_name: "R Package Test Results"
+        token: '${{ github.token }}'
+        include_time_in_summary: true
+        flaky_summary: true
+        detailed_summary: true
+        include_passed: true
+        comment: true
+        updateComment: true
+        annotate_notice: true

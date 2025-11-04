@@ -1,0 +1,37 @@
+Package: dataconnect
+Type: Package
+Title: Data Connect Library for R
+Version: 1.0.0
+Authors@R: c(
+    person("Medidata Solutions", role = c("aut", "cre"),
+           email = "helpdesk@mdsol.com")
+    )
+Maintainer: Medidata Solutions <helpdesk@mdsol.com>
+Description: This R library is built by Medidata to provide technical users with a connection to interact with relevant data in R Studio.
+License: file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+VignetteBuilder: knitr
+Imports:
+    reticulate,
+    arrow,
+    jsonlite,
+    dplyr,
+    methods,
+    utils,
+    base64enc
+Depends:
+    R (>= 4.0.0)
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    mockery,
+    xml2,
+    roxygen2,
+    covr,
+    ggplot2,
+    tidyr,
+    qpdf

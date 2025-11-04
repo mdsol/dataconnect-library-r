@@ -1,0 +1,125 @@
+version: '3'
+
+vars:
+  PROJECT_NAME: dataconnect
+  GIT_SHA:
+    sh: git rev-parse --short HEAD
+  DOCKER_IMAGE: '{{.PROJECT_NAME}}:{{.GIT_SHA}}'
+  TEST_OUTPUT_DIR: target
+  DOCKER_BUILDKIT: '{{.DOCKER_BUILDKIT | default "1"}}'
+  DOCKER_CLI_EXPERIMENTAL: '{{.DOCKER_CLI_EXPERIMENTAL | default "enabled"}}'
+  REPOSITORY_OWNER: '{{.GITHUB_REPOSITORY_OWNER | default "local"}}'
+  BUILD_PLATFORMS: '{{.BUILD_PLATFORMS | default "linux/amd64"}}'
+  BUILD_PROGRESS: '{{.CI_PROGRESS | default "auto"}}'
+
+
+tasks:
+  default:
+    desc: Run clean, build-docker, document, check, build-library, and test
+    cmds:
+      - task: clean
+      - task: build-docker
+      - task: document
+      - task: check
+      - task: build-library
+      - task: test
+
+  setup-env:
+    desc: Set up local R environment libraries (not part of docker setup but for local use)
+    cmds:
+      - echo "(this is not part of the docker setup but for local use) Setting up local R environment libraries using setup-env.R..."
+      - Rscript support_scripts/setup_env.R
+
+  reset-env:
+    desc: Reset local R environment (removes all installed libraries in R)
+    cmds:
+      - echo "Resetting local R environment (it's gonna blow all installed libraries in R away)..."
+      - Rscript support_scripts/reset_env.R
+
+  build-docker:
+    desc: Build Docker image
+    cmds:
+      - echo "Building Docker image..."
+      - |
+        # Check if buildx is available, create builder instance if needed
+        if ! docker buildx inspect buildx-builder &>/dev/null; then
+          echo "Creating new buildx builder instance..."
+          docker buildx create --name buildx-builder --use
+        else
+          echo "Using existing buildx builder instance..."
+          docker buildx use buildx-builder
+        fi
+        
+        # Build with BuildX
+        docker buildx build \
+          --platform {{.BUILD_PLATFORMS}} \
+          --tag {{.DOCKER_IMAGE}} \
+          --tag {{.REPOSITORY_OWNER}}/{{.PROJECT_NAME}}:{{.GIT_SHA}} \
+          --tag {{.PROJECT_NAME}}:latest \
+          --load \
+          --progress={{.BUILD_PROGRESS}} \
+          .
+        
+        # Output the built image info
+        echo "Successfully built Docker image: {{.DOCKER_IMAGE}}"
+        docker images | grep {{.PROJECT_NAME}}
+
+  setup:
+    desc: Create necessary directories
+    cmds:
+      - echo "Setting up..."
+      - mkdir -p {{.TEST_OUTPUT_DIR}}
+
+  build-library:
+    desc: Build R package library
+    deps: [setup]
+    cmds:
+      - echo "Building R package library..."
+      - |
+        docker run --platform linux/amd64 --rm -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} \
+        Rscript -e "devtools::build(path = '/usr/src/app/target/')"
+
+  document:
+    desc: Generate documentation
+    cmds:
+      - echo "Running R script via Docker to generate documentation..."
+      - |
+        docker run --platform linux/amd64 --rm -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} \
+        Rscript -e "devtools::document()"
+
+  check:
+    desc: Check R package
+    cmds:
+      - echo "Checking R package via Docker..."
+      - |
+        docker run --platform linux/amd64 --rm -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} \
+        Rscript -e "options('_R_CHECK_FORCE_SUGGESTS_' = FALSE); devtools::check(force_suggests = FALSE)"
+
+  run-R:
+    desc: Run R shell
+    cmds:
+      - echo "Running R script via Docker..."
+      - |
+        docker run --platform linux/amd64 --rm -it -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} R
+
+  run:
+    desc: Run Docker container
+    cmds:
+      - echo "Running Docker Image without R..."
+      - |
+        docker run --platform linux/amd64 --rm -it -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} /bin/bash
+
+  test:
+    desc: Run tests
+    deps: [setup]
+    cmds:
+      - echo "Testing the project..."
+      - |
+        docker run --platform linux/amd64 --rm -v "$(pwd)":/usr/src/app {{.DOCKER_IMAGE}} \
+        Rscript -e "options(testthat.output_file = '/usr/src/app/{{.TEST_OUTPUT_DIR}}/junit-results.xml'); testthat::test_dir('tests/testthat',reporter = 'junit')"
+
+  clean:
+    desc: Clean up
+    cmds:
+      - echo "Cleaning up..."
+      - rm -rf {{.TEST_OUTPUT_DIR}}
