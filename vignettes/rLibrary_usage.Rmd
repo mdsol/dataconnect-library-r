@@ -1,13 +1,13 @@
 ---
-title: "R Data Connect SDK - Usage"
+title: "Data Connect Library - Usage"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{R Data Connect SDK - Usage}
+  %\VignetteIndexEntry{Data Connect Library - Usage}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-***To set up Data Connect SDK, please follow these [instructions](SDK_SETUP.html).***
+***To set up Data Connect Library, please follow these [instructions](rLibrary_setup.html).***
 
 ### Initialize Data Connect connection
 
@@ -24,7 +24,7 @@ use_miniforge_env()
 
 ```{r eval=FALSE}
 
-vignette("SDK_USAGE", package = "dataconnect")
+vignette("rLibrary_usage", package = "dataconnect")
 
 ```
 
