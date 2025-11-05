@@ -14,7 +14,7 @@ vignette: >
 Please restart R session in Rstudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment
 
 ```{r}
-# we recommend store userToken in a seperate file in your working directory
+# we recommend store userToken in a separate file in your working directory
 # this is the user authentication token generated from the Developer Center in iMedidata Platform
 
 userToken = "usertoken"
