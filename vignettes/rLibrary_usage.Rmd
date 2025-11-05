@@ -11,7 +11,7 @@ vignette: >
 
 ### Preparation
 
-Please restart R session in RStudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment
+Please restart R session in RStudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment.
 
 ```{r}
 # we recommend store userToken in a separate file in your working directory
@@ -21,8 +21,7 @@ userToken = "usertoken"
 ```
 
 ```{r}
-#load pre-requisite libraries
-library(dplyr)
+# load prerequisite libraries
 library(tidyverse)
 ```
 
@@ -41,18 +40,18 @@ dc <-init(
 
 #### Search datasets in a study environment
 
-Retrieve the study and study environment information Developer information in iMedidata Platform
+Retrieve the study and study environment information from "Developer info" in iMedidata Platform.
 
 ```{r}
 
 PWBStudy = list(
   PWBStudyId = "studyid",
-  PWBPRODEnvID = "studyenviromentid"
+  PWBPRODEnvID = "studyenvironmentid"
 )
 
 ExciterStudy = list (
   ExciterStudyId = "studyid",
-  ExciterPRODEnvID = "studyenviromentid"
+  ExciterPRODEnvID = "studyenvironmentid"
 )
 ```
 
@@ -95,7 +94,7 @@ print(paste("Total datasets:", count))
 Prepare a list of datasets that are needed.
 
 ```{r}
-#datasetid can be retrieved from search datasets()
+# datasetid can be retrieved from search datasets()
 datasetid = list(
   PWBDerID = "datasetid",
   PWBImportID = "datasetid",
@@ -139,7 +138,7 @@ Derdata <- dc$fetch_data(
                 study_environment_uuid = PWBStudy$PWBPRODEnvID,
                 dataset_uuid = datasetid$PWBDerID
 )
-# Fetching first 6 rows of data
+# Fetching the first 6 rows of data
 Derdata$frame %>% head()
 ```
 
@@ -150,7 +149,7 @@ ImportData <- dc$fetch_data(
                 dataset_uuid = datasetid$PWBImportID
 )
 
-# Fetching first 3 rows of data
+# Fetching the first 3 rows of data
 ImportData$frame %>% head(3)
 ```
 
@@ -161,13 +160,13 @@ CustomData <- dc$fetch_data(
                 dataset_uuid = datasetid$ExciterCustomID
 )
 
-# Fetching first 3 rows of data
+# Fetching the first 3 rows of data
 CustomData$frame %>% head(3)
 ```
 
 ```{r}
 # MATERIALIZE LOCALLY: bring the data into memory as a data.frame
-# collect should return the entirety of the dataset 
+# collect() should return the entirety of the dataset 
 
 Derdf = Derdata$frame %>% collect()
 Importdf = ImportData$frame %>% collect()
@@ -175,11 +174,9 @@ Customdf = CustomData$frame %>% collect()
 ```
 
 ```{r}
-# Consider choosing the first few rows of a dataset by using %>% head() if the dataset is extremely large 
+# Consider fetching the first few rows of a dataset by using %>% head() if the dataset is extremely large
 
-RAVEdf = RAVEdata$frame %>% 
-  head() %>%
-  collect()
+RAVEdf = RAVEdata$frame %>% head()
 ```
 
 ### Data Transformation Example Using Dplyr
@@ -188,16 +185,16 @@ RAVEdf = RAVEdata$frame %>%
 
 Materialize the data into the client side memory as a R dataframe.
 
-If you have limited memory allocation, we recommend working on a limited set of record to reduce development time, and then remove record limit during recurring execution.
+If you have limited memory allocation, we recommend working on a limited set of records to reduce development time, and then remove record limit during recurring execution.
 
-If you receive error indicating you are running out of memory, please reach out your R IDE provider to increase memory allocation.
+If you receive an error indicating that you are running out of memory, please reach out to your R IDE provider to increase the memory allocation.
 
 #### Set up: Using dplyr to perform data transformation on materialized data frame
 
-Those functions are not provided by `dataconnect` library, below are just examples how common R librarys can be used with the `dataconnect` library. For detail of how those library can be used, please consult the library providers.
+These functions are not provided by the `dataconnect` library; below are just examples of how common R libraries can be used with the `dataconnect` library. For details on how these libraries can be used, please consult the respective library documentation.
 
 ```{r dplyr-basic}
-# pivot Derdf as pivotDF
+# Pivot Derdf as pivotDF
 pivotDF <- Derdf %>%
   rename(
     HCT_result = HCT,
@@ -217,7 +214,7 @@ pivotDF <- Derdf %>%
     lab_unit = unit
   )
 
-# union the dataset together (pivotDF, Importdf) as unionDF
+# Union the datasets together (pivotDF, Importdf) as unionDF
 pivotdf_renamed <- pivotDF %>%
   rename(
     subjid = patient_id,
@@ -225,10 +222,10 @@ pivotdf_renamed <- pivotDF %>%
     lbtest = lab_test,
     lbresn = lab_result,
     lbresu = lab_unit
-  ) 
+  )
 unionDF <- bind_rows(Importdf, pivotdf_renamed)
 
-# join the dataset together (unionDF, Customdf) as publishDF
+# Join the datasets together (unionDF, Customdf) as publishDF
 x = Importdf
 y = unionDF
 publishDF <- full_join(
@@ -249,10 +246,12 @@ publishDF <- full_join(
 
 ### Publishing
 
-Set up your project token where the resulting dataset (i.e., publishDF) will be pushed to. Please make sure it is published to the correct study environment and project. It is recommended to use dry_publish function to validate the result first before publish the resulting dataset back to Medidata Data Connect.
+Set up your project token where the resulting dataset (i.e., publishDF) will be published to. 
+Please make sure it is published to the correct study environment and project. 
+It is recommended to use dry_publish function to validate the result first before publishing the resulting dataset back to Medidata Data Connect.
 
 ```{r}
-# Project token is generated in Data Connect Transformation Custom Code Project
+# The project token is generated in the Data Connect Transformation Custom Code Project
 
 myProjectToken = "projecttoken"
 ```
@@ -260,7 +259,7 @@ myProjectToken = "projecttoken"
 #### Validate the dataset to be published
 
 ```{r}
-#validating the published dataset, comment out when set on a recurring schedule
+# Validating the published dataset; comment out when set on a recurring schedule
 dc$dry_publish(
   project_token = myProjectToken,
   dataset_name = "projectname",
