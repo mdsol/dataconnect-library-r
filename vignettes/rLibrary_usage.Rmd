@@ -228,7 +228,7 @@ pivotdf_renamed <- pivotDF %>%
   ) 
 unionDF <- bind_rows(Importdf, pivotdf_renamed)
 
-# join the dataset together (uninoDF, Customdf) as publishDF
+# join the dataset together (unionDF, Customdf) as publishDF
 x = Importdf
 y = unionDF
 publishDF <- full_join(
