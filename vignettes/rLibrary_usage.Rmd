@@ -249,7 +249,7 @@ publishDF <- full_join(
 
 ### Publishing
 
-Set up your project token where the resulting dataset (i.e., publishDF) will be pushed to. Please make sure it is published to the correct study environment and project. It recommended to use dry_publish function to validate the result first before publish the resulting dataset back to Medidata Data Connect.
+Set up your project token where the resulting dataset (i.e., publishDF) will be pushed to. Please make sure it is published to the correct study environment and project. It is recommended to use dry_publish function to validate the result first before publish the resulting dataset back to Medidata Data Connect.
 
 ```{r}
 # Project token is generated in Data Connect Transformation Custom Code Project
