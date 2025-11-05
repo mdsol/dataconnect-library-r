@@ -254,7 +254,7 @@ Set up your project token where the resulting dataset (i.e., publishDF) will be 
 ```{r}
 # Project token is generated in Data Connect Transformation Custom Code Project
 
-myProjectToken = "projectoken"
+myProjectToken = "projecttoken"
 ```
 
 #### Validate the dataset to be published
