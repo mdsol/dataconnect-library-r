@@ -9,79 +9,67 @@ vignette: >
 
 ***To set up Data Connect Library, please follow these [instructions](rLibrary_setup.html).***
 
-### Initialize Data Connect connection
+### Preparation
 
-***Please restart R session in RStudio before proceeding***
+Please restart R session in Rstudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment
 
-```{r eval=FALSE}
+```{r}
+# we recommend store userToken in a seperate file in your working directory
+# this is the user authentication token generated from the Developer Center in iMedidata Platform
 
-library(dataconnect)
-use_miniforge_env()
-
+userToken = "usertoken"
 ```
 
-### Load vignettes in R Studio if needed
-
-```{r eval=FALSE}
-
-vignette("rLibrary_usage", package = "dataconnect")
-
-```
-
-
-### create a Data Connect client instance
-
-```{r eval=FALSE}
-
-dc <-init(token = "<authentication_token_here>")
-
-```
-
-### Ad Hoc Exploration and Analysis
-
-```{r eval=FALSE}
-
+```{r}
+#load pre-requsite libraries
 library(dplyr)
 library(tidyverse)
+```
+
+### Initialize Data Connect connection
+
+```{r}
+library(dataconnect)
+use_miniforge_env()
+  
+dc <-init(
+  token = userToken)
 
 ```
 
-#### Fetch study environments
+### Work with datasets with `dataconnect` library
 
-```{r eval=FALSE}
+#### Search datasets in a study environment
 
-count <- 0
-study_envs <- dc$study_environments()
+Retrieve the study and study environment information Developer information in iMedidata Platform
 
-# Process them lazily across all pages with one call
-results <- study_envs %::% {
-  count <<- count + 1
-  cat("## Study Environment ", count, "\n\n")
-  # to_frame is a helper for pretty printing the data elements out
-  table_output <- to_frame(data)
+```{r}
 
-  # Print each line of the table separately
-  cat(paste(table_output, collapse = "\n"))
-  cat("\n\n")
+PWBStudy = list(
+  PWBStudyId = "studyid",
+  PWBPRODEnvID = "studyenviromentid"
+)
 
-  flush.console()
-
-  data
-}
-
-print(paste("Total study environments:", count))
-
+ExciterStudy = list (
+  ExciterStudyId = "studyid",
+  ExciterPRODEnvID = "studyenviromentid"
+)
 ```
 
-#### Fetch datasets in a study environment
+set search keyword
 
-```{r eval=FALSE}
+```{r}
+searchName = "datasetname"
+```
 
+search for a dataset in a specific study environment
+
+```{r}
 count <- 0
 datasets <- dc$datasets(
-  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
-  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
-  search_dataset_name="demo")
+  study_uuid = ExciterStudy$ExciterStudyId,
+  study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
+  search_dataset_name= searchName)
 
 # Process them lazily across all pages with one call
 results <- datasets %::% {
@@ -98,189 +86,198 @@ results <- datasets %::% {
   data
 }
 
+# Display the total number of items processed
 print(paste("Total datasets:", count))
-
 ```
 
-#### Fetch versions of a specific dataset
+#### Identify different versions of a specific dataset
 
-```{r eval=FALSE}
+Prepare a list of datasets that are needed.
 
+```{r}
+#datasetid can retrieved from search datasets()
+datasetid = list(
+  PWBDerID = "datasetid",
+  PWBImportID = "datasetid",
+  PWBRaveID = "datasetid",
+  PWBCustomID = "datasetid",
+  ExciterDerID = "datasetid",
+  ExciterImportID = "datasetid",
+  ExciterRaveID = "datasetid",
+  ExciterCustomID = "datasetid"
+)
+```
+
+Retrieve other dataset versions if they are available
+
+```{r}
 dataset_versions <- dc$dataset_versions(
-  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
-  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
-  dataset_uuid = "0a4aaf73-1ebf-3f14-b955-f74d56fd7010")
+  study_uuid= ExciterStudy$ExciterStudyId,
+  study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
+  dataset_uuid = datasetid$ExciterCustomID)
 
 for(dataset_version in dataset_versions) {
   print(to_frame(dataset_version))
 }
-
 ```
 
-#### Fetch data of a specific dataset
+#### Fetch records for specific datasets
 
-```{r eval=FALSE}
+```{r}
+RAVEdata <- dc$fetch_data(
+                study_uuid = ExciterStudy$ExciterStudyId,
+                study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
+                dataset_uuid = datasetid$ExciterRaveID
+)
+# Fetching first 3 rows of data
+RAVEdata$frame %>% head(3)
+```
 
-data <- dc$fetch_data(
-  study_uuid="e2149dd5-2ca7-4b1d-9973-20d166f9a560",
-  study_environment_uuid="cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
-  dataset_uuid="14b75660-8a52-3e1b-a670-a91ddace7a49"
+```{r}
+Derdata <- dc$fetch_data(
+                study_uuid = PWBStudy$PWBStudyId,
+                study_environment_uuid = PWBStudy$PWBPRODEnvID,
+                dataset_uuid = datasetid$PWBDerID
+)
+# Fetching first 6 rows of data
+Derdata$frame %>% head()
+```
+
+```{r}
+ImportData <- dc$fetch_data(
+                study_uuid = PWBStudy$PWBStudyId,
+                study_environment_uuid = PWBStudy$PWBPRODEnvID,
+                dataset_uuid = datasetid$PWBImportID
 )
 
-df_output <- data$frame %>% head(5)
-df_output
+# Fetching first 3 rows of data
+ImportData$frame %>% head(3)
+```
 
-# or to fetch all data
-# data$frame %>% collect()
+```{r}
+CustomData <- dc$fetch_data(
+                study_uuid = ExciterStudy$ExciterStudyId,
+                study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
+                dataset_uuid = datasetid$ExciterCustomID
+)
 
+# Fetching first 3 rows of data
+CustomData$frame %>% head(3)
+```
+
+```{r}
+# MATERIALIZE LOCALLY: bring the data into memory as a data.frame
+# collect should return the entirety of the dataset 
+
+Derdf = Derdata$frame %>% collect()
+Importdf = ImportData$frame %>% collect()
+Customdf = CustomData$frame %>% collect()
+```
+
+```{r}
+# Consider choose first few row of a dataset by using %>%head() if the dataset is extremely large 
+
+RAVEdf = RAVEdata$frame %>% 
+  head() %>%
+  collect()
 ```
 
 ### Data Transformation Example Using Dplyr
 
-#### Using client side native dplyr capability in R
+#### Data transformation using native dplyr capability in R
 
-```{r get-dataset, eval=FALSE}
+Materialize the data into the client side memory as a R dataframe.
 
-# The $frame is a lazy DataConnectRef
-tbl <- data$frame
+If you have limited memory allocation, we recommend working on a limited set of record to reduce development time, and then remove record limit during recurring execution.
 
-# MATERIALIZE LOCALLY: bring the data into memory as a data.frame
-# Caution: This downloads the dataset. Consider server-side filters first if the dataset is large.
-df <- tbl %>% collect()
+If you receive error indicating you are running out of memory, please reach out your R IDE provider to increase memory allocation.
 
-# Peek at a few rows locally
-head(df, 3)
+#### Set up: Using dplyr to perform data transformation on materialized data frame
 
-```
+Those functions are not provided by `dataconnect` library, below are just examples how common R librarys can be used with the `dataconnect` library. For detail of how those library can be used, please consult the library providers.
 
-#### Using dplyr verbs (client-side on a local data.frame)
+```{r dplyr-basic}
+# pivot Derdf as pivotDF
+pivotDF <- Derdf %>%
+  rename(
+    HCT_result = HCT,
+    plat_result = PLAT,
+    wbc_result = WBC,
+    HCT_unit = HCT_UNIT,
+    plat_unit = PLAT_UNIT,
+    wbc_unit = WBC_UNIT
+  ) %>%
+  pivot_longer(
+    cols = -c(patient_id, site_id, LBTIM),
+    names_to = c("lab_test", ".value"),
+    names_sep = "_"
+  ) %>%
+  rename(
+    lab_result = result,
+    lab_unit = unit
+  )
 
-All operations below are pure dplyr on `df` (an in-memory data.frame). Use `tibble::as_tibble(df)` if you prefer a tibble.
-
-```{r dplyr-basic, eval=FALSE}
-
-# Example: projection + filtering + sorting + limiting (all client-side)
-result_df <- df %>%
-  filter(lbtest == "Relaxin2", lbstresc > 9) %>%
-  arrange(dplyr::desc(lbseq)) %>%
-  slice_head(n = 100)
-
-result_df %>% head()
-
-```
-
-##### Grouping and counting
-
-`count()` and `group_by()` + `summarise()` work natively on the local data.
-
-```{r dplyr-count, eval=FALSE}
-
-lbtest_counts <- df %>%
-  count(lbtest, sort = TRUE)
-
-lbtest_counts %>% head()
-
-```
-
-```{r dplyr-summarise, eval=FALSE}
-
-summary_df <- df %>%
-  group_by(lbtest) %>%
-  summarise(n = dplyr::n(), .groups = "drop") %>%
-  arrange(dplyr::desc(n))
-
-summary_df %>% head()
-
-```
-
-##### Pattern matching and null checks (client-side)
-
-Use `stringr::str_detect()` (or `grepl()`) for substring matching and `is.na()` for missing values.
-
-```{r dplyr-patterns, eval=FALSE}
-
-# Case-insensitive substring search for "Base"
-pattern_df <- df %>%
-  filter(
-    str_detect(visit, regex("Base", ignore_case = TRUE)),
-    lbtest == "Relaxin2"
+# union the dataset together (pivotDF, Importdf) as unionDF
+pivotdf_renamed <- pivotDF %>%
+  rename(
+    subjid = patient_id,
+    siteid = site_id,
+    lbtest = lab_test,
+    lbresn = lab_result,
+    lbresu = lab_unit
   ) 
+unionDF <- bind_rows(Importdf, pivotdf_renamed)
 
-# Rows where 'code' is NA (missing)
-null_rows <- df %>%
-  filter(is.na(lbstresc))
-  
+# join the dataset together (uninoDF, Customdf) as publishDF
+x = Importdf
+y = unionDF
+publishDF <- full_join(
+  x,
+  y %>% select(subjid, 
+               siteid, 
+               visitnum, 
+               -any_of(
+                 setdiff(
+                   names(x),
+                   c("subjid", "siteid", "visitnum")
+                   )
+                 )
+               ),
+  by = c("subjid" = "subjid", "siteid" = "siteid", "visitnum" = "visitnum")
+)
 ```
-
-#### Tips and notes
-
--   Client-side workflow: We first `collect()` to bring data into memory, then use dplyr natively.
--   Sorting: Use `dplyr::desc()` inside `arrange()` on your local data.
--   Row limiting: Use `slice_head(n = ...)`, `slice_tail()`, or `slice_sample()` after sorting/filtering locally.
--   Large datasets: If the dataset is large, consider use `head()` on the server (with the lazy `tbl`) before `collect()` to reduce data volume, then finish with client-side dplyr.
 
 ### Publishing
 
-#### Fetch project token from Data Connect Transformation Page
+Set up your project token where the resulting dataset (i.e., publishDF) will be pushed to. Please make sure it is published to the correct study environment and project. It recommended to use dry_publish function to validate the result first before publish the resulting dataset back to Medidata Data Connect.
 
-```{r eval=FALSE}
+```{r}
+# Project token is generated in Data Connect Transformation Custom Code Project
 
-project_token <- "<project_token_here>"
-dataset_name <- "your_dataset_name_here"
-key_columns <- list("int32_col")
-source_datasets <- list("0a4aaf73-1ebf-3f14-b955-f74d56fd7010")
+myProjectToken = "projectoken"
+```
 
-sample_data <- data.frame(
-  PATIENT_ID = c("10101097", "10421089", "10011029"),
-  VISIT_NAME = c("Adverse Events", "Adverse Events", "Adverse Events"),
-  SITE_ID = c("1010", "1042", "1001"),
-  bool_col = c(TRUE, FALSE, FALSE), #bool
-	int32_col = as.integer(c(1L, 2L, 3L)), #int32
-	int64_col = bit64::as.integer64(c(1, 2, 3)), #int64
-	double_col = as.numeric(c(1.23, 2.2, 3.3)), #double
-	char_col = c("a", "b", "c"), #string
-	date32_col = as.Date(c("2020-01-01", "2020-01-02", "2020-01-03")), #date32[day]
-	timestamp_col1 = as.POSIXct(c("2020-01-01", "2020-01-02", "2020-01-03"), tz = "UTC"), #timestamp[us, tz=UTC]
-	timestamp_col2 = as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00", "2020-01-03 14:00:00"), tz = "UTC"), #timestamp[us, tz=UTC]
-	stringsAsFactors = FALSE
+#### Validate the dataset to be published
+
+```{r}
+#validating the published dataset, comment out when set on a recurring schedule
+dc$dry_publish(
+  project_token = myProjectToken,
+  dataset_name = "projectname",
+  key_columns = list ("field1","field2", "field3"),
+  source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+  data = publishDF
 )
-
 ```
 
-#### Dry publish to validate the config
+#### Publish
 
-```{r eval=FALSE}
-
-dry_publish_result <- dc$dry_publish(
-  project_token = project_token,
-  dataset_name = dataset_name,
-  key_columns = key_columns,
-  source_datasets = source_datasets,
-  data = sample_data)
-
-print(dry_publish_result)
-
+```{r}
+dc$publish(
+  project_token = myProjectToken,
+  dataset_name = "projectname",
+  key_columns = list ("field1","field2", "field3"),
+  source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+  data = publishDF
+)
 ```
-
-#### Publish dataset
-
-```{r eval=FALSE}
-
-publish_result <- dc$publish(
-  project_token = project_token,
-  dataset_name = dataset_name,
-  key_columns = key_columns,
-  source_datasets = source_datasets,
-  data = sample_data)
-
-print(publish_result$success)
-
-if (publish_result$success) {
-  print(publish_result$message)
-} else {
-  print(publish_result$error_type)
-  print(publish_result$error_message)
-}
-
-```
-
