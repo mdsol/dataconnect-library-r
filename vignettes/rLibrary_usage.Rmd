@@ -95,7 +95,7 @@ print(paste("Total datasets:", count))
 Prepare a list of datasets that are needed.
 
 ```{r}
-#datasetid can retrieved from search datasets()
+#datasetid can be retrieved from search datasets()
 datasetid = list(
   PWBDerID = "datasetid",
   PWBImportID = "datasetid",
