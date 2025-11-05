@@ -11,7 +11,7 @@ vignette: >
 
 ### Preparation
 
-Please restart R session in Rstudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment
+Please restart R session in RStudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment
 
 ```{r}
 # we recommend store userToken in a separate file in your working directory
