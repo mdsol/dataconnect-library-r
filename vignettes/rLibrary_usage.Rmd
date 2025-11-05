@@ -175,7 +175,7 @@ Customdf = CustomData$frame %>% collect()
 ```
 
 ```{r}
-# Consider choose first few row of a dataset by using %>%head() if the dataset is extremely large 
+# Consider choosing the first few rows of a dataset by using %>% head() if the dataset is extremely large 
 
 RAVEdf = RAVEdata$frame %>% 
   head() %>%
