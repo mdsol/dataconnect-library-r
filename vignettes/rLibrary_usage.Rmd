@@ -21,7 +21,7 @@ userToken = "usertoken"
 ```
 
 ```{r}
-#load pre-requsite libraries
+#load pre-requisite libraries
 library(dplyr)
 library(tidyverse)
 ```
