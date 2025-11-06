@@ -13,21 +13,21 @@ vignette: >
 
 Please restart R session in RStudio before proceeding, if you have just installed the dataconnect R library and set up the conda environment.
 
-```{r}
-# we recommend store userToken in a separate file in your working directory
-# this is the user authentication token generated from the Developer Center in iMedidata Platform
+```{r eval=FALSE}
+# We recommend storing userToken in a separate file in your working directory.
+# This is the user authentication token generated from the Developer Center in iMedidata Platform.
 
 userToken = "usertoken"
 ```
 
-```{r}
-# load prerequisite libraries
+```{r eval=FALSE}
+# Load prerequisite libraries
 library(tidyverse)
 ```
 
 ### Initialize Data Connect connection
 
-```{r}
+```{r eval=FALSE}
 library(dataconnect)
 use_miniforge_env()
   
@@ -42,7 +42,7 @@ dc <-init(
 
 Retrieve the study and study environment information from "Developer info" in iMedidata Platform.
 
-```{r}
+```{r eval=FALSE}
 
 PWBStudy = list(
   PWBStudyId = "studyid",
@@ -55,15 +55,15 @@ ExciterStudy = list (
 )
 ```
 
-set search keyword
+Set search keyword.
 
-```{r}
+```{r eval=FALSE}
 searchName = "datasetname"
 ```
 
-search for a dataset in a specific study environment
+Search for a dataset in a specific study environment.
 
-```{r}
+```{r eval=FALSE}
 count <- 0
 datasets <- dc$datasets(
   study_uuid = ExciterStudy$ExciterStudyId,
@@ -93,7 +93,7 @@ print(paste("Total datasets:", count))
 
 Prepare a list of datasets that are needed.
 
-```{r}
+```{r eval=FALSE}
 # datasetid can be retrieved from search datasets()
 datasetid = list(
   PWBDerID = "datasetid",
@@ -107,9 +107,9 @@ datasetid = list(
 )
 ```
 
-Retrieve other dataset versions if they are available
+Retrieve other dataset versions if they are available.
 
-```{r}
+```{r eval=FALSE}
 dataset_versions <- dc$dataset_versions(
   study_uuid= ExciterStudy$ExciterStudyId,
   study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
@@ -122,7 +122,7 @@ for(dataset_version in dataset_versions) {
 
 #### Fetch records for specific datasets
 
-```{r}
+```{r eval=FALSE}
 RAVEdata <- dc$fetch_data(
                 study_uuid = ExciterStudy$ExciterStudyId,
                 study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
@@ -132,7 +132,7 @@ RAVEdata <- dc$fetch_data(
 RAVEdata$frame %>% head(3)
 ```
 
-```{r}
+```{r eval=FALSE}
 Derdata <- dc$fetch_data(
                 study_uuid = PWBStudy$PWBStudyId,
                 study_environment_uuid = PWBStudy$PWBPRODEnvID,
@@ -142,7 +142,7 @@ Derdata <- dc$fetch_data(
 Derdata$frame %>% head()
 ```
 
-```{r}
+```{r eval=FALSE}
 ImportData <- dc$fetch_data(
                 study_uuid = PWBStudy$PWBStudyId,
                 study_environment_uuid = PWBStudy$PWBPRODEnvID,
@@ -153,7 +153,7 @@ ImportData <- dc$fetch_data(
 ImportData$frame %>% head(3)
 ```
 
-```{r}
+```{r eval=FALSE}
 CustomData <- dc$fetch_data(
                 study_uuid = ExciterStudy$ExciterStudyId,
                 study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
@@ -164,7 +164,7 @@ CustomData <- dc$fetch_data(
 CustomData$frame %>% head(3)
 ```
 
-```{r}
+```{r eval=FALSE}
 # MATERIALIZE LOCALLY: bring the data into memory as a data.frame
 # collect() should return the entirety of the dataset 
 
@@ -173,7 +173,7 @@ Importdf = ImportData$frame %>% collect()
 Customdf = CustomData$frame %>% collect()
 ```
 
-```{r}
+```{r eval=FALSE}
 # Consider fetching the first few rows of a dataset by using %>% head() if the dataset is extremely large
 
 RAVEdf = RAVEdata$frame %>% head()
@@ -191,9 +191,9 @@ If you receive an error indicating that you are running out of memory, please re
 
 #### Set up: Using dplyr to perform data transformation on materialized data frame
 
-These functions are not provided by the `dataconnect` library; below are just examples of how common R libraries can be used with the `dataconnect` library. For details on how these libraries can be used, please consult the respective library documentation.
+These functions are not provided by the `dataconnect` library. Below are just examples of how common R libraries can be used with the `dataconnect` library. For details on how these libraries can be used, please consult the respective library documentation.
 
-```{r dplyr-basic}
+```{r dplyr-basic, eval=FALSE}
 # Pivot Derdf as pivotDF
 pivotDF <- Derdf %>%
   rename(
@@ -246,11 +246,9 @@ publishDF <- full_join(
 
 ### Publishing
 
-Set up your project token where the resulting dataset (i.e., publishDF) will be published to. 
-Please make sure it is published to the correct study environment and project. 
-It is recommended to use dry_publish function to validate the result first before publishing the resulting dataset back to Medidata Data Connect.
+Set up your project token where the resulting dataset (i.e., publishDF) will be published to. Please make sure it is published to the correct study environment and project. It is recommended to use dry_publish function to validate the result first before publishing the resulting dataset back to Medidata Data Connect.
 
-```{r}
+```{r eval=FALSE}
 # The project token is generated in the Data Connect Transformation Custom Code Project
 
 myProjectToken = "projecttoken"
@@ -258,8 +256,8 @@ myProjectToken = "projecttoken"
 
 #### Validate the dataset to be published
 
-```{r}
-# Validating the published dataset; comment out when set on a recurring schedule
+```{r eval=FALSE}
+# Validating the published dataset. Comment out when set on a recurring schedule.
 dc$dry_publish(
   project_token = myProjectToken,
   dataset_name = "projectname",
@@ -271,7 +269,7 @@ dc$dry_publish(
 
 #### Publish
 
-```{r}
+```{r eval=FALSE}
 dc$publish(
   project_token = myProjectToken,
   dataset_name = "projectname",
