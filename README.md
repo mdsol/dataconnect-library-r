@@ -2,9 +2,11 @@
 
 # Overview
 
-This library is built by Medidata, to provide technical users (clinical programmers, data scientists, and statisticians) of the Medidata Clinical Data Studio and / or Medidata Data Connect, a connection to relevant data within their own existing R IDE. It is meant to be used with base R functions and any available libraries developed for R. This R library is compatible with R Studio, support for other R IDE is not guaranteed or provided.
+This library is built by Medidata to provide technical users of the Medidata Clinical Data Studio and of Medidata Data Connect – including clinical programmers, data scientists, and statisticians –  a connection to relevant data within their own existing R IDE. You can use this library  with base R functions and other libraries developed for R.
 
-To use this library, you must have a valid iMedidata account, and access to required building blocks in the Medidata Platform. For detailed information, please follow the Medidata [DataConnect R Library knowledge hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). 
+**Note:** This R library is only compatible with R Studio. We do not guarantee or provide support for other R IDEs.
+
+To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
@@ -25,18 +27,18 @@ To use this library, you must have a valid iMedidata account, and access to requ
   - [collect()](#collect)
   - [head(n)](#headn)
 - [Acceptable Data Types and Formats](#acceptable-data-types-and-formats)
-- [Getting help](#getting-help)
+- [Reporting known issues ](#reporting-known-issues)
 - [Backend](#backend)
 - [Versions](#versions)
 - [Licensing](#licensing)
 
 # Installation
 
-To install, please follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_setup.Rmd).
+To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_setup.Rmd).
 
 # Quick Start
 
-For the full quick start guide, please see the [Usage Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_usage.Rmd)
+For the full quick start guide, see the [Usage Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_usage.Rmd)
 
 ### Usage
 
@@ -55,13 +57,13 @@ vignette("rLibrary_usage", package = "dataconnect")
 
 ### Authentication
 
-* **Retrieving data:** To establish a connection between the user's R IDE and Medidata Data Connect, a user token is required. This token is generated through application access in the Data Connect Developer Experience; see details [here](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). It is recommended to save the token in a separate file and input it to the initiation function below.
+* **Retrieving data:** You must have a user token to establish a connection between the user's R IDE and Medidata Data Connect. You can generate this token through Data Connect’s Developer Center. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). Medidata recommends that you save the token in a separate file and input it into the below initiation function.
 
 ```r
 dc <-init(token = "<authentication_token>")
 ```
 
-* **Publish data:** To publish a dataset from R IDE to Medidata Data Connect, a project token is required. This token is generated through application access in Data Connect Transformation by creating Custom Code Projects, see details [here](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html). 
+* **Publish data:** You must have a project token to publish a dataset from R IDE to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html). 
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -84,7 +86,7 @@ RStudio natively supports scheduling for both Windows OS and Linux based OS.
 * [Windows RStudio script scheduler](https://cran.r-project.org/web/packages/taskscheduleR/vignettes/taskscheduleR.html)  
 * [Linux based RStudio script scheduler](https://cran.r-project.org/web/packages/cronR/readme/README.html)
 
-As this function is native to RStudio, not part of Medidata dataconnect R library, please contact your RStudio or your R IDE provider for more information.
+**Note:** These functions are native to RStudio and not to the Medidata Data Connect R Library. If you encounter errors, please contact your RStudio or your IDE provider for support.
 
 # Functions
 
@@ -104,20 +106,20 @@ init(token = "<authentication_token>")
 
 |    Argument  | Description |
 |:-------------| :---------- |
-| **url**      | Server URL, default url="enodia-gateway.platform.imedidata.com" |
-| **port**     | Server port, default port="443" |
-| **use_tls**  | Whether to use TLS, default use_tl=="TRUE" |
+| **url**      | Server URL. Default url="enodia-gateway.platform.imedidata.com" |
+| **port**     | Server port. Default port="443" |
+| **use_tls**  | Denotes whether to use TLS. Default use_tl=="TRUE" |
 | **token**    | Authentication token, this is the user authentication token generated from the Developer Center in Medidata Data Connect |
 
 ### Output 
 
-DataConnectClient object. This enables user to interact with Medidata Data Connect data in R.
+DataConnectClient object. This enables you to interact with Medidata Data Connect data in R.
 
 ## install_miniforge()
 
 ### Description
 
-This function automates the setup of all prerequisites for the Medidata Data Connect R package. It installs Miniforge (a conda environment manager), creates a new conda environment with the specified Python version, and installs the necessary Python packages. This includes pyarrow (installed via pip) to enable full Flight support. The function also checks for existing installations and environments to avoid redundant setup.
+This function automates the setup of all prerequisites for the Medidata Data Connect R package. It installs Miniforge (a conda environment manager); creates a new conda environment with the specified Python version; and installs the necessary Python packages. This includes pyarrow, installed using pip, to enable full Flight support. The function also checks for existing installations and environments to avoid redundant setup.
 
 ### Usage
 
@@ -129,8 +131,8 @@ install_miniforge()
 
 | Argument | Description |
 | :---- | :---- |
-| **envname** | Character. Name of the conda environment to create or use. Default is "dataconnect-lib-r". |
-| **python_version** | Character. Python version to install in the environment. Default is "3.13". |
+| **env_name** | Character. Name of the conda environment to create or use. Default: "dataconnect-library-r". |
+| **python_version** | Character. Python version to install in the environment. Default: "3.13". |
 | **remove_existing_env** | Logical. If TRUE, removes the existing environment with the same name before creating a new one. The default is FALSE. |
 
 ### Details
@@ -140,7 +142,7 @@ install_miniforge()
 * Creates a conda environment with the specified Python version and required packages.  
 * Uses the conda-forge channel for package installation.  
 * Skips installation or environment creation if already present.  
-* For persistent configuration, users may need to add these environment variables to their .Rprofile. This information is printed to the console when the package is installed. 
+* For persistent configuration, you can add these environment variables to your .Rprofile. This information is printed to the console when the package is installed. 
 
 ### Output
 
@@ -148,17 +150,17 @@ install_miniforge()
 
 * **miniforge_root**: Path to the Miniforge installation directory.  
 * **conda_bin**: Path to the conda executable.  
-* **envpath**: Path to the created conda environment.
+* **env_path**: Path to the created conda environment.
 
 ### Note
 
-After creating a new environment, please restart your R session before using it.
+After creating a new environment, restart your R session before using it.
 
 ### use_miniforge_env()
 
 ### Description
 
-This function checks if the required prerequisites for the Medidata Connect R library are met. It verifies that a Miniforge installation and the specified conda environment both exist, and confirms that the correct versions of Python and all necessary packages (such as **pyarrow**) are installed within it. If the validation is successful, the function activates this conda environment for use with **reticulate**.
+This function checks if your configuration meets the required prerequisites for the Medidata Connect R library. It verifies that the configuration contains both a Miniforge installation and the specified conda environment both exist, and confirms that it has the correct versions of Python and all necessary packages (such as **pyarrow**) installed within it. If the validation is successful, the function activates this conda environment for use with **reticulate**.
 
 ### Usage
 
@@ -170,7 +172,7 @@ use_miniforge_env()
 
 | Argument | Description |
 | :----     | :---- |
-| **envname** | Character. Name of the conda environment to use. Defaults to "dataconnect-lib-r". |
+| **env_name** | Character. Name of the conda environment to use. Default: "dataconnect-library-r". |
 
 
 ### Details
@@ -187,11 +189,15 @@ use_miniforge_env()
 
 * **miniforge_root**: Path to the Miniforge installation directory.  
 * **conda_bin**: Path to the conda executable.  
-* **envpath**: Path to the created conda environment.
+* **env_path**: Path to the created conda environment.
 
 ### Note
 
-If the environment does not exist, please reference the execution of install_miniforge(). Please restart the R session after installing Miniforge. If any required component is missing, the function will stop with an informative error message. 
+If the environment does not exist:
+
+* Check the execution of install_miniforge().  
+* Restart the R session after installing Miniforge.   
+* If any required components are missing, the function stops and shows error message. 
 
 ### to_frame()
 
@@ -213,13 +219,13 @@ to_frame(data)
 
 ### Output 
 
-A data frame with two columns: **name** and **value**.
+A data frame with two columns: **name** and **value**
 
 ### datasets()
 
 ### Description
 
-Get all datasets for a study environment.
+Get all datasets for a study environment
 
 ### Usage
 
@@ -231,19 +237,19 @@ datasets(study_uuid, study_environment_uuid, search_dataset_name = "")
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | Unique iMedidata study identifier. This is available in iMedidata developer info |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. This is available in iMedidata developer info |
-| **search_dataset_name** | Optional: The approximate name of the dataset |
+| **study_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
+| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
+| **search_dataset_name** | Optional. The approximate name of the dataset |
 
 ### Output 
 
-Returns all datasets in the given study & study environment and the dataset name if provided. 
+Returns all datasets in the given study and study environment and the dataset name if provided. 
 
 ### dataset_versions()
 
 ### Description
 
-Get all the versions of a dataset.
+Get all the versions of a dataset
 
 ### Usage
 
@@ -256,7 +262,7 @@ dataset_versions(study_uuid, study_environment_uuid, dataset_uuid)
 | Argument | Description |
 | :------- | :---------- |
 | **study_uuid** | Unique iMedidata study identifier. This is available in iMedidata developer info and in the output of datasets() function |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. This is available in iMedidata developer info. This is available in iMedidata developer info and in the output of datasets() function |
+| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of datasets() function |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 ### Output 
@@ -279,9 +285,9 @@ fetch_data(study_uuid, study_environment_uuid, dataset_uuid)
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | Unique iMedidata study identifier. This is available in iMedidata developer info and in the output of datasets() & dataset_versions() function |
-| **study_environment_uuid** | Unique iMedidata study environment identifier.This is available in iMedidata developer info and in the output of datasets() & dataset_versions() function |
-| **dataset_uuid** | Unique iMedidata dataset identifier.This is available in the output of datasets() & dataset_versions() function |
+| **study_uuid** | Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details, and in the output of datasets() and dataset_versions() functions |
+| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of the datasets() and dataset_versions() functions |
+| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
 
 ### Output 
 
@@ -291,7 +297,7 @@ Returns data from a specific dataset.
 
 ### Description
 
-Validate publishing requirements are met with validation result.
+Check if the publication results meet validation requirements.
 
 ### Usage
 
@@ -303,30 +309,30 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data)
 
 | Argument | Description |
 | :------- | :---------- |
-| **project_token** | This is generated through application access in Data Connect Transformation Custom Code Project Type |
-| **dataset_name** | This is the new name of the resulting dataset being created from R IDE. The dataset name is expected to be unique within the study |
-| **key_columns** | Columns that form the composite key which identify each unique record in the data that is being validated |
-| **source_datasets** | List of source dataset uuid that are used to create the data that is being validated |
-| **data** | Data frame what need to be validated |
+| **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
+| **dataset_name** | Data Connect expects the dataset name to be unique within the study |
+| **key_columns** | List of columns that form the composite key that identifies each unique record in the data to be validated |
+| **source_datasets** | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
+| **data** | Data frame that needs to be validated |
 
 ### Output 
 
-Returns the result of publishing validations. When validations are passed, the dataset is expected to be published successfully using the publish() function.
+Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function.
 
 ### Error Messages & Actions
 
 | Error Message | Action |
 | :------------ | :----- |
-| **invalid input_config passed** | Required argument is missing input. Make the required adjustment and try again. |
-| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name and try again. |
-| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** | Verify the study_environment_uuid is correct, if you have access to that study environment, and if the project token being used is in this study environment. |
-| **The source dataset does not exist** | Ensure the source dataset is in the study environment where the dataset is intended to publish to. The system does not support publishing a dataset from one study environment to another study environment. |
-| **Error parsing dataset_uuid** | The dataset_uuid is not a valid UUID, review and provide the correct dataset_uuid. |
-| **Error in validating source dataset** | If there is no error message, please contact Medidata Support, otherwise, address the error message with the corresponding action: **Error parsing dataset_uuid The source dataset does not exist** |
-| **invalid schema passed** | Please contact Medidata Support. |
-| **unsupported field type** | Convert the column type in the dataset or dataframe to a supported field type. Supported field types include: Int32, int64, float32, float64, double, char, bool, date32, date64, data_time, posix. |
-| **invalid column name, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters** | Adjust the column name in the dataset or dataframe. |
-| **invalid key_columns passed. All key_columns must be part of the schema** | Update the column name in the key_column argument, ensure that it exists in the dataset or dataframe. |
+| **invalid input_config passed** | Required argument is missing input; make any required adjustment |
+| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
+| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** | Verify that</br> - The study_environment_uuid is correct.</br> - You have access to that study environment.</br> - The project token being used is in this study environment.|
+| **The source dataset does not exist** | Ensure that the source dataset is in the study environment where you intend to publish the dataset. The system does not support the ability to publish a dataset from one study environment to another study environment. |
+| **Error parsing dataset_uuid** | The dataset_uuid is not a valid UUID. Review and provide the correct dataset_uuid. |
+| **Error in validating source dataset** | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist**|
+| **invalid schema passed** | Contact Medidata Support. |
+| **Unsupported field type and format for '{field.name}'. Please refer to the readme file for supported data types and formats.** | Convert the column data type in the dataset or dataframe that is being published to a supported field type. Currently supported R field types are logical, integer, numeric, character, Date, and  POSIXct. For details, see  [here](#acceptable-data-types-and-formats). |
+| **Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.** | Adjust the column name in the dataset or dataframe that is being published. |
+| **Invalid key_columns passed, all key_columns must be part of the schema.** | Update the column name in the key_column argument. The key columns should exist in the dataset or dataframe that is being published. |
 
 ### publish()
 
@@ -344,29 +350,30 @@ publish(project_token, dataset_name, key_columns, source_datasets, data)
 
 | Argument | Description |
 | :------- | :---------- |
-| **project_token** | This is generated through application access in Data Connect Transformation Custom Code Project Type |
-| **dataset_name** | This is the new name of the resulting dataset being created from R IDE. The dataset name is expected to be unique within the study |
-| **key_columns** | Columns that form the composite key which identify each unique record in the data that is being validated |
-| **source_datasets** | List of source dataset uuid that are used to create the data that is being validated |
-| **data** | Data frame what need to be validated |
+| **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type |
+| **dataset_name** | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
+| **key_columns** | List of columns that form the composite key that identifies each unique record in the data that is being published |
+| **source_datasets** | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
+| **data** | Data frame which needs to be published |
 
 ### Output 
 
-Returns the status of publish. When the dataset is published successfully, it can be accessed in the Medidata Data Connect application for further use.
+Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use.
 
 ### Error Messages & Actions
 
 | Error Message | Action |
 | :------------ | :----- |
-| **Authentication failed** | Ensure that the correct user token and project token are provided. The user must have access to SDK, iMedidata, and the specific study environment. Project token must be from the Custom Code project created by the user, and it must match the provided user token. |
-| **You are not authorized to perform this action** | Ensure that the correct user token and project token are provided. The user must have access to SDK, iMedidata, and the specific study environment. Project token must be from the Custom Code project created by the user, and it must match the provided user token. |
-| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
-| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** | Verify the study_environment_uuid is correct, if you have access to that study environment, and if the project token being used is in this study environment. |
+| **Authentication failed** | Ensure you provide the correct user token and project token. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
+| **You are not authorized to perform this action** | Ensure that you provide the correct user token and project. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
+| **Invalid input_config passed** | Required argument is missing. Make required adjustment. |
+| **Invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
+| **Invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** |Verify that:</br> - The study_environment_uuid is correct. </br> - You have access to that study environment.</br> - The project token being used is in this study environment.|
 | **The source dataset does not exist** | Ensure the source dataset is in the study environment where the dataset is intended to publish to. The system does not support publishing a dataset from one study environment to another study environment.  |
 | **Error parsing dataset uuid** | The dataset_uuid is not a valid uuid. Review and provide the correct dataset_uuid. |
-| **Error in validating source dataset** | If there is no error message, please contact Medidata Support, otherwise, address the error message with the corresponding action: **Error parsing dataset_uuid The source dataset does not exist** |
+| **Error in validating source dataset** | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist** |
 | **Schema is not valid** | Please contact Medidata Support. |
-| **Error occurred while publishing data** | Verify the dataset that is being published passes the validation requirement in **dry_publish()**, and the same arguments input is used in **publish()**. If this error message still persists, please contact Medidata Support. |
+| **Error occurred while publishing data** | Verify that the dataset that is being published passes the validation requirement in **dry_publish()**, and that you use the same arguments input in **publish()**. If the error message persists, please contact Medidata Support. |
 
 ### collect()
 
@@ -396,43 +403,43 @@ df %>% head(n=10)
 
 | Argument | Description |
 | :---- | :---- |
-| **n** | The first number of rows will be retrieved, default is n=6  |
+| **n** | The first number of rows will be retrieved. Default: n=6 |
 
 ## Acceptable Data Types and Formats
 
-Below table provides the supported R column type of dataconnect R library and its representation in Medidata Data Connect.
+The below table provides the supported R column types of Data Connect R library and their representation in Medidata Data Connect.
 
-**Note**: If data type and formats are not listed in the below table, the dataconnect R library may not accept the result when publishing back into Medidata Data Connect. To ensure compatibility, please convert the data type in your R data frame to support the R data type below.
+**Note**: If a data type and format do not appear, it is possible that Data Connect R Library will not accept the result when publishing back into Medidata Data Connect. To ensure compatibility, convert the data type in your R data frame to support the R data type below.
 
 | R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type |
 | :---------- | :-------- | :--------------------- |
 | **integer** | as.integer(c(1L, 2L)) | INTEGER |
-| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, as a result, the supported numeric format - FLOAT will persist 5 decimal places in Medidata Data Connect regardless the value. |
+| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value. |
 | **character** | c("str1", "str2") | STRING |
-| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: R does not store data format, as a result, the supported date type column will be converted to yyyy-MM-dd format when publishing back to Medidata Data Connect. |
-| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**:  R does not store data format, as a result, the supported POSIX.ct type column will be converted to yyyy-MM-dd HH:mm:ss:SSS format. |
-| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type maybe not be fully compatible with Medidata Data Surveillance numeric KRI capability, to ensure compatibility, please convert to integer type. |
+| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: R does not store data format, and as a result, the supported date type column will be converted to the **yyyy-MM-dd** format when publishing back to Medidata Data Connect.|
+| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**:  R does not store data format, and as a result, the supported POSIX.ct type column will be converted to **yyyy-MM-dd HH:mm:ss:SSS** format. |
+| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type. |
 | **integer** | bit64::as.integer64(c(1, 2)) | LONG |
 
 
-# Getting help
+# Reporting known issues
 
-Customers using Data Connect or Clinical Data Studio: If you believe you have found a bug, please submit a ticket to Medidata Support. All bug reports should include a minimal reproducible example to ensure our team can diagnose the issue.
+If you believe you have found an issue, please contact Medidata Support by submitting a ticket to Medidata Support. All issue reports should include a minimal reproducible example to ensure our team can diagnose the issue.
 
 Additionally, all known issues are available [here](https://learn.medidata.com/en-US/bundle/current-issues/page/current_known_issues_for_data_connect.html).
 
 # Backend
 
-This library leverages the Arrow open source library and the Iceberg open table format to enable data interoperability across platforms.
+This library uses the Arrow open source library and the Iceberg open table format to enable data interoperability across platforms.
 
 * [Apache arrow](https://arrow.apache.org/docs/r/): This library uses Arrow’s highly efficient format [pyarrow](https://arrow.apache.org/cookbook/py/flight.html) to transfer massive datasets over the network, allowing users to access & interact with remote datasets.  
     
-* [Apache Iceberg](https://iceberg.apache.org/): This is the open table format underlying Medidata Data Connect's structured data management to support high-performance and reliable data analytics and storage. 
+* [Apache Iceberg](https://iceberg.apache.org/): This is the open table format underlying Medidata Data Connect's structured data management to support high-performance and reliable data analytics and storage.
 
 # Versions
 
-For a list of historical versions of this library and their details, please visit [Medidata Data Connect R Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html)  
-To verify the version currently installed in your environment, use the following:
+For a list of historical versions of this library and their details, see the [Data Connect Release Notes](https://learn.medidata.com/en-US/bundle/data-connect/page/data_connect_release_notes.html).    
+To verify the version currently installed in your environment, use the following
 
 ```r
 packageVersion("dataconnect")
