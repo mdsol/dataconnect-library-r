@@ -157,23 +157,13 @@
 
     if(chunked) {
       # Process in chunks
-      all_data <- list()
+      py_chunks <- list()
 
       # Read chunks until StopIteration
       tryCatch({
         repeat {
           chunk <- reader$read_chunk()
-
-          # Process the chunk
-          r_chunk <- arrow::as_arrow_table(chunk$data)
-
-          # If callback is provided, call it with the chunk
-          if(!is.null(chunk_callback)) {
-            result <- chunk_callback(r_chunk)
-            all_data <- c(all_data, list(result))
-          } else {
-            all_data <- c(all_data, list(r_chunk))
-          }
+          py_chunks[[length(py_chunks) + 1]] <- chunk$data
         }
       }, error = function(e) {
         # Just catch StopIteration and continue
@@ -182,7 +172,23 @@
         }
       })
 
-      return(all_data)
+      # Combine all chunks on the Python side, then convert to R
+      if (length(py_chunks) > 0) {
+        pa <- reticulate::import("pyarrow")
+        combined_py_table <- pa$Table$from_batches(py_chunks)
+        
+        # Convert to R Arrow table
+        result <- arrow::as_arrow_table(combined_py_table)
+        
+        # If callback is provided, call it with the result
+        if(!is.null(chunk_callback)) {
+          result <- chunk_callback(result)
+        }
+        
+        return(result)
+      }
+      
+      return(NULL)
     } else {
       # Read all data at once
       table <- reader$read_all()
