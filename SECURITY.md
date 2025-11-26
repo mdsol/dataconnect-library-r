@@ -21,6 +21,7 @@ We will acknowledge your email within 48 hours and provide a more detailed respo
 | Version | Supported          |
 | ------- | ------------------ |
 | 1.0.0   | ✅                |
+| 1.0.1   | ✅                |
 
 ### Security Update Process
 

@@ -121,7 +121,7 @@ RUN Rscript -e "source('/tmp/install_packages.R'); install_with_fallback(c('knit
 RUN R CMD build --no-build-vignettes .
 
 # Install the dataconnect package with vignettes using remotes
-RUN Rscript -e "remotes::install_local('dataconnect_1.0.0.tar.gz', build_vignettes = TRUE, dependencies = FALSE, upgrade = FALSE)"
+RUN Rscript -e "remotes::install_local('dataconnect_1.0.1.tar.gz', build_vignettes = TRUE, dependencies = FALSE, upgrade = FALSE)"
 
 # Default command to keep the container running for debugging
 CMD ["R"]

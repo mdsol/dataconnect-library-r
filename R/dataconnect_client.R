@@ -167,8 +167,16 @@ DataConnectClient <- setRefClass(
     dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
 
       "Validate publishing parameters without actually publishing"
-      if (missing(project_token) || missing(dataset_name) || missing(key_columns) || missing(source_datasets) || missing(data)) {
-        stop("All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data")
+      if (missing(project_token) ||
+          missing(dataset_name) ||
+          missing(key_columns) ||
+          missing(source_datasets) ||
+          missing(data)) {
+        stop("All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.")
+      }
+
+      if (!is.list(key_columns) || length(key_columns) < 1) {
+        stop("key_columns must be a non-empty list.")
       }
       
       config <- list(
@@ -186,12 +194,20 @@ DataConnectClient <- setRefClass(
     publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
       
       "Publish dataset to Data Connect"
-      if (missing(project_token) || missing(dataset_name) || missing(key_columns) || missing(source_datasets) || missing(data)) {
-        stop("All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data")
+      if (missing(project_token) || 
+          missing(dataset_name) || 
+          missing(key_columns) || 
+          missing(source_datasets) || 
+          missing(data)) {
+        stop("All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.")
+      }
+      
+      if (!is.list(key_columns) || length(key_columns) < 1) {
+        stop("key_columns must be a non-empty list.")
       }
       
       if (is.null(data)) {
-        stop("Data cannot be null for publish operation")
+        stop("Data cannot be null for publish operation.")
       }
       
       config <- list(
