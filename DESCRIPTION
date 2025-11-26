@@ -1,7 +1,7 @@
 Package: dataconnect
 Type: Package
 Title: Data Connect Library for R
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(
     person("Medidata Solutions", role = c("aut", "cre"),
            email = "helpdesk@mdsol.com")

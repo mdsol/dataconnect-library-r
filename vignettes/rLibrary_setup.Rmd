@@ -33,6 +33,7 @@ try({remove.packages("dataconnect")}, silent=TRUE)
 
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
+  ref = "v1.0.1",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 

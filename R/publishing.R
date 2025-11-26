@@ -1,3 +1,34 @@
+#' Count distinct rows based on key columns
+#'
+#' @param data Data frame to analyze
+#' @param key_columns List or character vector of key column names
+#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
+#' @keywords internal
+#' @noRd
+.count_distinct_rows <- function(data, key_columns) {
+  
+  # Convert key_columns from list to character vector if needed
+  key_cols <- as.character(unlist(key_columns))
+  
+  # Convert column names to lowercase for case-insensitive comparison
+  key_cols_lower <- tolower(key_cols)
+  data_cols_lower <- tolower(names(data))
+  
+  # Validate key columns exist in data (case-insensitive)
+  missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
+  if (length(missing_cols) > 0) {
+    error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
+    return(list(distinct_row_count = NULL, error_message = error_msg))
+  }
+  
+  # Map key columns to actual data frame column names
+  actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
+  
+  # Count distinct rows based on key columns
+  distinct_row_count <- nrow(unique(data[, actual_cols, drop = FALSE]))
+  
+  return(list(distinct_row_count = distinct_row_count, error_message = NULL))
+}
 
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
@@ -35,7 +66,7 @@
   if (nrow(data) == 0) {
     warning("Uploading empty dataset")
   }
-  
+
   # Format the data as expected by the dry_publish server endpoint
   # Convert config to JSON
   config_json <- jsonlite::toJSON(config, auto_unbox = TRUE)
@@ -58,14 +89,25 @@
   result <- .do_command(client, "dry_publish", body = combined_body)
   
   # Extract and parse the response content
+  response <- NULL
   if (length(result) > 0) {
     # If do_command processed it successfully, return the first item
-    return(result[[1]])
+    response <- result[[1]]
   } else {
     # If do_command didn't process it, try to extract manually
     warning("No processed result from do_command, returning raw result")
-    return(result)
+    response <- result
   }
+  
+  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+
+  # Append distinct row count and duplicate row count if available
+  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+    response$valid_rows <- distinct_row_result$distinct_row_count
+    response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
+  }
+  
+  return(response)
 }
 
 #' Publish configuration, schema and data to the server
@@ -110,6 +152,18 @@
     warning("Uploading empty dataset")
   }
 
-  # Use do_put_command from commands.R
-  return(.do_put_command(client, config, arrow_data))
+  result <- .do_put_command(client, config, arrow_data)
+  
+  distinct_row_result <- NULL
+  if (result$success) {
+    distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+
+    # Append distinct row count and duplicate row count if available
+    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+      result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
+      result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
+    }
+  }
+  
+  return(result)
 }
