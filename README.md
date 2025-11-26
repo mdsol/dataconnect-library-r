@@ -324,7 +324,7 @@ Returns the result of publishing validations. After successful validation testin
 | Error Message | Action |
 | :------------ | :----- |
 |**All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.**| Ensure that all parameters are provided. |
-| **key_columns must be a non-empty list.**| key_columns must contain atleast one column name. |
+| **key_columns must be a non-empty list.**| key_columns must contain at least one column name. |
 | **invalid input_config passed** | Required argument is missing input; make any required adjustment |
 | **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
 | **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** | Verify that</br> - The study_environment_uuid is correct.</br> - You have access to that study environment.</br> - The project token being used is in this study environment.|
@@ -367,7 +367,7 @@ Returns the status of publish. When the dataset is published successfully, you c
 | Error Message | Action |
 | :------------ | :----- |
 | **All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.** | Ensure that all parameters are provided. |
-| **key_columns must be a non-empty list.**| key_columns must contain atleast one column name. |
+| **key_columns must be a non-empty list.**| key_columns must contain at least one column name. |
 | **Authentication failed** | Ensure you provide the correct user token and project token. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
 | **You are not authorized to perform this action** | Ensure that you provide the correct user token and project. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
 | **Invalid input_config passed** | Required argument is missing. Make required adjustment. |
