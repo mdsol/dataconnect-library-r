@@ -11,6 +11,8 @@ ENV ARROW_R_DEV=FALSE
 ENV NOT_CRAN=TRUE
 ENV LIBARROW_BINARY=TRUE
 ENV RETICULATE_PYTHON=/opt/conda/bin/python
+ENV LD_LIBRARY_PATH=/opt/conda/lib:$LD_LIBRARY_PATH
+ENV LD_PRELOAD=/opt/conda/lib/libcrypto.so.3:/opt/conda/lib/libssl.so.3
 
 # Install system dependencies and Python + Arrow libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -32,6 +34,9 @@ RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/downlo
     && rm miniforge.sh \
     && conda install -y -c conda-forge pyarrow \
     && conda clean -afy
+
+# Configure R to use conda libraries first by setting LD_LIBRARY_PATH in Renviron
+RUN echo "LD_LIBRARY_PATH=/opt/conda/lib:\${LD_LIBRARY_PATH}" >> /usr/local/lib/R/etc/Renviron.site
 
 # Create a better script for package installation with fallback
 RUN Rscript -e "cat('# Install packages with multi-repository fallback mechanism\n\
