@@ -154,12 +154,11 @@ DataConnectClient <- setRefClass(
       return(.get_dataset_versions(.self$.client, study_uuid, study_environment_uuid, dataset_uuid))
     },
 
-    fetch_data = function(study_uuid, study_environment_uuid, dataset_uuid) {
+    fetch_data = function(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
       "Get a single dataset"
-      if (missing(study_uuid) || missing(study_environment_uuid) || missing(dataset_uuid)) {
-        stop("All parameters are required: study_uuid, study_environment_uuid and dataset_uuid")
+      if (missing(dataset_uuid) || is.null(dataset_uuid)) {
+        stop("dataset_uuid parameter is required")
       }
-      
       # Use existing function to get single dataset
       return(.get_dataset(.self$.client, study_uuid, study_environment_uuid, dataset_uuid))
     },

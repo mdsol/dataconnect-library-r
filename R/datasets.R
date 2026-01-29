@@ -247,10 +247,10 @@
 .get_dataset <- function(client, study_uuid, study_environment_uuid, dataset_uuid) {
   
   # Validate required parameters
-  if (is.null(study_uuid) || is.null(study_environment_uuid) || is.null(dataset_uuid)) {
-    stop("All parameters are required: study_uuid, study_environment_uuid and dataset_uuid")
+  if (is.null(dataset_uuid)) {
+    stop("dataset_uuid parameter is required")
   }
-  
+
   # Create ticket_data for internal use
   ticket_data <- list(
     study_uuid = study_uuid,
