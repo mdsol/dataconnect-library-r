@@ -238,34 +238,29 @@
 #' Get a specific dataset
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study
 #' @param study_environment_uuid UUID of the study environment
 #' @param dataset_uuid UUID of the dataset
 #' @return A dataset object with metadata and frame property
 #' @keywords internal
 #' @noRd
-.get_dataset <- function(client, study_uuid, study_environment_uuid, dataset_uuid) {
+.get_dataset <- function(client, study_environment_uuid, dataset_uuid) {
   
   # Validate required parameters
-  if (is.null(study_uuid) || is.null(study_environment_uuid) || is.null(dataset_uuid)) {
-    stop("All parameters are required: study_uuid, study_environment_uuid and dataset_uuid")
+  if (is.null(dataset_uuid)) {
+    stop("dataset_uuid parameter is required")
   }
-  
+
   # Create ticket_data for internal use
   ticket_data <- list(
-    study_uuid = study_uuid,
     study_env_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid,
     dataset_name = ""
   )
-  
   # Create dataset object with frame - this is essentially what get_datasets does
   dataset_obj <- list(
-    study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid
   )
-  
   # Add the frame property - this is the main purpose of the function
   dataset_obj$frame <- dataconnect_tbl(client, ticket_data)
   

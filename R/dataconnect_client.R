@@ -38,11 +38,9 @@
 #'     }
 #'     Returns version information for the specified dataset.
 #'   }
-#'   \item{\code{fetch_data(study_uuid, study_environment_uuid, dataset_uuid)}}{
+#'   \item{\code{fetch_data(dataset_uuid)}}{
 #'     Retrieve data from a single dataset.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (required)
-#'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
 #'     Returns the actual dataset data.
@@ -84,7 +82,8 @@
 #' datasets <- client$datasets(study_uuid, env_uuid)
 #' 
 #' # Fetch specific dataset data
-#' data <- client$fetch_data(study_uuid, env_uuid, dataset_uuid)
+#' data <- client$fetch_data(dataset_uuid)
+#'
 #' 
 #' # Dry run publishing validation
 #' validation <- client$dry_publish(
@@ -156,12 +155,24 @@ DataConnectClient <- setRefClass(
 
     fetch_data = function(study_uuid, study_environment_uuid, dataset_uuid) {
       "Get a single dataset"
-      if (missing(study_uuid) || missing(study_environment_uuid) || missing(dataset_uuid)) {
-        stop("All parameters are required: study_uuid, study_environment_uuid and dataset_uuid")
+      if (missing(dataset_uuid) || is.null(dataset_uuid)) {
+        stop("dataset_uuid parameter is required")
       }
-      
+
+      if (!missing(study_uuid) && !is.null(study_uuid)) {
+        warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
+
+      }
+      if (!missing(study_environment_uuid) && !is.null(study_environment_uuid)) {
+        warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
+      }
+
+      if (missing(study_environment_uuid)) {
+        study_environment_uuid <- NULL
+      }
+
       # Use existing function to get single dataset
-      return(.get_dataset(.self$.client, study_uuid, study_environment_uuid, dataset_uuid))
+      return(.get_dataset(.self$.client, study_environment_uuid, dataset_uuid))
     },
   
     dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
