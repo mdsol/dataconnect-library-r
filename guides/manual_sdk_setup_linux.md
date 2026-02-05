@@ -1,4 +1,4 @@
-# Manual Setup Guide For Ubuntu Linux
+# Manual Setup Guide For Linux
 
 ## Python 3.13 Installation
 
@@ -30,14 +30,18 @@ sudo apt install python3.13 -y
 sudo apt-get install python3.13-dev
 ```
 
-### Configure Python as System Default
+### Configure Python as System Default (Optional - only if you want to change the default)
+
+**Note**: This is optional. If you want your current python to be default, do not run these commands.
 
 ```bash
 # Set Python 3.13 as the system-wide default for 'python' command
 # NOTE: Do NOT change python3 symlink as it may break Ubuntu system scripts
 sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.13 1
 
-# Verify the configuration
+# This command allows you to select the default Python interpreter when multiple versions are installed on your Linux system. 
+# Running it will present a list of available Python alternatives, and you can choose which one should be used by default.
+# This is just to verify the configuration - do not change the current choice
 sudo update-alternatives --config python
 ```
 
