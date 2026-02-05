@@ -30,50 +30,48 @@ sudo apt install python3.13 -y
 sudo apt-get install python3.13-dev
 ```
 
-### Configure Python Alias and PATH
+### Configure Python as System Default
 
 ```bash
-nano ~/.bashrc
+# Set Python 3.13 as the system-wide default for 'python' command
+# NOTE: Do NOT change python3 symlink as it may break Ubuntu system scripts
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.13 1
+
+# Verify the configuration
+sudo update-alternatives --config python
 ```
 
-To make 'python' point to Python 3.13 and to add user-installed binaries to your PATH, add the following to your `.bashrc` file and save:
-
-```bash
-alias python='/usr/bin/python3.13'
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-**Important:** Close the terminal and open a new terminal before proceeding.
+**Note:** This configuration is system-wide. All users on the machine will have access to Python 3.13 via the `python` command.
 
 ### Verify Python Installation
 
 ```bash
-# Verify Python version (should print 'Python 3.13.11' or similar)
+# Verify Python 3.13 is accessible via 'python' command
 python --version
 ```
 
-### Install pip
+### Install pip System-Wide
 
 ```bash
 # Download get-pip.py script to install pip for Python 3.13
 curl -sS https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 
-# Install pip using Python 3.13 (if alias is set, 'python' points to Python 3.13)
-python get-pip.py
+# Install pip system-wide for Python 3.13
+sudo python3.13 get-pip.py
 
 # Verify pip installation for Python 3.13
-# Should print pip version and path for Python 3.13
-python -m pip --version
+# Should print pip version and path of pip in Python 3.13
+python3.13 -m pip --version
 ```
 
-### Install pyarrow
+### Install pyarrow System-Wide
 
 ```bash
-# Upgrade/install pyarrow package using pip for Python 3.13
-python -m pip install --upgrade pyarrow
+# Install pyarrow package system-wide for Python 3.13
+sudo python3.13 -m pip install --upgrade pyarrow
 ```
 
-## R Installation (Optional, only if it's not already installed)
+## R & RStudio Installation (Optional, only if it's not already installed)
 
 ### Update and Install Prerequisites
 
@@ -85,71 +83,91 @@ sudo apt update -qq
 sudo apt install --no-install-recommends software-properties-common dirmngr
 ```
 
-### Install System Dependencies and R
+### Install System Dependencies and R (if it's not already installed)
 
 ```bash
-# Install system dependencies required by some R packages (e.g., png)
-sudo apt-get install -y libpng-dev
+# Install build tools required for compiling R packages
+sudo apt-get install -y build-essential
 
 # Install R base system
 sudo apt install --no-install-recommends r-base
 ```
 
-### Install RStudio (if it's not already installed.)
-
-Download .deb file for your operating system (e.g. ubuntu 22) from https://posit.co/download/rstudio-desktop/
+### Install RStudio (if it's not already installed)
 
 ```bash
-# Assuming that the downloaded .deb file is in Downloads folder
+# Navigate to Downloads folder
 cd ~/Downloads
 
-# Install RStudio (replace <filename.deb> with actual .deb file name)
-sudo apt install ./<filename.deb>
+# Note: If you are working on different OS / version, please use correct .deb path corresponding to your version of OS.
+# This is an example for Ubuntu 24.04
+# Download RStudio .deb file for Ubuntu 24.04 (noble/jammy)
+curl -L -o rstudio-2026.01.0-392-amd64.deb https://download1.rstudio.org/electron/jammy/amd64/rstudio-2026.01.0-392-amd64.deb
+
+# Install RStudio
+sudo apt install ./rstudio-2026.01.0-392-amd64.deb
+
+# Verify RStudio installation
+rstudio --version
 ```
 
-## DataConnect R Package Installation
+**Note:** For other versions, check https://posit.co/download/rstudio-desktop/ and replace the download URL accordingly.
 
-1. Download the dataconnect package from:
-   https://github.com/mdsol/dataconnect-library-r/releases/download/v1.0.1/dataconnect_1.0.1.tar.gz
+## DataConnect R Package Installation (System-Wide)
 
-2. Install dependencies
+1. Download the dataconnect package:
 
-**Within RStudio's console**, run the following command:
+```bash
+# Navigate to Downloads folder
+cd ~/Downloads
 
-```r
-install.packages("base64enc")
-install.packages("reticulate")
-install.packages("tidyr")
-install.packages("arrow")
-install.packages("tidyverse")
+# Download the dataconnect package
+curl -L -o dataconnect_1.0.1.tar.gz https://github.com/mdsol/dataconnect-library-r/releases/download/v1.0.1/dataconnect_1.0.1.tar.gz
+```
+
+2. Install dependencies system-wide
+
+**Within the terminal**, run the following commands:
+
+```bash
+# Install R package dependencies to system library
+sudo R -e "install.packages('base64enc', repos='https://cloud.r-project.org/')"
+sudo R -e "install.packages('reticulate', repos='https://cloud.r-project.org/')"
+sudo R -e "install.packages('tidyr', repos='https://cloud.r-project.org/')"
+sudo R -e "install.packages('arrow', repos='https://cloud.r-project.org/')"
 ```
 
 Installation of some of these packages can take a long time.
 
-3. Install the package:
+3. Install the dataconnect package system-wide:
 
-**Within RStudio's console**, run the following command:
+**Within the terminal**, run the following command:
 
-```r
-# Install the dataconnect package from the local file
-install.packages("path/to/dataconnect_1.0.1.tar.gz", 
-                 repos = NULL,
-                 type = "source")
+```bash
+# Navigate to Downloads folder (if current directory is something else)
+cd ~/Downloads
+
+# Install the dataconnect package to system library from Downloads folder
+sudo R -e "install.packages('./dataconnect_1.0.1.tar.gz', repos=NULL, type='source')"
 ```
 
-## Configure Python Integration
+**Note:** These packages are now available to all users on the system.
+
+## Configure Python Integration (System-Wide)
 
 ### Within the terminal,
 
-1. Open the `.Renviron` file (creates it if it doesn't exist):
+1. Open the system-wide R environment file:
    ```bash
-   nano ~/.Renviron
+   sudo nano /etc/R/Renviron.site
    ```
 
 2. Add this line if it's not already present and save the file:
    ```
    RETICULATE_PYTHON=/usr/bin/python3.13
    ```
+
+**Note:** This configuration applies to all R sessions for all users on the system.
 
 **Important:** Restart the R session in RStudio.
 
@@ -160,8 +178,12 @@ Within RStudio's console, run the following command:
 ```r
 # Should return TRUE if pyarrow is installed and accessible
 reticulate::py_module_available('pyarrow')
+```
 
-# While using this package (dataconnect), please attach the following.
+### Attach the following packages to use dataconnect.
+
+```r
 library(dplyr)
 library(rlang)
+library(dataconnect)
 ```
