@@ -20,7 +20,9 @@ sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
 ```
 
-### Install Python 3.13
+### Install Python 3.13 (Optional - only if python 3.13.x is not already installed)
+
+**Note**: Skip this step if python 3.13.x is already installed.
 
 ```bash
 # Install Python 3.13
@@ -95,6 +97,9 @@ sudo apt-get install -y build-essential
 
 # Install R base system
 sudo apt install --no-install-recommends r-base
+
+# Verify R installation
+R --version
 ```
 
 ### Install RStudio (if it's not already installed)
