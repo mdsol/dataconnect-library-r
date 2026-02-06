@@ -278,20 +278,27 @@ Get a single dataset.
 ### Usage
 
 ```r
-fetch_data(study_uuid, study_environment_uuid, dataset_uuid)
+fetch_data(study_environment_uuid, dataset_uuid)
 ```
 
 ### Arguments
 
-| Argument | Description |
-| :------- | :---------- |
-| **study_uuid** | Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details, and in the output of datasets() and dataset_versions() functions |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of the datasets() and dataset_versions() functions |
-| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
+| Argument | Description                                                                                                                                                                            |
+| :------- |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **study_environment_uuid** | (Optional) Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of the datasets() and dataset_versions() functions |
+| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions                                                                    |
 
 ### Output 
 
 Returns data from a specific dataset.
+
+## Error Messages & Actions
+
+| Error Message                                                                                                               | Action                                                                                                                      |
+|:----------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------|
+| **Parameter is required: dataset_uuid** | Provide the required parameter dataset_uuid.                                                                                |
+| **The dataset_uuid is not a valid UUID.**                                | Review and provide the correct dataset_uuid.                                                                                |
+| **Incorrect UUID combination. The provided study_environment_uuid and dataset_uuid combination does not return any results.**| Please verify the UUIDs provided.                                                                                           |
 
 ### dry_publish()
 
@@ -449,17 +456,17 @@ For a list of historical versions of this library and their details, see the [Da
 **Important:** Always specify the version using the `ref` parameter to ensure you install a stable release:
 
 ```r
-# Install latest stable release (v1.0.1)
+# Install latest stable release (v1.1.0)
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.1",
+  ref = "v1.1.0",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 
 # Install a specific older version
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.0",
+  ref = "v1.0.1",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 ```

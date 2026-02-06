@@ -124,8 +124,6 @@ for(dataset_version in dataset_versions) {
 
 ```{r eval=FALSE}
 RAVEdata <- dc$fetch_data(
-                study_uuid = ExciterStudy$ExciterStudyId,
-                study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
                 dataset_uuid = datasetid$ExciterRaveID
 )
 # Fetching first 3 rows of data
@@ -134,8 +132,6 @@ RAVEdata$frame %>% head(3)
 
 ```{r eval=FALSE}
 Derdata <- dc$fetch_data(
-                study_uuid = PWBStudy$PWBStudyId,
-                study_environment_uuid = PWBStudy$PWBPRODEnvID,
                 dataset_uuid = datasetid$PWBDerID
 )
 # Fetching the first 6 rows of data
@@ -144,8 +140,6 @@ Derdata$frame %>% head()
 
 ```{r eval=FALSE}
 ImportData <- dc$fetch_data(
-                study_uuid = PWBStudy$PWBStudyId,
-                study_environment_uuid = PWBStudy$PWBPRODEnvID,
                 dataset_uuid = datasetid$PWBImportID
 )
 
@@ -155,8 +149,6 @@ ImportData$frame %>% head(3)
 
 ```{r eval=FALSE}
 CustomData <- dc$fetch_data(
-                study_uuid = ExciterStudy$ExciterStudyId,
-                study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
                 dataset_uuid = datasetid$ExciterCustomID
 )
 
