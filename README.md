@@ -237,7 +237,7 @@ datasets(study_uuid, study_environment_uuid, search_dataset_name = "")
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | Optional | Unique | iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
+| **study_uuid** | Optional. Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
 | **search_dataset_name** | Optional. The approximate name of the dataset |
 
