@@ -22,7 +22,7 @@
 #'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, lazy)}}{
 #'     Get all datasets for a specific study environment.
 #'     \itemize{
-#'       \item \code{study_uuid}: Optional UUID of the target study (default: "")
+#'       \item \code{study_uuid}: Optional UUID of the target study (default: NULL)
 #'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{search_dataset_name}: Optional dataset name filter (default: "")
 #'       \item \code{lazy}: Whether to use lazy evaluation (default: TRUE)
@@ -80,8 +80,12 @@
 #' # Get study environments
 #' envs <- client$study_environments()
 #' 
-#' # Get datasets for a study environment
-#' datasets <- client$datasets(study_uuid(optional), env_uuid)
+#' # Get datasets for a study environment (with study_uuid)
+#' datasets <- client$datasets(study_uuid = "study_uuid", 
+#'                             study_environment_uuid = "study_environment_uuid")
+#' 
+#' # Get datasets across all studies (study_uuid omitted)
+#' datasets <- client$datasets(study_environment_uuid = "study_environment_uuid")
 #' 
 #' # Fetch specific dataset data
 #' data <- client$fetch_data(study_uuid, env_uuid, dataset_uuid)
@@ -135,10 +139,20 @@ DataConnectClient <- setRefClass(
       return(study_envs_spec)
     },
     
-    datasets = function(study_uuid = "", study_environment_uuid, search_dataset_name = "", lazy = TRUE) {
+    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = TRUE) {
       "Get all datasets for a study environment"
+      
+      # Argument-shifting logic: if study_environment_uuid is missing but study_uuid is provided,
+      # assume the caller passed study_environment_uuid as the first positional argument
+      # This allows: datasets(env_uuid) instead of requiring datasets(study_environment_uuid = env_uuid)
       if (missing(study_environment_uuid)) {
-        stop("study_environment_uuid is required")
+        if (!missing(study_uuid) && !is.null(study_uuid)) {
+          # Shift: first argument is actually study_environment_uuid
+          study_environment_uuid <- study_uuid
+          study_uuid <- NULL
+        } else {
+          stop("study_environment_uuid is required")
+        }
       }
       
       # Use existing function to get datasets with frames
