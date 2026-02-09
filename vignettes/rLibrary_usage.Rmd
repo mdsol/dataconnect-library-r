@@ -63,6 +63,8 @@ searchName = "datasetname"
 
 Search for a dataset in a specific study environment.
 
+Note: The `study_uuid` parameter is optional. If omitted, the get_datasets search will be performed across all accessible studies.
+
 ```{r eval=FALSE}
 count <- 0
 datasets <- dc$datasets(
