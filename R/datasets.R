@@ -238,19 +238,14 @@
 #' Get a specific dataset
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study
-#' @param study_environment_uuid UUID of the study environment
+#' @param study_uuid UUID of the study (optional)
+#' @param study_environment_uuid UUID of the study environment (optional)
 #' @param dataset_uuid UUID of the dataset
 #' @return A dataset object with metadata and frame property
 #' @keywords internal
 #' @noRd
-.get_dataset <- function(client, study_uuid, study_environment_uuid, dataset_uuid) {
-  
-  # Validate required parameters
-  if (is.null(study_uuid) || is.null(study_environment_uuid) || is.null(dataset_uuid)) {
-    stop("All parameters are required: study_uuid, study_environment_uuid and dataset_uuid")
-  }
-  
+.get_dataset <- function(client, study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
+
   # Create ticket_data for internal use
   ticket_data <- list(
     study_uuid = study_uuid,
