@@ -449,17 +449,17 @@ For a list of historical versions of this library and their details, see the [Da
 **Important:** Always specify the version using the `ref` parameter to ensure you install a stable release:
 
 ```r
-# Install latest stable release (v1.0.1)
+# Install latest stable release (v1.1.0)
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.1",
+  ref = "v1.1.0",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 
 # Install a specific older version
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.0",
+  ref = "v1.0.1",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 ```

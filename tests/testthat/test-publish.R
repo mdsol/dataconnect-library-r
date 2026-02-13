@@ -135,7 +135,7 @@ test_that(".count_distinct_rows handles all unique rows", {
 
 # Create a mock function for .get_flight_options that we'll use in each test
 mock_flight_options <- function() {
-  list(headers = list(c("x-client-dataconnect-r-version", "1.0.1")))
+  list(headers = list(c("x-client-dataconnect-r-version", "1.1.0")))
 }
 
 # Create sample data and schema that will be used across tests
