@@ -164,7 +164,7 @@ DataConnectClient <- setRefClass(
         warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
       }
 
-      if (!is.null(study_environment_uuid) && !is.na(study_environment_uuid) && nzchar(trimws(as.character(study_environment_uuid)))) {
+      if (!missing(study_environment_uuid) && !is.null(study_environment_uuid) && !is.na(study_environment_uuid) && nzchar(trimws(as.character(study_environment_uuid)))) {
         warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
       }
 
