@@ -3,6 +3,9 @@ context("Fetch Data operations")
 library(testthat)
 library(mockery)
 
+source("../../R/connection.R")
+source("../../R/table.R")
+source("../../R/datasets.R")
 source("../../R/dataconnect_client.R")
 
 test_that("fetch_data errors when dataset_uuid is missing, NULL, NA, or empty", {
