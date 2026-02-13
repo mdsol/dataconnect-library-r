@@ -168,11 +168,11 @@ DataConnectClient <- setRefClass(
         warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
       }
 
-      if (missing(study_uuid) || is.na(study_uuid) || trimws(as.character(study_uuid)) == "") {
+      if (missing(study_uuid) || is.null(study_uuid) || is.na(study_uuid) || trimws(as.character(study_uuid)) == "") {
         study_uuid <- NULL
       }
 
-      if (missing(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
+      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
         study_environment_uuid <- NULL
       }
 
