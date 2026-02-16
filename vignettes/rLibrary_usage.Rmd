@@ -111,9 +111,8 @@ Retrieve other dataset versions if they are available.
 
 ```{r eval=FALSE}
 dataset_versions <- dc$dataset_versions(
-  study_uuid= ExciterStudy$ExciterStudyId,
-  study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
-  dataset_uuid = datasetid$ExciterCustomID)
+  dataset_uuid = datasetid$ExciterCustomID
+)
 
 for(dataset_version in dataset_versions) {
   print(to_frame(dataset_version))
