@@ -15,8 +15,11 @@
 #'
 #' @section Methods:
 #' \describe{
-#'   \item{\code{study_environments()}}{
+#'   \item{\code{study_environments(search_study_name)}}{
 #'     Retrieve all available study environments from the DataConnect server.
+#'    \itemize{
+#'      \item \code{search_study_name}: Optional filter for study names (default: "")
+#'     }
 #'     Returns a specification object containing study environment details.
 #'   }
 #'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, lazy)}}{
@@ -131,10 +134,10 @@ DataConnectClient <- setRefClass(
       .self$.client <- .connect(url, port, use_tls)
     },
     
-    study_environments = function() {
+    study_environments = function(search_study_name = "") {
       "Get all study environments"
       # Use existing function but return all results (no lazy evaluation)
-      study_envs_spec <- .get_study_environments(.self$.client)
+      study_envs_spec <- .get_study_environments(.self$.client, search_study_name = search_study_name, lazy = FALSE)
       return(study_envs_spec)
     },
     

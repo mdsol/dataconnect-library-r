@@ -272,14 +272,16 @@
 #' @param client A FlightClient object
 #' @param page_size Number of items per page (default: 100)
 #' @param max_pages Maximum number of pages to retrieve (default: 10)
+#' @param search_study_name full or part of the study name to search by (default: "")
 #' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
 #' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
 #'         that can be used with the %::% operator
 #' @keywords internal
 #' @noRd
-.get_study_environments <- function(client, page_size = 100, max_pages = -1, lazy = TRUE) {
+.get_study_environments <- function(client, search_study_name = "", page_size = 100, max_pages = -1, lazy = TRUE) {
   criteria <- list(
     flight_type = "STUDY_ENVIRONMENTS",
+    search_study_name = search_study_name,
     page_size = page_size,
     page = 1
   )
@@ -311,7 +313,7 @@
 .get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = FALSE) {
   criteria <- list(
     flight_type = "DATASETS",
-    study_uuid= study_uuid,
+    study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
     search_dataset_name = search_dataset_name,
     page_size = -1,  # Use server default,
