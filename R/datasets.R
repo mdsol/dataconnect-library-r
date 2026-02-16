@@ -272,7 +272,7 @@
 #' @param client A FlightClient object
 #' @param page_size Number of items per page (default: 100)
 #' @param max_pages Maximum number of pages to retrieve (default: 10)
-#' @param search_study_name full or part of the study name to search by (default: "")
+#' @param search_study_name full or part of the study name to search by (optional)
 #' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
 #' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
 #'         that can be used with the %::% operator
