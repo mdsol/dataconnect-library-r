@@ -22,7 +22,6 @@
 #'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, lazy)}}{
 #'     Get all datasets for a specific study environment.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (required)
 #'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{search_dataset_name}: Optional dataset name filter (default: "")
 #'       \item \code{lazy}: Whether to use lazy evaluation (default: TRUE)
@@ -81,7 +80,7 @@
 #' envs <- client$study_environments()
 #' 
 #' # Get datasets for a study environment
-#' datasets <- client$datasets(study_uuid, env_uuid)
+#' datasets <- client$datasets(env_uuid)
 #' 
 #' # Fetch data of a specific dataset
 #' data <- client$fetch_data(dataset_uuid)
@@ -135,10 +134,17 @@ DataConnectClient <- setRefClass(
       return(study_envs_spec)
     },
     
-    datasets = function(study_uuid, study_environment_uuid, search_dataset_name = "", lazy = TRUE) {
+    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = TRUE) {
       "Get all datasets for a study environment"
-      if (missing(study_uuid) || missing(study_environment_uuid)) {
-        stop("Both study_uuid and study_environment_uuid are required")
+      
+      # Display deprecation warning if study_uuid is provided
+      if (!is.null(study_uuid) || trimws(study_uuid) != "") {
+        warning("The 'study_uuid' parameter is deprecated and will be removed in a future version.", 
+                call. = FALSE)
+      }
+      
+      if (missing(study_environment_uuid)) {
+        stop("study_environment_uuid is required")
       }
       
       # Use existing function to get datasets with frames
