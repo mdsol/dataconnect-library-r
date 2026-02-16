@@ -302,7 +302,7 @@
 #' @param client A FlightClient object
 #' @param study_uuid UUID of the study to filter by [Optional]
 #' @param study_environment_uuid UUID of the study environment to filter by
-#' @param search_dataset_name full or part of the dataset name to search by
+#' @param search_dataset_name full or part of the dataset name to search by [Optional]
 #' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
 #' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
 #'         that can be used with the %::% operator

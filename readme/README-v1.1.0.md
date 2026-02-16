@@ -213,27 +213,6 @@ to_frame(data)
 
 A data frame with two columns: **name** and **value**
 
-### study_environments()
-
-### Description
-
-List study environments
-
-### Usage
-
-```r
-study_environments(search_study_name = "")
-```
-
-### Arguments
-| Argument | Description |
-| :------- | :---------- |
-| **search_dataset_name** | Optional. The approximate name of the study name |
-
-### Output 
-
-Returns all the studies that match the specified criteria. If no search name is provided, up to 100 studies are returned.
-
 ### datasets()
 
 ### Description
@@ -243,7 +222,7 @@ Get all datasets for a study environment
 ### Usage
 
 ```r
-datasets(study_uuid, study_environment_uuid, search_dataset_name = "")
+datasets(study_environment_uuid, search_dataset_name = "")
 ```
 
 ### Arguments
