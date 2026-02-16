@@ -29,11 +29,11 @@
 #'     }
 #'     Returns dataset specifications with optional lazy loading.
 #'   }
-#'   \item{\code{dataset_versions(study_uuid, study_environment_uuid, dataset_uuid)}}{
+#'   \item{\code{dataset_versions(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid)}}{
 #'     Retrieve all versions of a specific dataset.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (required)
-#'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
+#'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
+#'       \item \code{study_environment_uuid}: UUID of the target study environment (deprecated, optional)
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
 #'     Returns version information for the specified dataset.
@@ -82,7 +82,10 @@
 #' 
 #' # Get datasets for a study environment
 #' datasets <- client$datasets(study_uuid, env_uuid)
-#' 
+#'
+#' # Get dataset versions for a specific dataset
+#' versions <- client$dataset_versions(dataset_uuid = dataset_uuid)
+#'
 #' # Fetch data of a specific dataset
 #' data <- client$fetch_data(dataset_uuid)
 #' 
@@ -145,13 +148,32 @@ DataConnectClient <- setRefClass(
       return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, lazy = lazy))
     },
 
-    dataset_versions = function (study_uuid, study_environment_uuid, dataset_uuid) {
+    dataset_versions = function (study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
       "Get versions of a dataset"
-      if (missing(study_uuid) || missing(study_environment_uuid) || missing(dataset_uuid)) {
-        stop("All parameters are required: study_uuid, study_environment_uuid, dataset_uuid")
+      if (missing(dataset_uuid) || is.null(dataset_uuid) || is.na(dataset_uuid) || trimws(as.character(dataset_uuid)) == "") {
+        stop("Parameter is required: dataset_uuid")
       }
 
-      return(.get_dataset_versions(.self$.client, study_uuid, study_environment_uuid, dataset_uuid))
+      if (!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
+        warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
+      }
+
+      if (!missing(study_environment_uuid) && !is.null(study_environment_uuid) && !is.na(study_environment_uuid) && nzchar(trimws(as.character(study_environment_uuid)))) {
+        warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
+      }
+
+      if (missing(study_uuid) || is.null(study_uuid) || is.na(study_uuid) || trimws(as.character(study_uuid)) == "") {
+        study_uuid <- NULL
+      }
+
+      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
+        study_environment_uuid <- NULL
+      }
+
+      return(.get_dataset_versions(client = .self$.client,
+                                   study_uuid = study_uuid,
+                                   study_environment_uuid = study_environment_uuid,
+                                   dataset_uuid = dataset_uuid))
     },
 
     fetch_data = function(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
