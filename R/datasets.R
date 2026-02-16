@@ -300,15 +300,15 @@
 #' List datasets from a Flight server
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study to filter by
+#' @param study_uuid UUID of the study to filter by [Optional]
 #' @param study_environment_uuid UUID of the study environment to filter by
-#' @param search_dataset_name full or part of the dataset name to search by
+#' @param search_dataset_name full or part of the dataset name to search by [Optional]
 #' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
 #' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
 #'         that can be used with the %::% operator
 #' @keywords internal
 #' @noRd
-.get_datasets <- function(client, study_uuid, study_environment_uuid, search_dataset_name, lazy = FALSE) {
+.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = FALSE) {
   criteria <- list(
     flight_type = "DATASETS",
     study_uuid= study_uuid,
