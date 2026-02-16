@@ -229,7 +229,6 @@ datasets(study_environment_uuid, search_dataset_name = "")
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | ***(Deprecated)*** Unique iMedidata study environment identifier. You can find this in iMedidata's Developer Info details. **Note:** This parameter is deprecated and will be removed in a future version. |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
 | **search_dataset_name** | Optional. The approximate name of the dataset |
 

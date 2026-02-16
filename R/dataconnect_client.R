@@ -81,7 +81,7 @@
 #' envs <- client$study_environments()
 #' 
 #' # Get datasets for a study environment
-#' datasets <- client$datasets(env_uuid)
+#' datasets <- client$datasets(study_environment_uuid = env_uuid)
 #'
 #' # Get dataset versions for a specific dataset
 #' versions <- client$dataset_versions(dataset_uuid = dataset_uuid)

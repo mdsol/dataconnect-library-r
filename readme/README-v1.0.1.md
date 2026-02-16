@@ -229,7 +229,7 @@ datasets(study_uuid, study_environment_uuid, search_dataset_name = "")
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
+| **study_uuid** | Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
 | **search_dataset_name** | Optional. The approximate name of the dataset |
 
@@ -441,17 +441,17 @@ For a list of historical versions of this library and their details, see the [Da
 **Important:** Always specify the version using the `ref` parameter to ensure you install a stable release:
 
 ```r
-# Install latest stable release (v1.1.0)
+# Install latest stable release (v1.0.1)
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.1.0",
+  ref = "v1.0.1",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 
 # Install a specific older version
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.1",
+  ref = "v1.0.0",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 ```
