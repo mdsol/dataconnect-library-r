@@ -334,12 +334,12 @@
 #' List versions of a dataset from a Flight server
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study to filter by
-#' @param study_environment_uuid UUID of the study environment to filter by
+#' @param study_uuid UUID of the study to filter by (optional)
+#' @param study_environment_uuid UUID of the study environment to filter by (optional)
 #' @param dataset_uuid UUID of the dataset to filter by
 #' @keywords internal
 #' @noRd
-.get_dataset_versions <- function(client, study_uuid, study_environment_uuid, dataset_uuid) {
+.get_dataset_versions <- function(client, study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
 
   criteria <- list(
     flight_type = "VERSIONS",
