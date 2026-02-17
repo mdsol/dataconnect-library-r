@@ -222,7 +222,7 @@ Get all datasets for a study environment
 ### Usage
 
 ```r
-datasets(study_environment_uuid, search_dataset_name = "")
+datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = "")
 ```
 
 ### Arguments
@@ -245,15 +245,13 @@ Get all the versions of a dataset
 ### Usage
 
 ```r
-dataset_versions(study_uuid, study_environment_uuid, dataset_uuid)
+dataset_versions(dataset_uuid = dataset_uuid)
 ```
 
 ### Arguments
 
-| Argument | Description |
-| :------- | :---------- |
-| **study_uuid** | Unique iMedidata study identifier. This is available in iMedidata developer info and in the output of datasets() function |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of datasets() function |
+| Argument         | Description                                                                                 |
+| :-------         | :------------------------------------------------------------------------------------------ |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 ### Output 
@@ -269,15 +267,13 @@ Get a single dataset.
 ### Usage
 
 ```r
-fetch_data(study_uuid, study_environment_uuid, dataset_uuid)
+fetch_data(dataset_uuid = dataset_uuid)
 ```
 
 ### Arguments
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid** | Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details, and in the output of datasets() and dataset_versions() functions |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details and in the output of the datasets() and dataset_versions() functions |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
 
 ### Output 
