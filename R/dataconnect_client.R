@@ -137,7 +137,7 @@ DataConnectClient <- setRefClass(
     study_environments = function(search_study_name = "") {
       "Get all study environments"
       # Use existing function but return all results (no lazy evaluation)
-      study_envs_spec <- .get_study_environments(.self$.client, search_study_name = search_study_name, lazy = FALSE)
+      study_envs_spec <- .get_study_environments(.self$.client, search_study_name = search_study_name)
       return(study_envs_spec)
     },
     
