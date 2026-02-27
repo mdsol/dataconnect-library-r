@@ -245,8 +245,14 @@ print.DataConnectError <- function(x, ...) {
 .parse_dataconnect_error <- function(error_message) {
   unknown_error <- "Unknown error"
   
-  # Validate input parameter
-  if (!is.character(error_message) || length(error_message) == 0 || nchar(error_message) == 0) {
+  # Validate input: must be a single, non-NA, non-empty character string.
+  # Checking length == 1 before nchar() keeps nchar() scalar and prevents
+  # if() from receiving a vector or NA logical. NA_character_ passes
+  # is.character() but makes nchar() return NA, so we guard against that too.
+  if (!is.character(error_message) ||
+      length(error_message) != 1 ||
+      is.na(error_message) ||
+      nchar(error_message) == 0) {
     return(DataConnectError(
       error_code = "UNKNOWN",
       message = unknown_error

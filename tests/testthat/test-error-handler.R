@@ -104,9 +104,21 @@ test_that(".parse_dataconnect_error handles non-character input", {
   expect_s3_class(result, "DataConnectError")
   expect_equal(result$error_code, "UNKNOWN")
   expect_equal(result$message, "Unknown error")
-  
+
   # Test with numeric value
   result <- .parse_dataconnect_error(123)
+  expect_s3_class(result, "DataConnectError")
+  expect_equal(result$error_code, "UNKNOWN")
+  expect_equal(result$message, "Unknown error")
+
+  # Test with NA_character_ (passes is.character() but nchar() returns NA)
+  result <- .parse_dataconnect_error(NA_character_)
+  expect_s3_class(result, "DataConnectError")
+  expect_equal(result$error_code, "UNKNOWN")
+  expect_equal(result$message, "Unknown error")
+
+  # Test with a length > 1 character vector
+  result <- .parse_dataconnect_error(c("a", "b"))
   expect_s3_class(result, "DataConnectError")
   expect_equal(result$error_code, "UNKNOWN")
   expect_equal(result$message, "Unknown error")
