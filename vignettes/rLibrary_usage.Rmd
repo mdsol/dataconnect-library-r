@@ -64,29 +64,31 @@ searchName = "datasetname"
 Search for a dataset in a specific study environment.
 
 ```{r eval=FALSE}
-count <- 0
-datasets <- dc$datasets(
-  study_uuid = ExciterStudy$ExciterStudyId,
-  study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
-  search_dataset_name= searchName)
 
-# Process them lazily across all pages with one call
-results <- datasets %::% {
-  count <<- count + 1
+tryCatch({
   
-  cat("## Dataset ", count, "\n\n")
-  # to_frame is a helper for pretty printing the data elements out
-  table_output <- to_frame(data)
+  datasets <- dc$datasets(
+    study_uuid = ExciterStudy$ExciterStudyId,
+    study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
+    search_dataset_name= searchName)
   
-  print(table_output)
+  for(dataset in datasets) {
+    print(to_frame(dataset))
+  }
 
-  flush.console()
+}, dataconnect_error = function(e){
+  
+  # Catch dataconnect specific errors. 
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
 
-  data
-}
+}, error = function(e) {
 
-# Display the total number of items processed
-print(paste("Total datasets:", count))
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+
 ```
 
 #### Identify different versions of a specific dataset
