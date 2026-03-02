@@ -12,10 +12,15 @@
   py_bytes <- reticulate::r_to_py(json_str)$encode("utf-8")
 
   options <- .get_flight_options()
-  # Execute the query
-  py_iter <- client$list_flights(py_bytes, options = options)
-
-  return(py_iter)
+  
+  tryCatch({
+    # Execute the query
+    flights <- client$list_flights(py_bytes, options = options)
+    return(flights)
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
 }
 
 #' Extract data from a FlightInfo object
@@ -44,7 +49,7 @@
 
     return(ticket_data)
   }, error = function(e) {
-    warning("Error extracting flight data: ", e$message)
+    warning("Error extracting flight data: ", conditionMessage(e))
     return(NULL)
   })
 }
@@ -59,30 +64,35 @@
 .process_iterator <- function(py_iter, client = NULL) {
   results <- list()
 
-  # Process each FlightInfo object
-  reticulate::iterate(py_iter, function(item) {
+  tryCatch({
+    # Process each FlightInfo object
+    reticulate::iterate(py_iter, function(item) {
 
-    data <- .extract_data(item)
+      data <- .extract_data(item)
 
-    if (!is.null(data)) {
-      
-      # Add frame property if client is provided and this looks like a dataset
-      if (!is.null(client) && !is.null(data$dataset_uuid)) {
+      if (!is.null(data)) {
         
-        # Create the base parameters needed for dataconnect_tbl
-        base_params <- list(
-          study_uuid = data$study_uuid,
-          study_env_uuid = data$study_env_uuid,
-          dataset_uuid = data$dataset_uuid,
-          dataset_name = data$dataset_name
-        )
+        # Add frame property if client is provided and this looks like a dataset
+        if (!is.null(client) && !is.null(data$dataset_uuid)) {
+          
+          # Create the base parameters needed for dataconnect_tbl
+          base_params <- list(
+            study_uuid = data$study_uuid,
+            study_env_uuid = data$study_env_uuid,
+            dataset_uuid = data$dataset_uuid,
+            dataset_name = data$dataset_name
+          )
 
-        # Add the frame property as a dataconnect_tbl
-        data$frame <- dataconnect_tbl(client, base_params)
+          # Add the frame property as a dataconnect_tbl
+          data$frame <- dataconnect_tbl(client, base_params)
+        }
+        
+        results <<- c(results, list(data))
       }
-      
-      results <<- c(results, list(data))
-    }
+    })
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
   })
 
   return(results)
@@ -185,9 +195,8 @@
       }
     }
   }, error = function(e) {
-    warning("Error retrieving flight data: ", e$message)
-    warning(reticulate::py_last_error())
-    return(NULL)
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
   })
 }
 

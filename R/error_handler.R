@@ -37,7 +37,7 @@ ErrorDetail <- function(field = NULL, message = NULL, expected = NULL, ...) {
 #' @param x An ErrorDetail object
 #' @param ... Additional arguments (unused)
 #'
-#' @noRd
+#' @export
 #' @keywords internal
 print.ErrorDetail <- function(x, ...) {
   cat("\n")
@@ -93,13 +93,16 @@ DataConnectError <- function(error_code, message, timestamp = NULL, details = NU
 
 #' Print Method for DataConnectError
 #'
+#' Formats and prints a DataConnectError object, including its error code,
+#' message, optional timestamp, and any ErrorDetail entries in the details list.
+#'
 #' @param x A DataConnectError object
 #' @param ... Additional arguments (unused)
 #'
-#' @noRd
+#' @export
 #' @keywords internal
 print.DataConnectError <- function(x, ...) {
-  cat("Error Code: ", "[", x$error_code, "]\n", sep = "")
+  cat("Error Code: [", x$error_code, "]\n", sep = "")
   cat("Message: ", x$message, "\n", sep = "")
   
   if (!is.null(x$timestamp)) {
@@ -107,7 +110,7 @@ print.DataConnectError <- function(x, ...) {
   }
   
   if (!is.null(x$details) && length(x$details) > 0) {
-    cat("Details\n")
+    cat("Details:\n")
     for (i in seq_along(x$details)) {
       if (inherits(x$details[[i]], "ErrorDetail")) {
         print(x$details[[i]])
@@ -119,6 +122,24 @@ print.DataConnectError <- function(x, ...) {
   }
   
   invisible(x)
+}
+
+#' Print Method for dataconnect_error condition
+#'
+#' S3 dispatch resolves on the first (most specific) class of an object.
+#' When a dataconnect_error condition is caught in tryCatch and printed,
+#' R looks for print.dataconnect_error first. Without this method it falls
+#' back to R's default condition formatter, producing the unhelpful
+#' "<dataconnect_error in ...>" output. This method delegates to
+#' print.DataConnectError so the formatted output is always consistent.
+#'
+#' @param x A dataconnect_error condition object
+#' @param ... Additional arguments passed to print.DataConnectError
+#'
+#' @export
+#' @keywords internal
+print.dataconnect_error <- function(x, ...) {
+  print.DataConnectError(x, ...)
 }
 
 #' Throw DataConnect Error

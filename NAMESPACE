@@ -2,6 +2,9 @@
 
 S3method(collect,DataConnectRef)
 S3method(head,DataConnectRef)
+S3method(print,DataConnectError)
+S3method(print,ErrorDetail)
+S3method(print,dataconnect_error)
 export("%::%")
 export(init)
 export(install_miniforge)
