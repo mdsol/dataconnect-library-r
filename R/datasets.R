@@ -18,7 +18,7 @@
     flights <- client$list_flights(py_bytes, options = options)
     return(flights)
   }, error = function(e) {
-    parsed_error <- .parse_dataconnect_error(e$message)
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
     .throw_dataconnect_error(parsed_error)
   })
 }
@@ -49,7 +49,7 @@
 
     return(ticket_data)
   }, error = function(e) {
-    warning("Error extracting flight data: ", e$message)
+    warning("Error extracting flight data: ", conditionMessage(e))
     return(NULL)
   })
 }
@@ -91,7 +91,7 @@
       }
     })
   }, error = function(e) {
-    parsed_error <- .parse_dataconnect_error(e$message)
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
     .throw_dataconnect_error(parsed_error)
   })
 
@@ -195,7 +195,7 @@
       }
     }
   }, error = function(e) {
-    parsed_error <- .parse_dataconnect_error(e$message)
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
     .throw_dataconnect_error(parsed_error)
   })
 }
