@@ -28,7 +28,6 @@
 #'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
 #'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{search_dataset_name}: Optional dataset name filter (default: "")
-#'       \item \code{lazy}: Whether to use lazy evaluation (default: TRUE)
 #'     }
 #'     Returns dataset specifications with optional lazy loading.
 #'   }
@@ -141,7 +140,7 @@ DataConnectClient <- setRefClass(
       return(study_envs_spec)
     },
     
-    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = TRUE) {
+    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "") {
       "Get all datasets for a study environment"
       
       # Display deprecation warning if study_uuid is provided
@@ -154,7 +153,7 @@ DataConnectClient <- setRefClass(
       }
       
       # Use existing function to get datasets with frames
-      return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, lazy = lazy))
+      return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name))
     },
 
     dataset_versions = function (study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {

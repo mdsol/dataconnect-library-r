@@ -5,14 +5,7 @@
 #' @return A Python iterator of FlightInfo objects
 #' @keywords internal
 #' @noRd
-.client_list <- function(client, criteria) {
-  # Ensure required pagination fields exist
-  if(is.null(criteria$page_size)) {
-    criteria$page_size <- 100  # Default page size
-  }
-  if(is.null(criteria$page)) {
-    criteria$page <- 1  # Start with first page
-  }
+.list_flights <- function(client, criteria) {
 
   # Convert criteria to JSON and then to bytes
   json_str <- jsonlite::toJSON(criteria, auto_unbox = TRUE)
@@ -68,10 +61,14 @@
 
   # Process each FlightInfo object
   reticulate::iterate(py_iter, function(item) {
+
     data <- .extract_data(item)
+
     if (!is.null(data)) {
+      
       # Add frame property if client is provided and this looks like a dataset
       if (!is.null(client) && !is.null(data$dataset_uuid)) {
+        
         # Create the base parameters needed for dataconnect_tbl
         base_params <- list(
           study_uuid = data$study_uuid,
@@ -79,6 +76,7 @@
           dataset_uuid = data$dataset_uuid,
           dataset_name = data$dataset_name
         )
+
         # Add the frame property as a dataconnect_tbl
         data$frame <- dataconnect_tbl(client, base_params)
       }
@@ -90,43 +88,27 @@
   return(results)
 }
 
-#' Get all data with automatic pagination
+#' Get all flights
 #'
 #' @param client A FlightClient object
 #' @param criteria Base criteria for the query
-#' @param max_pages Maximum number of pages to retrieve (defaults to 10)
-#' @return A list of all data across pages
+#' @return A list of all flights matching the criteria, with frame properties added for datasets
 #' @keywords internal
 #' @noRd
-.get_paginated_data <- function(client, criteria, max_pages = 10) {
+.get_flights <- function(client, criteria) {
+
   all_results <- list()
-  current_page <- 1
 
-  # Ensure criteria has pagination fields
-  if(is.null(criteria$page_size)) {
-    criteria$page_size <- 100
-  }
+  # Get iterator for flights
+  py_iter <- .list_flights(client, criteria)
 
-  while(current_page <= max_pages) {
-    # Update page number in criteria
-    criteria$page <- current_page
+  # Process the iterator, passing client for frame creation
+  results <- .process_iterator(py_iter, client)
 
-    # Get iterator for current page
-    py_iter <- .client_list(client, criteria)
-
-    # Process the iterator, passing client for frame creation
-    page_results <- .process_iterator(py_iter, client)
-
-    # If no results, we've reached the end
-    if(length(page_results) == 0) {
-      break
-    }
-
+  if(length(results) > 0) {
+    
     # Add results to our collection
-    all_results <- c(all_results, page_results)
-
-    # Move to next page
-    current_page <- current_page + 1
+    all_results <- c(all_results, results)
   }
 
   return(all_results)
@@ -246,7 +228,7 @@
 #' @noRd
 .get_dataset <- function(client, study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
 
-  # Create ticket_data for internal use
+  # Build ticket_data from provided identifiers
   ticket_data <- list(
     study_uuid = study_uuid,
     study_env_uuid = study_environment_uuid,
@@ -254,14 +236,14 @@
     dataset_name = ""
   )
   
-  # Create dataset object with frame - this is essentially what get_datasets does
+  # Build dataset object with metadata
   dataset_obj <- list(
     study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid
   )
   
-  # Add the frame property - this is the main purpose of the function
+  # Attach a lazy frame for data retrieval
   dataset_obj$frame <- dataconnect_tbl(client, ticket_data)
   
   return(dataset_obj)
@@ -271,11 +253,11 @@
 #'
 #' @param client A FlightClient object
 #' @param page_size Number of items per page (default: 100)
-#' @param max_pages Maximum number of pages to retrieve (default: 10)
+#' @param max_pages Maximum number of pages to retrieve (default: -1, all pages)
 #' @param search_study_name full or part of the study name to search by (optional)
-#' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
-#' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
-#'         that can be used with the %::% operator
+#' @param lazy Whether to return a pagination spec for lazy processing (default: TRUE)
+#' @return If lazy=TRUE, a pagination specification that can be used with the %::% operator;
+#'         if lazy=FALSE, a list of all matching study environments
 #' @keywords internal
 #' @noRd
 .get_study_environments <- function(client, search_study_name = "", page_size = 100, max_pages = -1, lazy = TRUE) {
@@ -295,7 +277,7 @@
     ))
   } else {
     # Use the existing eager approach
-    return(.get_paginated_data(client, criteria, max_pages))
+    return(.get_flights(client, criteria))
   }
 }
 
@@ -305,32 +287,19 @@
 #' @param study_uuid UUID of the study to filter by [Optional]
 #' @param study_environment_uuid UUID of the study environment to filter by
 #' @param search_dataset_name full or part of the dataset name to search by [Optional]
-#' @param lazy Whether to return a pagination spec for lazy processing (default: FALSE)
-#' @return If lazy=FALSE, a list of study environments; if lazy=TRUE, a pagination specification
-#'         that can be used with the %::% operator
+#' @return A list of datasets
 #' @keywords internal
 #' @noRd
-.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name = "", lazy = FALSE) {
+.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name = "") {
+
   criteria <- list(
     flight_type = "DATASETS",
     study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
-    search_dataset_name = search_dataset_name,
-    page_size = -1,  # Use server default,
-    page = 1
+    search_dataset_name = search_dataset_name
   )
 
-  if (lazy) {
-    # Return a pagination spec for lazy processing
-    return(list(
-      client = client,
-      criteria = criteria,
-      max_pages = -1
-    ))
-  } else {
-    # Use the existing eager approach
-    return(.get_paginated_data(client, criteria, -1))
-  }
+  return(.get_flights(client, criteria))
 }
 
 #' List versions of a dataset from a Flight server
@@ -351,5 +320,5 @@
   )
 
   # need not set page_size as Arrow Flight Server does not support pagination
-  return(.get_paginated_data(client, criteria, 1))
+  return(.get_flights(client, criteria))
 }
