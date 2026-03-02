@@ -148,10 +148,6 @@ DataConnectClient <- setRefClass(
         warning("You only need to provide study_environment_uuid; the Study context is now resolved automatically.")
       }
 
-      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
-        stop("Parameter is required: study_environment_uuid")
-      }
-      
       # Use existing function to get datasets with frames
       return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name))
     },
