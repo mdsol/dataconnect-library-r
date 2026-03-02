@@ -128,10 +128,11 @@ print.DataConnectError <- function(x, ...) {
 #'
 #' S3 dispatch resolves on the first (most specific) class of an object.
 #' When a dataconnect_error condition is caught in tryCatch and printed,
-#' R looks for print.dataconnect_error first. Without this method it falls
-#' back to R's default condition formatter, producing the unhelpful
-#' "<dataconnect_error in ...>" output. This method delegates to
-#' print.DataConnectError so the formatted output is always consistent.
+#' R looks for print.dataconnect_error first and then continues down the
+#' class vector (e.g. to DataConnectError) if no method is found. 
+#' Defining this method ensures the most-specific condition class has an
+#' explicit print method and delegates to print.DataConnectError so the
+#' formatted output remains consistent regardless of class ordering.
 #'
 #' @param x A dataconnect_error condition object
 #' @param ... Additional arguments passed to print.DataConnectError
