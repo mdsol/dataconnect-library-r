@@ -113,13 +113,29 @@ datasetid = list(
 Retrieve other dataset versions if they are available.
 
 ```{r eval=FALSE}
-dataset_versions <- dc$dataset_versions(
-  dataset_uuid = datasetid$ExciterCustomID
-)
 
-for(dataset_version in dataset_versions) {
-  print(to_frame(dataset_version))
-}
+tryCatch({
+
+  dataset_versions <- dc$dataset_versions(
+    dataset_uuid = datasetid$ExciterCustomID
+  )
+
+  for (dataset_version in dataset_versions) {
+    print(to_frame(dataset_version))
+  }
+
+}, dataconnect_error = function(e) {
+
+  # Catch dataconnect specific errors.
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
 ```
 
 #### Fetch records for specific datasets
