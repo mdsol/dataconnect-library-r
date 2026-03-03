@@ -22,7 +22,7 @@
 #'     }
 #'     Returns a specification object containing study environment details.
 #'   }
-#'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name)}}{
+#'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, page, page_size)}}{
 #'     Get all datasets for a specific study environment.
 #'     \itemize{
 #'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
