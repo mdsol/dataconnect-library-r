@@ -28,6 +28,8 @@
 #'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
 #'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{search_dataset_name}: Optional dataset name filter (default: "")
+#'       \item \code{page}: Page number for paginated results (optional, default: 1)
+#'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
 #'     Returns dataset specifications.
 #'   }
@@ -83,7 +85,7 @@
 #' envs <- client$study_environments()
 #' 
 #' # Get datasets for a study environment
-#' datasets <- client$datasets(study_environment_uuid = env_uuid)
+#' datasets <- client$datasets(study_environment_uuid = env_uuid, search_dataset_name = "my_dataset", page = 3, page_size = 10)
 #'
 #' # Get dataset versions for a specific dataset
 #' versions <- client$dataset_versions(dataset_uuid = dataset_uuid)
@@ -140,20 +142,10 @@ DataConnectClient <- setRefClass(
       return(study_envs_spec)
     },
     
-    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "") {
+    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
       "Get all datasets for a study environment"
       
-      # Display deprecation warning if study_uuid is provided
-      if (!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
-        warning("You only need to provide study_environment_uuid; the Study context is now resolved automatically.")
-      }
-
-      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
-        stop("Parameter is required: study_environment_uuid")
-      }
-      
-      # Use existing function to get datasets with frames
-      return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name))
+      return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, page, page_size))
     },
 
     dataset_versions = function (study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
