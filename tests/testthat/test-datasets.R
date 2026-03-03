@@ -24,7 +24,7 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
     study_environment_uuid = "env-1",
     search_dataset_name = "abc",
     page = 3,
-    pageSize = 200
+    page_size = 200
   )
 
   expect_type(out, "list")
