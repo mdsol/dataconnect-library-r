@@ -68,9 +68,8 @@ Search for a dataset in a specific study environment.
 tryCatch({
   
   datasets <- dc$datasets(
-    study_uuid = ExciterStudy$ExciterStudyId,
-    study_environment_uuid= ExciterStudy$ExciterPRODEnvID,
-    search_dataset_name= searchName)
+  study_environment_uuid= "cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
+ search_dataset_name= 'ae')
   
   for(dataset in datasets) {
     print(to_frame(dataset))
@@ -140,37 +139,66 @@ tryCatch({
 #### Fetch records for specific datasets
 
 ```{r eval=FALSE}
-RAVEdata <- dc$fetch_data(
-                dataset_uuid = datasetid$ExciterRaveID
-)
-# Fetching first 3 rows of data
-RAVEdata$frame %>% head(3)
+tryCatch({
+  RAVEdata <- dc$fetch_data(
+                  dataset_uuid = datasetid$ExciterRaveID
+  )
+  # Fetching first 3 rows of data
+  RAVEdata$frame %>% head(3)
+
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e) {
+  cat(e$message, "\n")
+})
+
 ```
 
 ```{r eval=FALSE}
-Derdata <- dc$fetch_data(
-                dataset_uuid = datasetid$PWBDerID
-)
-# Fetching the first 6 rows of data
-Derdata$frame %>% head()
+tryCatch({
+  Derdata <- dc$fetch_data(
+                  dataset_uuid = datasetid$PWBDerID
+  )
+  # Fetching the first 6 rows of data
+  Derdata$frame %>% head()
+
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e) {
+  cat(e$message, "\n")
+})
 ```
 
 ```{r eval=FALSE}
-ImportData <- dc$fetch_data(
-                dataset_uuid = datasetid$PWBImportID
-)
-
-# Fetching the first 3 rows of data
-ImportData$frame %>% head(3)
+tryCatch({
+  ImportData <- dc$fetch_data(
+                  dataset_uuid = datasetid$PWBImportID
+  )
+  
+  # Fetching the first 3 rows of data
+  ImportData$frame %>% head(3)
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e){
+  cat(e$message, "\n")
+})
 ```
 
 ```{r eval=FALSE}
-CustomData <- dc$fetch_data(
-                dataset_uuid = datasetid$ExciterCustomID
-)
+tryCatch({
+  CustomData <- dc$fetch_data(
+                  dataset_uuid = datasetid$ExciterCustomID
+  )
+  
+  # Fetching the first 3 rows of data
+  CustomData$frame %>% head(3)
 
-# Fetching the first 3 rows of data
-CustomData$frame %>% head(3)
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e)
+{
+  cat(e$message, "\n")
+})
 ```
 
 ```{r eval=FALSE}
