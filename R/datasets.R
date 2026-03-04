@@ -295,17 +295,20 @@
 #' @param client A FlightClient object
 #' @param study_uuid UUID of the study to filter by [Optional]
 #' @param study_environment_uuid UUID of the study environment to filter by
-#' @param search_dataset_name full or part of the dataset name to search by [Optional]
+#' @param search_dataset_name full or part of the dataset name to search by
+#' @param page Page number for paginated results
+#' @param page_size Number of results per page
 #' @return A list of datasets
 #' @keywords internal
 #' @noRd
-.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name = "") {
-
+.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name, page, page_size) {
   criteria <- list(
     flight_type = "DATASETS",
     study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
-    search_dataset_name = search_dataset_name
+    search_dataset_name = search_dataset_name,
+    page = page,
+    page_size = page_size
   )
 
   return(.get_flights(client, criteria))

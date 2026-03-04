@@ -231,6 +231,8 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 | :------- | :---------- |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
 | **search_dataset_name** | Optional. The approximate name of the dataset |
+| **page** | Optional. Page number for paginated results. Default: 1. |
+| **page_size** | Optional. Number of results per page. Default: 50. |
 
 ### Output 
 

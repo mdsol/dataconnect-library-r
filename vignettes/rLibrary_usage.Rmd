@@ -68,8 +68,10 @@ Search for a dataset in a specific study environment.
 tryCatch({
   
   datasets <- dc$datasets(
-  study_environment_uuid= "cec9f2a7-07ba-4fa8-bfcf-34fbc5d56793",
- search_dataset_name= 'ae')
+    study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
+    search_dataset_name = searchName,
+    page = 1,
+    page_size = 5)
   
   for(dataset in datasets) {
     print(to_frame(dataset))
