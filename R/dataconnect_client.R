@@ -175,9 +175,6 @@ DataConnectClient <- setRefClass(
 
     fetch_data = function(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
       "Fetch data of a dataset"
-      if (missing(dataset_uuid) || is.null(dataset_uuid) || is.na(dataset_uuid) || trimws(as.character(dataset_uuid)) == "") {
-        stop("Parameter is required: dataset_uuid")
-      }
 
       if (!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
         warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
