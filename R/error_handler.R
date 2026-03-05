@@ -189,6 +189,8 @@ print.dataconnect_error <- function(x, ...) {
 #' @noRd
 #' @keywords internal
 .extract_json_object <- function(text) {
+  text <- gsub("\\\\\\\"", "\"", text) # Replacing excessive slashes from response
+
   first_brace <- regexpr("\\{", text)[1]
 
   if (first_brace < 1) {
