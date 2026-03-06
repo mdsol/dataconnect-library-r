@@ -190,6 +190,7 @@ print.dataconnect_error <- function(x, ...) {
 #' @keywords internal
 .extract_json_object <- function(text) {
   text <- gsub("\\\\\\\"", "\"", text) # Replacing excessive slashes from response
+  text <- gsub("\\\\'", "'", text) # single quote escape sequences are not valid JSON, so we can unescape them for parsing
 
   first_brace <- regexpr("\\{", text)[1]
 
