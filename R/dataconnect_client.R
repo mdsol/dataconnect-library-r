@@ -224,7 +224,7 @@ DataConnectClient <- setRefClass(
       )
 
       # Use normalized namespace access
-      .self$.ns$.publish(.self$.client, config, data)
+      return(.self$.ns$.publish(.self$.client, config, data))
     },
 
     publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
@@ -256,7 +256,7 @@ DataConnectClient <- setRefClass(
       )
 
       # Use normalized namespace access
-      .self$.ns$.publish(.self$.client, config, data)
+      return(.self$.ns$.publish(.self$.client, config, data))
     }
   )
 )

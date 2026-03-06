@@ -130,6 +130,9 @@
     writer <- writer_reader[[1]]  # First element is the writer
     reader <- writer_reader[[2]]  # Second element is the reader
 
+    # Ensure writer is always closed, even if an error occurs below
+    on.exit(writer$close(), add = TRUE)
+
     # If we have data, write it using the writer (matching Python pattern)
     arrow_data <- reticulate::r_to_py(arrow_data)
 
@@ -148,8 +151,6 @@
       stop("No response received from server after do_put")
     }
     result <- jsonlite::fromJSON(result_str)
-
-    writer$close()
 
     dry_publish_or_publish_result <- NULL
 
@@ -187,12 +188,6 @@
     dry_publish_or_publish_result <- NULL
 
     if (isTRUE(config$is_dry_publish)) {
-      dry_publish_or_publish_result <- list(
-        success = FALSE,
-        error_type = error_info$type,
-        error_message = error_info$message
-      )
-    } else {
       dry_publish_or_publish_result <- list(
         success = FALSE,
         error_type = error_info$type,
