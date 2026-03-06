@@ -121,10 +121,10 @@ DataConnectClient <- setRefClass(
     .ns = "ANY"
   ),
   methods = list(
-    
+
     initialize = function(url = "host.docker.internal", port = 5005, use_tls = FALSE, token = "", permanent = FALSE) {
       "Initialize DataConnect client with server connection"
-      
+
       # Store package namespace for consistent function access
       .self$.ns <- asNamespace("dataconnect")
 
@@ -134,17 +134,17 @@ DataConnectClient <- setRefClass(
       # Create internal client using existing connect function
       .self$.client <- .connect(url, port, use_tls)
     },
-    
+
     study_environments = function(search_study_name = "") {
       "Get all study environments"
       # Use existing function but return all results 
       study_envs_spec <- .get_study_environments(.self$.client, search_study_name = search_study_name)
       return(study_envs_spec)
     },
-    
+
     datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
       "Get all datasets for a study environment"
-      
+
       return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, page, page_size))
     },
 
@@ -198,7 +198,7 @@ DataConnectClient <- setRefClass(
                           study_environment_uuid =  study_environment_uuid,
                           dataset_uuid = dataset_uuid))
     },
-  
+
     dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
 
       "Validate publishing parameters without actually publishing"
@@ -213,48 +213,50 @@ DataConnectClient <- setRefClass(
       if (!is.list(key_columns) || length(key_columns) < 1) {
         stop("key_columns must be a non-empty list.")
       }
-      
+
       config <- list(
         project_token = project_token,
         dataset_name = dataset_name,
         dataset_description = dataset_name, # This will be removed in future versions
         key_columns = key_columns,
-        source_datasets = source_datasets
+        source_datasets = source_datasets,
+        is_dry_publish = TRUE # Note: This flag is for internal use in the publish function to determine if it's a dry run or actual publish
       )
-      
+
       # Use normalized namespace access
-      return(.self$.ns$.dry_publish(.self$.client, config, data))
+      .self$.ns$.publish(.self$.client, config, data)
     },
-    
+
     publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
-      
+
       "Publish dataset to Data Connect"
-      if (missing(project_token) || 
-          missing(dataset_name) || 
-          missing(key_columns) || 
-          missing(source_datasets) || 
+      if (missing(project_token) ||
+          missing(dataset_name) ||
+          missing(key_columns) ||
+          missing(source_datasets) ||
           missing(data)) {
         stop("All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.")
       }
-      
+
       if (!is.list(key_columns) || length(key_columns) < 1) {
         stop("key_columns must be a non-empty list.")
       }
-      
+
       if (is.null(data)) {
         stop("Data cannot be null for publish operation.")
       }
-      
+
       config <- list(
         project_token = project_token,
         dataset_name = dataset_name,
         dataset_description = dataset_name, # This will be removed in future versions
         key_columns = key_columns,
-        source_datasets = source_datasets
+        source_datasets = source_datasets,
+        is_dry_publish = FALSE # Note: This flag is for internal use in the publish function to determine if it's a dry run or actual publish
       )
-      
+
       # Use normalized namespace access
-      return(.self$.ns$.publish(.self$.client, config, data))
+      .self$.ns$.publish(.self$.client, config, data)
     }
   )
 )

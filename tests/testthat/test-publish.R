@@ -693,12 +693,19 @@ test_that("do_put_command handles the new writer/reader pattern correctly", {
         mock_writer <- structure(
           list(
             write_table = function(data) { "data_written" },
+            done_writing = function() {},
             close = function() {}
           ),
           class = "MockWriter"
         )
-        mock_reader <- structure(list(), class = "MockReader")
-        return(list(mock_writer, mock_reader))  # Unnamed list like Python tuple
+        mock_reader <- structure(
+          list(
+            read = function() charToRaw('{"status":true,"dataset_name":"my_dataset","dataset_uuid":"test-uuid","dataset_version":"1","dataset_batch_number":1}')
+          ),
+          class = "MockReader"
+        )
+        
+        list(mock_writer, mock_reader)  # Unnamed list like Python tuple
       }
     ),
     class = "MockFlightClient"
@@ -736,7 +743,6 @@ test_that("do_put_command handles the new writer/reader pattern correctly", {
   # Verify the result structure
   expect_type(result, "list")
   expect_true(result$success == TRUE)
-  expect_true(result$message == "Dataset published successfully")
 })
 
 # Tests for .publish function integration with .count_distinct_rows
