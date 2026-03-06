@@ -53,21 +53,21 @@
         })
       } else {
         # Try to decode as JSON (legacy path)
-      tryCatch({
-        item_str <- reticulate::py_to_r(result)
-        item_json <- jsonlite::fromJSON(item_str)
-        response <<- c(response, list(item_json))
-      }, error = function(e) {
-        # If not JSON, just add as raw
-        response <<- c(response, list(result))
-      })
+        tryCatch({
+          item_str <- reticulate::py_to_r(result)
+          item_json <- jsonlite::fromJSON(item_str)
+          response <<- c(response, list(item_json))
+        }, error = function(e) {
+          # If not JSON, just add as raw
+          response <<- c(response, list(result))
+        })
       }
     })
 
     return(response)
   }, error = function(e) {
     warning("Error executing command: ", e$message)
-    return(NULL)
+    NULL
   })
 }
 
@@ -101,7 +101,7 @@
 
     # Create Flight descriptor with config in path (matching Python client)
     pa_flight <- reticulate::import("pyarrow.flight")
-    
+
     # Encode config as bytes for the descriptor path
     config_bytes <- reticulate::r_to_py(config_json)$encode("utf-8")
     descriptor <- pa_flight$FlightDescriptor$for_path(config_bytes)
@@ -130,56 +130,72 @@
     writer <- writer_reader[[1]]  # First element is the writer
     reader <- writer_reader[[2]]  # Second element is the reader
 
+    # Ensure writer is always closed, even if an error occurs below
+    on.exit(writer$close(), add = TRUE)
+
     # If we have data, write it using the writer (matching Python pattern)
     arrow_data <- reticulate::r_to_py(arrow_data)
-    
+
     if (!is.null(arrow_data)) {
       writer$write_table(arrow_data)
-      writer$close()
     }
 
-    list(
-      success = TRUE,
-      message = "Dataset published successfully"
-    )
+    writer$done_writing()
+
+    raw_bytes <- reader$read()
+    result_str <- if (is.raw(raw_bytes)) {
+      rawToChar(raw_bytes)
+    } else if (!is.null(raw_bytes)) {
+      raw_bytes$to_pybytes()$decode("utf-8")
+    } else {
+      stop("No response received from server after do_put")
+    }
+    result <- jsonlite::fromJSON(result_str)
+
+    dry_publish_or_publish_result <- NULL
+
+    if (isTRUE(config$is_dry_publish)) {
+
+      # If it's a dry publish, we expect validation results instead of dataset identifiers
+      dry_publish_or_publish_result <- list(
+        success = result$status,
+        is_schema_valid = result$is_schema_valid,
+        is_config_valid = result$is_config_valid,
+        dataset_valid = result$dataset_valid,
+        errors = result$errors,
+        dataset_name = result$dataset_name,
+        dataset_version = result$dataset_version,
+        no_of_columns = result$no_of_columns
+      )
+    } else {
+
+      # For a regular publish, we expect dataset identifiers in the response
+      dry_publish_or_publish_result <- list(
+        success = result$status,
+        dataset_name = result$dataset_name,
+        dataset_uuid = result$dataset_uuid,
+        dataset_version = result$dataset_version,
+        dataset_batch_number = result$dataset_batch_number
+      )
+    }
+
+    dry_publish_or_publish_result
 
   }, error = function(e) {
+
     error_info <- .handle_flight_error(e)
 
-    # Enhanced error logging with full traceback
-    error_msg <- paste("Error in do_put_command:", e$message)
+    dry_publish_or_publish_result <- NULL
 
-    # Add traceback information
-    if (!is.null(e$call)) {
-      error_msg <- paste(error_msg, "\nCall:", deparse(e$call))
+    if (isTRUE(config$is_dry_publish)) {
+      dry_publish_or_publish_result <- list(
+        success = FALSE,
+        error_type = error_info$type,
+        error_message = error_info$message
+      )
     }
 
-    # Add full traceback
-    tb <- sys.calls()
-    if (length(tb) > 0) {
-      error_msg <- paste(error_msg, "\nTraceback:")
-      for (i in seq_along(tb)) {
-        error_msg <- paste(error_msg, paste0("  ", i, ": ", deparse(tb[[i]])), sep = "\n")
-      }
-    }
-
-    # Add Python traceback if available
-    tryCatch({
-      py_error <- reticulate::py_last_error()
-      if (!is.null(py_error)) {
-        error_msg <- paste(error_msg, "\nPython traceback:", py_error, sep = "\n")
-      ''}
-    }, error = function(py_e) {
-      # Ignore errors getting Python traceback
-    })
-
-    # return
-    list(
-      success = FALSE,
-      error_type = error_info$type,
-      error_message = error_info$message,
-      original_error = error_msg
-    )
+    dry_publish_or_publish_result
   })
 }
 
