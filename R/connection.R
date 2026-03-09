@@ -178,7 +178,7 @@ def create_flight_options_with_network_info():
     # Create flight options with headers
     headers = []
 
-    # Always include client version header (added from R)
+    # Always include client information (added from R)
     headers.append((b"%s", b"%s"))
 
     # Always include local IP (will be "NA" if not found)
@@ -213,7 +213,7 @@ def create_flight_options_with_network_info():
   }, error = function(e) {
     warning("Error creating flight options: ", e$message)
 
-    # Fall back to just the client version header
+    # Fall back to just the client information
     if (requireNamespace("arrow", quietly = TRUE)) {
       arrow_pkg <- asNamespace("arrow")
       pa_flight <- arrow_pkg$flight
