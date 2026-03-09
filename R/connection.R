@@ -10,10 +10,10 @@
 #' @examples
 #' \dontrun{
 #' # Set token for current session
-#' set_dataconnect_token("your-token-here")
+#' .set_dataconnect_token("your-token-here")
 #' 
 #' # Set token permanently (adds to .Renviron)
-#' set_dataconnect_token("your-token-here", permanent = TRUE)
+#' .set_dataconnect_token("your-token-here", permanent = TRUE)
 #' }
 #' @keywords internal
 #' @noRd
@@ -21,32 +21,32 @@
   if (missing(token) || is.null(token) || !nzchar(token)) {
     stop("Token cannot be empty")
   }
-  
+
   # Set for current session
   Sys.setenv(DATACONNECT_TOKEN = token)
-  
+
   if (permanent) {
     # Try to add to .Renviron file
     tryCatch({
       renviron_path <- file.path(Sys.getenv("HOME"), ".Renviron")
-      
+
       # Read existing .Renviron if it exists
       existing_lines <- character(0)
       if (file.exists(renviron_path)) {
         existing_lines <- readLines(renviron_path, warn = FALSE)
       }
-      
+
       # Remove any existing DATACONNECT_TOKEN lines
       existing_lines <- existing_lines[!grepl("^DATACONNECT_TOKEN=", existing_lines)]
-      
+
       # Add the new token line
       new_lines <- c(existing_lines, paste0("DATACONNECT_TOKEN=", token))
-      
+
       # Write back to .Renviron
       writeLines(new_lines, renviron_path)
-      
+
       message("Token added to .Renviron file. Restart R session for permanent effect.")
-      
+
     }, error = function(e) {
       warning("Could not write to .Renviron file: ", e$message)
       message("Token set for current session only.")
@@ -54,7 +54,7 @@
   } else {
     message("Token set for current session.")
   }
-  
+
   invisible(TRUE)
 }
 
@@ -67,7 +67,7 @@
 #' @details
 #' The function creates flight options with the following headers:
 #' \itemize{
-#'   \item Client version information
+#'   \item Client information
 #'   \item Local IP address (x-client-local-ip)
 #'   \item Public IP address (x-client-public-ip) 
 #'   \item MAC address (x-client-mac) if available
@@ -81,30 +81,30 @@
 #' }
 #' 
 #' @import arrow
-#' @return Flight options with headers containing network information and authentication
+#' @return Flight options with headers containing client information, network information and authentication token
 #' @keywords internal
 #' @noRd
 .get_flight_options <- function() {
-  # Get client version header
-  client_version_header <- .get_client_version_header()
-  client_version_name <- names(client_version_header)[1]
-  client_version_value <- client_version_header[[1]]
+  # Get client header
+  client_header <- .get_client_header()
+  client_header_name <- names(client_header)[1]
+  client_header_value <- client_header[[1]]
 
   # Check if reticulate is available
   if (!requireNamespace("reticulate", quietly = TRUE)) {
     warning("reticulate package not available, using minimal flight options")
-    # Return minimal flight options with just the client version
+    # Return minimal flight options with just the client information
     if (requireNamespace("arrow", quietly = TRUE)) {
       arrow_pkg <- asNamespace("arrow")
       pa_flight <- arrow_pkg$flight
-      headers <- list(c(client_version_name, client_version_value))
-      
+      headers <- list(c(client_header_name, client_header_value))
+
       # Add DATACONNECT_TOKEN if available (using lowercase header)
       token <- Sys.getenv("DATACONNECT_TOKEN", unset = "")
       if (nzchar(token)) {
         headers <- append(headers, list(c("authorization", paste("Bearer", token))))
       }
-      
+
       return(pa_flight$FlightCallOptions(headers = headers))
     }
     return(NULL)
@@ -178,7 +178,7 @@ def create_flight_options_with_network_info():
     # Create flight options with headers
     headers = []
 
-    # Always include client version header (added from R)
+    # Always include client information (added from R)
     headers.append((b"%s", b"%s"))
 
     # Always include local IP (will be "NA" if not found)
@@ -192,18 +192,18 @@ def create_flight_options_with_network_info():
         headers.append((b"x-client-mac", mac.encode("utf-8")))
 
     # Add DATACONNECT_TOKEN if available (using lowercase header)
-    # token was pre-set by R code below
+    # token is set as a Python module-level variable by R before this function is called
     if token:
         headers.append((b"authorization", f"Bearer {token}".encode("utf-8")))
 
     # Create and return options
     return flight.FlightCallOptions(headers=headers)
-', client_version_name, client_version_value)
+', client_header_name, client_header_value)
 
   # Execute the Python code
   tryCatch({
     token <- Sys.getenv("DATACONNECT_TOKEN", unset = "")
-    reticulate::py_run_string(sprintf("token = '%s'", token))
+    reticulate::py$token <- token
     reticulate::py_run_string(py_code)
 
     # Call the Python function to get options directly
@@ -213,18 +213,18 @@ def create_flight_options_with_network_info():
   }, error = function(e) {
     warning("Error creating flight options: ", e$message)
 
-    # Fall back to just the client version header
+    # Fall back to just the client information
     if (requireNamespace("arrow", quietly = TRUE)) {
       arrow_pkg <- asNamespace("arrow")
       pa_flight <- arrow_pkg$flight
-      headers <- list(c(client_version_name, client_version_value))
-      
+      headers <- list(c(client_header_name, client_header_value))
+
       # Add DATACONNECT_TOKEN if available (fallback case, using lowercase)
       token <- Sys.getenv("DATACONNECT_TOKEN", unset = "")
       if (nzchar(token)) {
         headers <- append(headers, list(c("authorization", paste("Bearer", token))))
       }
-      
+
       return(pa_flight$FlightCallOptions(headers = headers))
     }
 
@@ -234,11 +234,11 @@ def create_flight_options_with_network_info():
 
 #' Create an Arrow Flight Client
 #'
-#' @concept On Mac and Linux, the system trust store is usually found
+#' @details On Mac and Linux, the system trust store is usually found
 #' and used automatically by pyarrow/gRPC. Hence, tls_root_certs need
-#' not be passed. However on  Windows, Python/gRPC often does not use
-#' the system trust store by default, so passing root CA certificate
-#' explicitly
+#' not be passed. However on Windows, Python/gRPC often does not use
+#' the system trust store by default, so the root CA certificate is
+#' passed explicitly.
 #' @param uri The URI (protocol://host:port) of the Arrow Flight Server
 #' @param use_tls Whether to use TLS
 #' @return A FlightClient object
@@ -308,13 +308,14 @@ def create_flight_options_with_network_info():
   return(client)
 }
 
-#' Get the client version header for Arrow Flight
-#' Returns a header with the client version for use in Arrow Flight requests.
+#' Get the client header for Arrow Flight
+#'
+#' Returns a header with the client details for use in Arrow Flight requests
 #' @importFrom utils packageVersion
-#' @return A named list with the client version header
+#' @return A named list with the client header
 #' @keywords internal
 #' @noRd
-.get_client_version_header <- function() {
+.get_client_header <- function() {
   dataconnect_version <- as.character(packageVersion("dataconnect"))
-  return(list("x-client-dataconnect-r-version" = paste0(dataconnect_version)))
+  return(list("x-client-dataconnect" = paste0("R_SDK;", dataconnect_version, ";")))
 }
