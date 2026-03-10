@@ -203,8 +203,8 @@ def create_flight_options_with_network_info():
   # Execute the Python code
   tryCatch({
     token <- Sys.getenv("DATACONNECT_TOKEN", unset = "")
+    reticulate::py_run_string(sprintf("token = '%s'", token))
     reticulate::py_run_string(py_code)
-    reticulate::py$token <- token
 
     # Call the Python function to get options directly
     options <- reticulate::py$create_flight_options_with_network_info()
@@ -227,8 +227,8 @@ def create_flight_options_with_network_info():
 
       return(pa_flight$FlightCallOptions(headers = headers))
     }
-
-      return(NULL)
+    
+    return(NULL)
   })
 }
 
