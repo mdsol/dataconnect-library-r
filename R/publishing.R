@@ -94,12 +94,15 @@ def count_distinct_rows_py(table, key_columns):
   if (is.null(data)) {
     stop("Data must be provided")
   }
-  if (!is.data.frame(data)) {
+  # Convert data to Arrow table
+  if (is.data.frame(data)) {
+    arrow_data <- arrow::arrow_table(data)
+  } else {
     stop("Data must be a data.frame")
   }
 
   # Check for empty data
-  if (nrow(data) == 0) {
+  if (arrow_data$num_rows == 0) {
     warning("Uploading empty dataset")
   }
 
@@ -189,7 +192,7 @@ def count_distinct_rows_py(table, key_columns):
   }
 
   result <- .do_put_command(client, config, arrow_data)
-  
+
   distinct_row_result <- NULL
   if (result$success) {
     distinct_row_result <- .count_distinct_rows(data, config$key_columns)
