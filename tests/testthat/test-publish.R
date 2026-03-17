@@ -458,13 +458,22 @@ test_that("publish validates inputs and handles different scenarios correctly", 
   # Test input validation - these should all error
   expect_error(.publish(NULL, config, sample_data), "Client must be provided")
   expect_error(.publish(mock_client, NULL, sample_data), "Configuration must be provided")
-  expect_error(.publish(mock_client, config, NULL), "Data must be provided")
+  # .publish() converts via arrow::arrow_table() first; invalid data errors can
+  # come from Arrow rather than our own message.
+  expect_error(
+    .publish(mock_client, config, NULL),
+    "Data must be provided|only data frames are allowed"
+  )
   
   # Test invalid data type
-  expect_error(.publish(mock_client, config, "invalid_data"), 
-               "Data must be a data.frame")
-  expect_error(.publish(mock_client, config, list(a = 1, b = 2)), 
-               "Data must be a data.frame")
+  expect_error(
+    .publish(mock_client, config, "invalid_data"),
+    "Data must be a data.frame|only data frames are allowed"
+  )
+  expect_error(
+    .publish(mock_client, config, list(a = 1, b = 2)),
+    "Data must be a data.frame|only data frames are allowed"
+  )
   
   # Test that valid inputs are accepted (we'll mock the actual calls)
   expect_true(inherits(sample_data, "data.frame"))
