@@ -297,23 +297,56 @@ myProjectToken = "projecttoken"
 
 ```{r eval=FALSE}
 # Validating the published dataset. Comment out when set on a recurring schedule.
-dc$dry_publish(
-  project_token = myProjectToken,
-  dataset_name = "projectname",
-  key_columns = list ("field1","field2", "field3"),
-  source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
-  data = publishDF
-)
+tryCatch({
+  dry_publish_result <- dc$dry_publish(
+    project_token = myProjectToken,
+    dataset_name = "projectname",
+    key_columns = list ("field1","field2", "field3"),
+    source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+    data = publishDF
+  )
+  
+  print(dry_publish_result)
+  
+}, dataconnect_error = function(e){
+  
+  # Catch dataconnect specific errors. 
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+
 ```
 
 #### Publish
 
 ```{r eval=FALSE}
-dc$publish(
-  project_token = myProjectToken,
-  dataset_name = "projectname",
-  key_columns = list ("field1","field2", "field3"),
-  source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
-  data = publishDF
-)
+tryCatch({
+  publish_result <- dc$publish(
+    project_token = myProjectToken,
+    dataset_name = "projectname",
+    key_columns = list ("field1","field2", "field3"),
+    source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+    data = publishDF
+  )
+
+  print(publish_result)
+  
+}, dataconnect_error = function(e){
+  
+  # Catch dataconnect specific errors. 
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
 ```

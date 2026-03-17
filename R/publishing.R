@@ -169,9 +169,6 @@ def count_distinct_rows_py(table, key_columns):
   if (is.null(client)) {
     stop("Client must be provided")
   }
-  if (is.null(config)) {
-    stop("Configuration must be provided")
-  }
   if (is.null(data)) {
     stop("Data must be provided")
   }
@@ -188,8 +185,14 @@ def count_distinct_rows_py(table, key_columns):
     warning("Uploading empty dataset")
   }
 
-  result <- .do_put_command(client, config, arrow_data)
-  
+
+  result <- tryCatch({
+    .do_put_command(client, config, arrow_data)
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
+
   distinct_row_result <- NULL
   if (result$success) {
     distinct_row_result <- .count_distinct_rows(data, config$key_columns)
@@ -200,6 +203,6 @@ def count_distinct_rows_py(table, key_columns):
       result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
     }
   }
-  
+
   return(result)
 }
