@@ -191,7 +191,13 @@ def count_distinct_rows_py(table, key_columns):
     warning("Uploading empty dataset")
   }
 
-  result <- .do_put_command(client, config, arrow_data)
+  # result <- .do_put_command(client, config, arrow_data)
+  result <- tryCatch({
+    .do_put_command(client, config, arrow_data)
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
 
   distinct_row_result <- NULL
   if (result$success) {

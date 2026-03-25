@@ -154,7 +154,7 @@
 
     dry_publish_or_publish_result <- NULL
 
-    date_format_errors <- result$datetime_format_errors
+    date_format_errors <- result$invalid_datetime_formats
     date_formats_valid <- is.null(date_format_errors) || length(date_format_errors) == 0
 
     if (isTRUE(config$is_dry_publish)) {
@@ -167,26 +167,26 @@
         dataset_valid = result$dataset_valid,
         date_formats_valid = date_formats_valid,
         errors = result$errors,
+        invalid_records = result$invalid_records,
         dataset_name = result$dataset_name,
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns
       )
     } else {
-
       # For a regular publish, we expect dataset identifiers in the response
       dry_publish_or_publish_result <- list(
         success = result$status,
         dataset_name = result$dataset_name,
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
-        dataset_batch_number = result$dataset_batch_number
+        dataset_batch_number = result$dataset_batch_number,
+        invalid_records = result$invalid_records
       )
     }
 
     dry_publish_or_publish_result
 
   }, error = function(e) {
-
     error_info <- .handle_flight_error(e)
 
     dry_publish_or_publish_result <- NULL
