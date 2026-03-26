@@ -165,7 +165,7 @@
         is_schema_valid = result$is_schema_valid,
         is_config_valid = result$is_config_valid,
         dataset_valid = result$dataset_valid,
-        date_formats_valid = date_formats_valid,
+        is_date_formats_valid = date_formats_valid,
         errors = result$errors,
         invalid_record_count = result$invalid_record_count,
         dataset_name = result$dataset_name,
