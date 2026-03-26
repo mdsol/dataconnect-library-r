@@ -172,9 +172,6 @@ def count_distinct_rows_py(table, key_columns):
   if (is.null(client)) {
     stop("Client must be provided")
   }
-  if (is.null(config)) {
-    stop("Configuration must be provided")
-  }
   if (is.null(data)) {
     stop("Data must be provided")
   }
