@@ -167,7 +167,7 @@
         dataset_valid = result$dataset_valid,
         date_formats_valid = date_formats_valid,
         errors = result$errors,
-        invalid_records = result$invalid_records,
+        invalid_record_count = result$invalid_record_count,
         dataset_name = result$dataset_name,
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns
@@ -180,7 +180,7 @@
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
         dataset_batch_number = result$dataset_batch_number,
-        invalid_records = result$invalid_records
+        invalid_record_count = result$invalid_record_count
       )
     }
 
