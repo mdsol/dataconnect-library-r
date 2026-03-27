@@ -199,13 +199,14 @@ DataConnectClient <- setRefClass(
                           dataset_uuid = dataset_uuid))
     },
 
-    dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
+    dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL) {
       config <- list(
         project_token = project_token,
         dataset_name = dataset_name,
         dataset_description = dataset_name, # This will be removed in future versions
         key_columns = key_columns,
         source_datasets = source_datasets,
+        datetime_formats = datetime_formats,
         is_dry_publish = TRUE # Note: This flag is for internal use in the publish function to determine if it's a dry run or actual publish
       )
 
@@ -213,13 +214,14 @@ DataConnectClient <- setRefClass(
       return(.self$.ns$.publish(.self$.client, config, data))
     },
 
-    publish = function(project_token, dataset_name, key_columns, source_datasets, data) {
+    publish = function(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL) {
       config <- list(
         project_token = project_token,
         dataset_name = dataset_name,
         dataset_description = dataset_name, # This will be removed in future versions
         key_columns = key_columns,
         source_datasets = source_datasets,
+        datetime_formats = datetime_formats,
         is_dry_publish = FALSE # Note: This flag is for internal use in the publish function to determine if it's a dry run or actual publish
       )
 
