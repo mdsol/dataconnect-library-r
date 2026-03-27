@@ -94,12 +94,15 @@ def count_distinct_rows_py(table, key_columns):
   if (is.null(data)) {
     stop("Data must be provided")
   }
-  if (!is.data.frame(data)) {
+ # Convert data to Arrow table
+  if (is.data.frame(data)) {
+    arrow_data <- arrow::arrow_table(data)
+  } else {
     stop("Data must be a data.frame")
   }
 
   # Check for empty data
-  if (nrow(data) == 0) {
+  if (arrow_data$num_rows == 0) {
     warning("Uploading empty dataset")
   }
 
@@ -185,24 +188,23 @@ def count_distinct_rows_py(table, key_columns):
     warning("Uploading empty dataset")
   }
 
+  tryCatch({
+    result <- .do_put_command(client, config, arrow_data)
 
-  result <- tryCatch({
-    .do_put_command(client, config, arrow_data)
-  }, error = function(e) {
-    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
-    .throw_dataconnect_error(parsed_error)
-  })
+    distinct_row_result <- NULL
+    if (result$success) {
+      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
 
-  distinct_row_result <- NULL
-  if (result$success) {
-    distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-    # Append distinct row count and duplicate row count if available
-    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
-      result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
+      # Append distinct row count and duplicate row count if available
+      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
+        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
+      }
     }
-  }
 
-  return(result)
+    return(result)
+    }, error = function(e) {
+      parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+      .throw_dataconnect_error(parsed_error)
+  })
 }

@@ -154,6 +154,9 @@
 
     dry_publish_or_publish_result <- NULL
 
+    date_format_errors <- result$invalid_datetime_formats
+    date_formats_valid <- is.null(date_format_errors) || length(date_format_errors) == 0
+
     if (isTRUE(config$is_dry_publish)) {
 
       # If it's a dry publish, we expect validation results instead of dataset identifiers
@@ -162,8 +165,10 @@
         is_schema_valid = result$is_schema_valid,
         is_config_valid = result$is_config_valid,
         dataset_valid = result$dataset_valid,
+        is_date_formats_valid = date_formats_valid,
         errors = result$errors,
         dataset_name = result$dataset_name,
+        invalid_record_count = result$invalid_record_count,
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns
       )
@@ -175,7 +180,8 @@
         dataset_name = result$dataset_name,
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
-        dataset_batch_number = result$dataset_batch_number
+        dataset_batch_number = result$dataset_batch_number,
+        invalid_record_count = result$invalid_record_count
       )
     }
 
