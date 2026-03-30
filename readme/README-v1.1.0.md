@@ -218,7 +218,7 @@ A data frame with two columns: **name** and **value**
 
 ### Description
 
-Get all available studies or search study by name
+Get all available studies or search for a study by name
 
 ### Usage
 

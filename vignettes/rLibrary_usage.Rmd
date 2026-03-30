@@ -38,7 +38,7 @@ dc <-init(
 
 ### Get all available studies
 
-Get all available studies or search study by name.
+Get all available studies or search for a study by name.
 
 ```{r eval=FALSE}
 
