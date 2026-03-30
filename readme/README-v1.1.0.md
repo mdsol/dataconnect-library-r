@@ -328,6 +328,7 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data)
 | **key_columns** | List of columns that form the composite key that identifies each unique record in the data to be validated |
 | **source_datasets** | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
 | **data** | Data frame that needs to be validated |
+| **datetime_format** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
 
 ### Output 
 
@@ -335,20 +336,22 @@ Returns the result of publishing validations. After successful validation testin
 
 ### Error Messages & Actions
 
-| Error Message | Action |
-| :------------ | :----- |
-|**All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.**| Ensure that all parameters are provided. |
-| **key_columns must be a non-empty list.**| key_columns must contain at least one column name. |
-| **invalid input_config passed** | Required argument is missing input; make any required adjustment |
-| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
-| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** | Verify that</br> - The study_environment_uuid is correct.</br> - You have access to that study environment.</br> - The project token being used is in this study environment.|
-| **The source dataset does not exist** | Ensure that the source dataset is in the study environment where you intend to publish the dataset. The system does not support the ability to publish a dataset from one study environment to another study environment. |
-| **Error parsing dataset_uuid** | The dataset_uuid is not a valid UUID. Review and provide the correct dataset_uuid. |
-| **Error in validating source dataset** | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist**|
-| **invalid schema passed** | Contact Medidata Support. |
-| **Unsupported field type and format for '{field.name}'. Please refer to the readme file for supported data types and formats.** | Convert the column data type in the dataset or dataframe that is being published to a supported field type. Currently supported R field types are logical, integer, numeric, character, Date, and  POSIXct. For details, see  [here](#acceptable-data-types-and-formats). |
-| **Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.** | Adjust the column name in the dataset or dataframe that is being published. |
-| **Invalid key_columns passed, all key_columns must be part of the schema.** | Update the column name in the key_column argument. The key columns should exist in the dataset or dataframe that is being published. |
+| Error Message                                                                                                                                          | Action                                                                                                                                                                                                                                                                    |
+|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.**                                                  | Ensure that all parameters are provided.                                                                                                                                                                                                                                  |
+| **key_columns must be a non-empty list.**                                                                                                              | key_columns must contain at least one column name.                                                                                                                                                                                                                        |
+| **invalid input_config passed**                                                                                                                        | Required argument is missing input; make any required adjustment                                                                                                                                                                                                          |
+| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name.                                                                                                                                                                                                                                                  |
+| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid**                                                           | Verify that</br> - The study_environment_uuid is correct.</br> - You have access to that study environment.</br> - The project token being used is in this study environment.                                                                                             |
+| **The source dataset does not exist**                                                                                                                  | Ensure that the source dataset is in the study environment where you intend to publish the dataset. The system does not support the ability to publish a dataset from one study environment to another study environment.                                                 |
+| **Error parsing dataset_uuid**                                                                                                                         | The dataset_uuid is not a valid UUID. Review and provide the correct dataset_uuid.                                                                                                                                                                                        |
+| **Error in validating source dataset**                                                                                                                 | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist**                                                               |
+| **invalid schema passed**                                                                                                                              | Contact Medidata Support.                                                                                                                                                                                                                                                 |
+| **Unsupported field type and format for '{field.name}'. Please refer to the readme file for supported data types and formats.**                        | Convert the column data type in the dataset or dataframe that is being published to a supported field type. Currently supported R field types are logical, integer, numeric, character, Date, and  POSIXct. For details, see  [here](#acceptable-data-types-and-formats). |
+| **Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.**         | Adjust the column name in the dataset or dataframe that is being published.                                                                                                                                                                                               |
+| **Invalid key_columns passed, all key_columns must be part of the schema.**                                                                            | Update the column name in the key_column argument. The key columns should exist in the dataset or dataframe that is being published.                                                                                                                                      |
+| **Invalid datetime formats found: {invalid_formats}**| Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
+| **Missing datetime formats for date/timestamp columns: { columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
 
 ### publish()
 
@@ -371,6 +374,8 @@ publish(project_token, dataset_name, key_columns, source_datasets, data)
 | **key_columns** | List of columns that form the composite key that identifies each unique record in the data that is being published |
 | **source_datasets** | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
 | **data** | Data frame which needs to be published |
+| **datetime_format** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+
 
 ### Output 
 
@@ -392,6 +397,9 @@ Returns the status of publish. When the dataset is published successfully, you c
 | **Error in validating source dataset** | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist** |
 | **Schema is not valid** | Please contact Medidata Support. |
 | **Error occurred while publishing data** | Verify that the dataset that is being published passes the validation requirement in **dry_publish()**, and that you use the same arguments input in **publish()**. If the error message persists, please contact Medidata Support. |
+| **Invalid datetime format(s): {invalid_formats}** | Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
+| **Missing datetime formats for date/timestamp columns: { columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
+
 
 ### collect()
 

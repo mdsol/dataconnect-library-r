@@ -111,7 +111,7 @@ def count_distinct_rows_py(table, key_columns):
   config_json <- jsonlite::toJSON(config, auto_unbox = TRUE)
 
   # Get Arrow schema from data
-  schema <- arrow::arrow_table(data)$schema
+  schema <- arrow_data$schema
 
   # Serialize schema to IPC format
   schema_buffer <- schema$serialize()

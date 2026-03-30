@@ -154,8 +154,8 @@
 
     dry_publish_or_publish_result <- NULL
 
-    date_format_errors <- result$invalid_datetime_formats
-    date_formats_valid <- is.null(date_format_errors) || length(date_format_errors) == 0
+    datetime_format_errors <- result$invalid_datetime_formats
+    date_formats_valid <- is.null(datetime_format_errors) || length(datetime_format_errors) == 0
 
     if (isTRUE(config$is_dry_publish)) {
 
