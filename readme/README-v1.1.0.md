@@ -11,6 +11,7 @@ To use this library, you must have a valid iMedidata account and access to requi
   - [install_miniforge()](#install_miniforge)
   - [use_miniforge_env()](#use_miniforge_env)
   - [to_frame()](#to_frame)
+  - [studies()](#studies)
   - [datasets()](#datasets)
   - [dataset_versions()](#dataset_versions)
   - [fetch_data()](#fetch_data)
@@ -212,6 +213,30 @@ to_frame(data)
 ### Output 
 
 A data frame with two columns: **name** and **value**
+
+### studies()
+
+### Description
+
+Get all available studies or search for a study by name
+
+### Usage
+
+```r
+studies(search_study_name = "", page = 1, page_size = 10)
+```
+
+### Arguments
+
+| Argument               | Description                                 |
+| :--------------------- | :------------------------------------------ |
+| **search_study_name**  | Optional. The approximate name of the study |
+| **page**               | Optional. Page number for paginated results |
+| **page_size**          | Optional. Number of results per page        |
+
+### Output 
+
+Returns a list containing `total_count` (total number of studies) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
 
 ### datasets()
 

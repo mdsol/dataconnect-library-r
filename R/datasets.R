@@ -8,7 +8,7 @@
 .list_flights <- function(client, criteria) {
 
   # Convert criteria to JSON and then to bytes
-  json_str <- jsonlite::toJSON(criteria, auto_unbox = TRUE)
+  json_str <- jsonlite::toJSON(criteria, auto_unbox = TRUE, null = "null")
   py_bytes <- reticulate::r_to_py(json_str)$encode("utf-8")
 
   options <- .get_flight_options()
@@ -29,7 +29,7 @@
 #' @return A list containing the extracted data
 #' @keywords internal
 #' @noRd
-.extract_data <- function(info) {
+.extract_data <- function(info, simplify_data_frame = TRUE) {
   if (is.null(info) || !inherits(info, "python.builtin.object")) {
     return(NULL)
   }
@@ -45,7 +45,7 @@
     ticket_raw <- reticulate::py_to_r(ticket$decode("utf-8"))
 
     # Parse the JSON
-    ticket_data <- jsonlite::fromJSON(ticket_raw)
+    ticket_data <- jsonlite::fromJSON(ticket_raw, simplifyDataFrame = simplify_data_frame)
 
     return(ticket_data)
   }, error = function(e) {
@@ -258,36 +258,58 @@
   return(dataset_obj)
 }
 
-#' List study environments from a Flight server
-#'
+#' List studies from a Flight server
 #' @param client A FlightClient object
-#' @param page_size Number of items per page (default: 100)
-#' @param max_pages Maximum number of pages to retrieve (default: -1, all pages)
-#' @param search_study_name full or part of the study name to search by (optional)
-#' @param lazy Whether to return a pagination spec for lazy processing (default: TRUE)
-#' @return If lazy=TRUE, a pagination specification that can be used with the %::% operator;
-#'         if lazy=FALSE, a list of all matching study environments
+#' @param search_study_name full or part of the study name to search by
+#' @param page page number for paginated results
+#' @param page_size number of results per page
+#' @return A list with total_count and studies array, where each study contains
+#'         name, uuid and environments array, where each environment
+#'         contains name and uuid
 #' @keywords internal
 #' @noRd
-.get_study_environments <- function(client, search_study_name = "", page_size = 100, max_pages = -1, lazy = TRUE) {
+
+.get_studies <- function(
+  client,
+  search_study_name = "",
+  page = NULL,
+  page_size = NULL
+) {
   criteria <- list(
-    flight_type = "STUDY_ENVIRONMENTS",
+    flight_type = "STUDIES",
     search_study_name = search_study_name,
-    page_size = page_size,
-    page = 1
+    page = page,
+    page_size = page_size
   )
 
-  if (lazy) {
-    # Return a pagination spec for lazy processing
-    return(list(
-      client = client,
-      criteria = criteria,
-      max_pages = max_pages
-    ))
-  } else {
-    # Use the existing eager approach
-    return(.get_flights(client, criteria))
-  }
+  py_iter <- .list_flights(client, criteria)
+  studies <- list()
+  total_records <- 0L
+
+  tryCatch({
+    reticulate::iterate(py_iter, function(item) {
+      if (total_records == 0L &&
+          !is.null(item$total_records) &&
+          item$total_records >= 0
+      ) {
+        total_records <<- as.integer(item$total_records)
+      }
+
+      data <- .extract_data(item, simplify_data_frame = FALSE)
+
+      if (!is.null(data)) {
+        studies[[length(studies) + 1]] <<- data
+      }
+    })
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
+
+  return(list(
+    total_count = total_records,
+    studies = studies
+  ))
 }
 
 #' List datasets from a Flight server

@@ -15,12 +15,16 @@
 #'
 #' @section Methods:
 #' \describe{
-#'   \item{\code{study_environments(search_study_name)}}{
-#'     Retrieve all available study environments from the DataConnect server.
-#'    \itemize{
-#'      \item \code{search_study_name}: Optional filter for study names (default: "")
+#'  \item{\code{studies(search_study_name, page, page_size)}}{
+#'     Retrieve all available studies.
+#'     \itemize{
+#'       \item \code{search_study_name}: Filter for study names (optional, default: "")
+#'       \item \code{page}: Page number for paginated results (optional, default: 1)
+#'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
-#'     Returns a specification object containing study environment details.
+#'     Returns a list with \code{total_count} (integer) and \code{studies} array.
+#'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
+#'     Each environment has \code{name} and \code{uuid}.
 #'   }
 #'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, page, page_size)}}{
 #'     Get all datasets for a specific study environment.
@@ -80,10 +84,14 @@
 #' \dontrun{
 #' # Initialize and create a new connection
 #' client <- init(token = "authentication_token_here")
-#' 
-#' # Get study environments
-#' envs <- client$study_environments()
-#' 
+#'
+#' # Get studies
+#' studies <- client$studies(
+#'   search_study_name = "my_study_name",
+#'   page = 1,
+#'   page_size = 10
+#' )
+#'
 #' # Get datasets for a study environment
 #' datasets <- client$datasets(study_environment_uuid = env_uuid, search_dataset_name = "my_dataset", page = 3, page_size = 10)
 #'
@@ -135,11 +143,20 @@ DataConnectClient <- setRefClass(
       .self$.client <- .connect(url, port, use_tls)
     },
 
-    study_environments = function(search_study_name = "") {
-      "Get all study environments"
-      # Use existing function but return all results 
-      study_envs_spec <- .get_study_environments(.self$.client, search_study_name = search_study_name)
-      return(study_envs_spec)
+    studies = function(
+      search_study_name = "",
+      page = NULL,
+      page_size = NULL
+    ) {
+      "Get all studies"
+      studies_spec <- .get_studies(
+        .self$.client,
+        search_study_name,
+        page,
+        page_size
+      )
+
+      return(studies_spec)
     },
 
     datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
