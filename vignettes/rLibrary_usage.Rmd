@@ -36,6 +36,39 @@ dc <-init(
 
 ```
 
+### Get all available studies
+
+Get all available studies or search study by name.
+
+```{r eval=FALSE}
+
+tryCatch({
+
+  result <- dc$studies(
+    search_study_name = "",
+    page = 1,
+    page_size = 10
+  )
+
+  print(paste("Total studies found:", result$total_count, "\n"))
+
+  for (study in result$studies) {
+    print(to_frame(study))
+  }
+
+}, dataconnect_error = function(e) {
+  # Catch dataconnect specific errors.
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+```
+
 ### Work with datasets with `dataconnect` library
 
 #### Search datasets in a study environment
