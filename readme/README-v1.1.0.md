@@ -321,14 +321,14 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data)
 
 ### Arguments 
 
-| Argument | Description |
-| :------- | :---------- |
-| **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
-| **dataset_name** | Data Connect expects the dataset name to be unique within the study |
-| **key_columns** | List of columns that form the composite key that identifies each unique record in the data to be validated |
-| **source_datasets** | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
-| **data** | Data frame that needs to be validated |
-| **datetime_format** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+| Argument             | Description |
+|:---------------------| :---------- |
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
+| **dataset_name**     | Data Connect expects the dataset name to be unique within the study |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated |
+| **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
+| **data**             | Data frame that needs to be validated |
+| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
 
 ### Output 
 
@@ -351,7 +351,7 @@ Returns the result of publishing validations. After successful validation testin
 | **Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.**         | Adjust the column name in the dataset or dataframe that is being published.                                                                                                                                                                                               |
 | **Invalid key_columns passed, all key_columns must be part of the schema.**                                                                            | Update the column name in the key_column argument. The key columns should exist in the dataset or dataframe that is being published.                                                                                                                                      |
 | **Invalid datetime formats found: {invalid_formats}**| Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
-| **Missing datetime formats for date/timestamp columns: { columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
+| **Missing datetime formats for date/timestamp columns: {columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
 
 ### publish()
 
@@ -367,14 +367,14 @@ publish(project_token, dataset_name, key_columns, source_datasets, data)
 
 ### Arguments
 
-| Argument | Description |
-| :------- | :---------- |
-| **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type |
-| **dataset_name** | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
-| **key_columns** | List of columns that form the composite key that identifies each unique record in the data that is being published |
-| **source_datasets** | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
-| **data** | Data frame which needs to be published |
-| **datetime_format** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+| Argument             | Description |
+|:---------------------| :---------- |
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type |
+| **dataset_name**     | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published |
+| **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
+| **data**             | Data frame which needs to be published |
+| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
 
 
 ### Output 
@@ -398,7 +398,7 @@ Returns the status of publish. When the dataset is published successfully, you c
 | **Schema is not valid** | Please contact Medidata Support. |
 | **Error occurred while publishing data** | Verify that the dataset that is being published passes the validation requirement in **dry_publish()**, and that you use the same arguments input in **publish()**. If the error message persists, please contact Medidata Support. |
 | **Invalid datetime format(s): {invalid_formats}** | Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
-| **Missing datetime formats for date/timestamp columns: { columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
+| **Missing datetime formats for date/timestamp columns: {columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
 
 
 ### collect()
