@@ -298,7 +298,7 @@
       data <- .extract_data(item, simplify_data_frame = FALSE)
 
       if (!is.null(data)) {
-        studies <<- c(studies, list(data))
+        studies[[length(studies) + 1]] <<- data
       }
     })
   }, error = function(e) {

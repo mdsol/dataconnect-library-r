@@ -232,11 +232,11 @@ studies(search_study_name = "", page = 1, page_size = 10)
 | :--------------------- | :------------------------------------------ |
 | **search_study_name**  | Optional. The approximate name of the study |
 | **page**               | Optional. Page number for paginated results |
-| **page_size**          | Optional. Number of results per page.       |
+| **page_size**          | Optional. Number of results per page        |
 
 ### Output 
 
-Returns a list containing `total_count` (total number of studies) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array.
+Returns a list containing `total_count` (total number of studies) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
 
 ### datasets()
 
