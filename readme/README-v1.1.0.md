@@ -316,7 +316,7 @@ Check if the publication results meet validation requirements.
 ### Usage
 
 ```r
-dry_publish(project_token, dataset_name, key_columns, source_datasets, data)
+dry_publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)
 ```
 
 ### Arguments 
@@ -362,7 +362,7 @@ Publish dataset to Data Connect.
 ### Usage
 
 ```r
-publish(project_token, dataset_name, key_columns, source_datasets, data)
+publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)
 ```
 
 ### Arguments
