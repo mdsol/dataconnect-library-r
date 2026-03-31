@@ -326,6 +326,13 @@ Set up your project token where the resulting dataset (i.e., publishDF) will be 
 myProjectToken = "projecttoken"
 ```
 
+### Set Datetime formats for the columns with date or timestamp data types
+```{r}
+# Set datetime formats for the columns with date or timestamp data types. The format should follow Java DateTimeFormatter patterns.
+# For example, if start_date column is in "MM/dd/yy" format, end_date column is in "yyyy-MM-dd" format, and update_date column is in "yyyy-MM-dd HH:mm:ss" format, the datetime_formats list should be set as below:
+datetime_formats_list <- (c("start_date" = "MM/dd/yy", "end_date" = "yyyy-MM-dd", "update_date" = "yyyy-MM-dd HH:mm:ss"))
+```
+
 #### Validate the dataset to be published
 
 ```{r eval=FALSE}
@@ -336,7 +343,8 @@ tryCatch({
     dataset_name = "projectname",
     key_columns = list ("field1","field2", "field3"),
     source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
-    data = publishDF
+    data = publishDF,
+    datetime_formats = as.list(datetime_formats_list)
   )
   
   print(dry_publish_result)
@@ -365,7 +373,8 @@ tryCatch({
     dataset_name = "projectname",
     key_columns = list ("field1","field2", "field3"),
     source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
-    data = publishDF
+    data = publishDF,
+    datetime_formats = as.list(datetime_formats_list)
   )
 
   print(publish_result)
