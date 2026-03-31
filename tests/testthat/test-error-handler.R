@@ -411,6 +411,20 @@ test_that(".normalize_enodia_error passes through non-enodia errors unchanged", 
   }
 })
 
+# Test: Flight unauthenticated gate matches but message is unrecognized — falls back to AUTH_E_001
+test_that(".normalize_enodia_error maps unknown flight unauthenticated messages to AUTH_E_001", {
+  msg <- "Flight returned unauthenticated error, with message: some unknown server error. gRPC client debug context: foo"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_001::\\{")
+
+  json_str <- sub("^AUTH_E_001::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_001")
+  expect_equal(parsed$message, "Authentication token is missing from the request.")
+})
+
 # Test: Scenario 1 — No authorization header (AUTH_E_001)
 test_that(".normalize_enodia_error maps missing auth header to AUTH_E_001", {
   msg <- "Flight returned unauthenticated error, with message: authorization header not present. gRPC client debug context: foo"

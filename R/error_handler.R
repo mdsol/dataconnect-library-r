@@ -327,6 +327,11 @@ print.dataconnect_error <- function(x, ...) {
       clean_msg       <- "Rate limit exceeded."
       detail_msg      <- "Rate limit exceeded."
       detail_expected <- "Please wait before making more requests."
+    } else {
+      error_code      <- "AUTH_E_001"
+      clean_msg       <- "Authentication token is missing from the request."
+      detail_msg      <- "Missing bearer token."
+      detail_expected <- "A valid bearer token."
     }
   } else {
     error_code      <- "AUTH_E_001"
