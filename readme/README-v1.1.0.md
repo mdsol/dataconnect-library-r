@@ -325,13 +325,13 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data)
 | :------- | :---------- |
 | **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
 | **dataset_name** | Data Connect expects the dataset name to be unique within the study |
-| **key_columns** | List of columns that form the composite key that identifies each unique record in the data to be validated |
+| **key_columns** | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets** | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
 | **data** | Data frame that needs to be validated |
 
 ### Output 
 
-Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function.
+Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. The server response includes a summary with invalid_records_count.
 
 ### Error Messages & Actions
 
@@ -368,13 +368,13 @@ publish(project_token, dataset_name, key_columns, source_datasets, data)
 | :------- | :---------- |
 | **project_token** | You can generate this from the Data Connect > Transformations > Custom Code project type |
 | **dataset_name** | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
-| **key_columns** | List of columns that form the composite key that identifies each unique record in the data that is being published |
+| **key_columns** | List of columns that form the composite key that identifies each unique record in the data that is being published. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets** | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
 | **data** | Data frame which needs to be published |
 
 ### Output 
 
-Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use.
+Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use. The server response includes a summary with invalid_records_count.
 
 ### Error Messages & Actions
 
