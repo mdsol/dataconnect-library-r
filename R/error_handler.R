@@ -243,6 +243,119 @@ print.dataconnect_error <- function(x, ...) {
   text
 }
 
+#' Normalize Enodia Authentication Errors
+#'
+#' Internal function that detects enodia authentication errors and rewrites them
+#' into the PREFIX::JSON_PAYLOAD format that .parse_dataconnect_error() expects.
+#' Enodia's auth interceptor (arrowproxy.go) returns plain gRPC status messages
+#' wrapped by PyArrow as Flight*Error objects.  These contain stray "::"
+#' characters (from reticulate hints, gRPC debug context) that would incorrectly
+#' route them through the PREFIX::JSON path. This function intercepts them first
+#' and converts to:
+#'   PREFIX::{ "error_code": "...", "message": "...", "timestamp": "..." }
+#'
+#' Known enodia authentication error scenarios handled (source: arrowproxy.go):
+#' \tabular{llll}{
+#'   \strong{Scenario}                 \tab \strong{gRPC Code}   \tab \strong{Server Message}                            \tab \strong{Mapped Code} \cr
+#'   No token                          \tab UNAUTHENTICATED (16) \tab authorization header not present                   \tab AUTH_E_001 \cr
+#'   Malformed token                   \tab UNAUTHENTICATED (16) \tab API token not provided or formatted incorrectly    \tab AUTH_E_002 \cr
+#'   Invalid / expired / revoked token \tab UNAUTHENTICATED (16) \tab Invalid API token                                  \tab AUTH_E_003 \cr
+#'   Rate limit exceeded               \tab UNAUTHENTICATED (16) \tab rate limit exceeded                                \tab AUTH_E_004
+#' }
+#'
+#' @param error_message Character string — the raw error message
+#'
+#' @return If enodia authentication error: a rewritten string in PREFIX::JSON
+#'   format. Otherwise: the original error_message unchanged.
+#'
+#' @noRd
+#' @keywords internal
+.normalize_enodia_error <- function(error_message) {
+  # Gate: only touch FlightUnauthenticatedError from enodia's auth interceptor.
+  # PyArrow wraps gRPC UNAUTHENTICATED (code 16) as FlightUnauthenticatedError.
+  # We also match the message pattern for robustness.
+  enodia_pattern <- paste(
+    "FlightUnauthenticatedError",
+    "Flight returned unauthenticated error",
+    sep = "|"
+  )
+
+  if (!grepl(enodia_pattern, error_message, ignore.case = TRUE)) {
+    return(error_message)
+  }
+
+  # Extract the server message after "with message: " if present.
+  # PyArrow formats gRPC errors as:
+  #   "Flight returned <status> error, with message: <server_msg>. gRPC client debug context: ..."
+  # We want just <server_msg>, stripping the trailing gRPC debug noise.
+  server_msg <- NULL
+  msg_match <- regexpr("with message:\\s*(.+)", error_message, perl = TRUE)
+  if (msg_match > 0) {
+    raw_msg <- sub("^with message:\\s*", "", regmatches(error_message, msg_match))
+    # Strip trailing gRPC debug context that PyArrow appends
+    server_msg <- sub("\\. gRPC client debug context:.*$", "", raw_msg)
+    # Strip trailing ". Client context:" noise if present
+    server_msg <- sub("\\. Client context:.*$", "", server_msg)
+    server_msg <- trimws(server_msg)
+  }
+
+  # Map enodia's four UNAUTHENTICATED error messages to error codes.
+  # Source: enodia/internal/arrowproxy/arrowproxy.go
+  #   - extractTokenString()                → "authorization header not present"           
+  #   - extractTokenString()                → "API token not provided or formatted incorrectly" 
+  #   - authenticationInterceptorDelegate() → "Invalid API token"                          
+  #   - rateLimitInterceptor()              → "rate limit exceeded"
+
+  if (!is.null(server_msg) && nzchar(server_msg)) {
+    if (grepl("authorization header not present", server_msg, ignore.case = TRUE)) {
+      error_code      <- "AUTH_E_001"
+      clean_msg       <- "Authentication token is missing from the request."
+      detail_msg      <- "Missing bearer token."
+      detail_expected <- "A valid bearer token."
+    } else if (grepl("not provided or formatted incorrectly", server_msg, ignore.case = TRUE)) {
+      error_code      <- "AUTH_E_002"
+      clean_msg       <- "Authentication token is invalid or malformed."
+      detail_msg      <- "Invalid API token."
+      detail_expected <- "A valid bearer token."
+    } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
+      error_code      <- "AUTH_E_003"
+      clean_msg       <- "Authentication token is invalid or malformed."
+      detail_msg      <- "Invalid API token."
+      detail_expected <- "A valid bearer token."
+    } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
+      error_code      <- "AUTH_E_004"
+      clean_msg       <- "Rate limit exceeded."
+      detail_msg      <- "Rate limit exceeded."
+      detail_expected <- "Please wait before making more requests."
+    } else {
+      error_code      <- "AUTH_E_001"
+      clean_msg       <- "Authentication token is missing from the request."
+      detail_msg      <- "Missing bearer token."
+      detail_expected <- "A valid bearer token."
+    }
+  } else {
+    error_code      <- "AUTH_E_001"
+    clean_msg       <- "Authentication token is missing from the request."
+    detail_msg      <- "Missing bearer token."
+    detail_expected <- "A valid bearer token."
+  }
+
+  # Build the PREFIX::JSON string that .parse_dataconnect_error() already handles.
+  # Includes a details array with field/message/expected for structured error handling.
+  timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  esc <- function(s) gsub('"', '\\\\"', s)
+  json_payload <- sprintf(
+    '{"error_code":"%s","message":"%s","timestamp":"%s","details":[{"field":"token","message":"%s","expected":"%s"}]}',
+    error_code,
+    esc(clean_msg),
+    timestamp,
+    esc(detail_msg),
+    esc(detail_expected)
+  )
+
+  paste0(error_code, "::", json_payload)
+}
+
 #' Parse Flight Error Messages
 #'
 #' Internal function to parse error messages returned from Apache Arrow Flight
@@ -283,6 +396,10 @@ print.dataconnect_error <- function(x, ...) {
       message = unknown_error
     ))
   }
+
+  # Normalize enodia authentication errors into PREFIX::JSON format so they
+  # flow through the existing PREFIX::JSON parsing path below.
+  error_message <- .normalize_enodia_error(error_message)
 
   # Check if the error message follows the expected format: PREFIX::JSON_PAYLOAD
   # The :: delimiter separates the prefix from the JSON payload

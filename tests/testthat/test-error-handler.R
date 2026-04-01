@@ -393,3 +393,186 @@ test_that(".throw_dataconnect_error throws a dataconnect_error condition with al
     }
   )
 })
+
+# =============================================================================
+# Tests for .normalize_enodia_error
+# =============================================================================
+
+# Test: Non-matching messages are returned unchanged
+test_that(".normalize_enodia_error passes through non-enodia errors unchanged", {
+  msgs <- c(
+    "Simple error",
+    "FlightServerError: some other error",
+    "ERROR::some json payload",
+    "Connection refused",
+    # Structured PREFIX::JSON whose payload mentions "unauthenticated error" — must
+    # NOT be normalised; the broad old pattern would have silently overwritten it.
+    'XYZ_E_099::{"error_code":"XYZ_E_099","message":"unauthenticated error occurred"}'
+  )
+  for (msg in msgs) {
+    expect_equal(.normalize_enodia_error(msg), msg)
+  }
+})
+
+# Test: Flight unauthenticated gate matches but message is unrecognized — falls back to AUTH_E_001
+test_that(".normalize_enodia_error maps unknown flight unauthenticated messages to AUTH_E_001", {
+  msg <- "Flight returned unauthenticated error, with message: some unknown server error. gRPC client debug context: foo"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_001::\\{")
+
+  json_str <- sub("^AUTH_E_001::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_001")
+  expect_equal(parsed$message, "Authentication token is missing from the request.")
+})
+
+# Test: Scenario 1 — No authorization header (AUTH_E_001)
+test_that(".normalize_enodia_error maps missing auth header to AUTH_E_001", {
+  msg <- "Flight returned unauthenticated error, with message: authorization header not present. gRPC client debug context: foo"
+  result <- .normalize_enodia_error(msg)
+
+  # Should be rewritten to PREFIX::JSON format
+  expect_match(result, "^AUTH_E_001::\\{")
+
+  # Parse the JSON payload to verify fields
+  json_str <- sub("^AUTH_E_001::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_001")
+  expect_equal(parsed$message, "Authentication token is missing from the request.")
+  expect_true(nzchar(parsed$timestamp))
+  expect_length(parsed$details, 1)
+  expect_equal(parsed$details[[1]]$field, "token")
+  expect_equal(parsed$details[[1]]$message, "Missing bearer token.")
+  expect_equal(parsed$details[[1]]$expected, "A valid bearer token.")
+})
+
+# Test: Scenario 2 — Malformed token (AUTH_E_002)
+test_that(".normalize_enodia_error maps malformed token to AUTH_E_002", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: API token not provided or formatted incorrectly. gRPC client debug context: bar"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_002::\\{")
+
+  json_str <- sub("^AUTH_E_002::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_002")
+  expect_equal(parsed$message, "Authentication token is invalid or malformed.")
+  expect_equal(parsed$details[[1]]$message, "Invalid API token.")
+})
+
+# Test: Scenario 3 — Invalid API token (AUTH_E_003)
+test_that(".normalize_enodia_error maps invalid API token to AUTH_E_003", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: Invalid API token. gRPC client debug context: baz"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_003::\\{")
+
+  json_str <- sub("^AUTH_E_003::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_003")
+  expect_equal(parsed$message, "Authentication token is invalid or malformed.")
+  expect_equal(parsed$details[[1]]$message, "Invalid API token.")
+})
+
+# Test: Scenario 4 — Rate limit exceeded (AUTH_E_004)
+test_that(".normalize_enodia_error maps rate limit exceeded to AUTH_E_004", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: rate limit exceeded. gRPC client debug context: qux"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_004::\\{")
+
+  json_str <- sub("^AUTH_E_004::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_004")
+  expect_equal(parsed$message, "Rate limit exceeded.")
+  expect_equal(parsed$details[[1]]$message, "Rate limit exceeded.")
+  expect_equal(parsed$details[[1]]$expected, "Please wait before making more requests.")
+})
+
+# Test: No server message defaults to AUTH_E_001
+test_that(".normalize_enodia_error defaults to AUTH_E_001 when no server message", {
+  # Message matches the gate but has no "with message:" segment
+  msg <- "FlightUnauthenticatedError: some opaque gRPC failure"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_001::\\{")
+
+  json_str <- sub("^AUTH_E_001::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  expect_equal(parsed$error_code, "AUTH_E_001")
+  expect_equal(parsed$message, "Authentication token is missing from the request.")
+})
+
+# Test: Case-insensitive gate matching
+test_that(".normalize_enodia_error gate pattern is case-insensitive", {
+  # Mixed case FlightUnauthenticatedError
+  msg1 <- "flightunauthenticatederror: with message: authorization header not present"
+  result1 <- .normalize_enodia_error(msg1)
+  expect_match(result1, "^AUTH_E_001::\\{")
+
+  # "unauthenticated error" variant
+  msg2 <- "Flight returned UNAUTHENTICATED ERROR, with message: Invalid API token"
+  result2 <- .normalize_enodia_error(msg2)
+  expect_match(result2, "^AUTH_E_003::\\{")
+})
+
+# Test: Strips gRPC debug context noise
+test_that(".normalize_enodia_error strips trailing gRPC debug context", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: authorization header not present. gRPC client debug context: {\"created\":\"@1234567890\",\"description\":\"Error\",\"grpc_status\":16}"
+  result <- .normalize_enodia_error(msg)
+
+  json_str <- sub("^AUTH_E_001::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  # The server message should be clean, without gRPC debug noise
+  expect_equal(parsed$error_code, "AUTH_E_001")
+  expect_equal(parsed$message, "Authentication token is missing from the request.")
+})
+
+# Test: Strips "Client context:" trailing noise
+test_that(".normalize_enodia_error strips trailing Client context noise", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: Invalid API token. Client context: some::debug::info"
+  result <- .normalize_enodia_error(msg)
+
+  expect_match(result, "^AUTH_E_003::\\{")
+
+  json_str <- sub("^AUTH_E_003::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+  expect_equal(parsed$error_code, "AUTH_E_003")
+})
+
+# Test: Output is valid PREFIX::JSON consumed by .parse_dataconnect_error
+test_that(".normalize_enodia_error output is parseable by .parse_dataconnect_error", {
+  msg <- "FlightUnauthenticatedError: Flight returned unauthenticated error, with message: authorization header not present. gRPC client debug context: debug"
+
+  # The normalized output should flow through .parse_dataconnect_error correctly
+  result <- .parse_dataconnect_error(msg)
+
+  expect_s3_class(result, "DataConnectError")
+  expect_equal(result$error_code, "AUTH_E_001")
+  expect_equal(result$message, "Authentication token is missing from the request.")
+  expect_true(!is.null(result$timestamp))
+  expect_length(result$details, 1)
+  expect_s3_class(result$details[[1]], "ErrorDetail")
+  expect_equal(result$details[[1]]$field, "token")
+})
+
+# Test: Timestamp is valid ISO 8601 format
+test_that(".normalize_enodia_error produces valid ISO 8601 timestamp", {
+  msg <- "FlightUnauthenticatedError: with message: Invalid API token"
+  result <- .normalize_enodia_error(msg)
+
+  json_str <- sub("^AUTH_E_003::", "", result)
+  parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
+
+  # Verify timestamp parses as a valid datetime
+  ts <- as.POSIXct(parsed$timestamp, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  expect_false(is.na(ts))
+})
