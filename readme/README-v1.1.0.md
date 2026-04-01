@@ -58,6 +58,8 @@ dc <-init(token = "<authentication_token>")
 
 * **Publish data:** You must have a project token to publish a dataset from R IDE to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html). 
 
+**Note:** Records with missing values (`NA`) in any key column are considered invalid. `dry_publish()` scans the full batch and returns `invalid_records_count` (no data is persisted). `publish()` persists only valid records and returns `invalid_records_count` in the response.
+
 ```r
 my_project_token <- "<project_token_here>"
 my_dataset_name <- "your_dataset_name_here"
@@ -313,6 +315,8 @@ Returns data from a specific dataset.
 
 Check if the publication results meet validation requirements.
 
+**Note:** Any record is invalid if the value of any of the columns specified in `key_columns` field is `NA`. The server performs a full scan of the data, and returns `invalid_records_count`.
+
 ### Usage
 
 ```r
@@ -325,7 +329,7 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 |:---------------------| :---------- |
 | **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
 | **dataset_name**     | Data Connect expects the dataset name to be unique within the study |
-| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
 | **data**             | Data frame that needs to be validated |
 | **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
@@ -359,6 +363,8 @@ Returns the result of publishing validations. After successful validation testin
 
 Publish dataset to Data Connect.
 
+**Note:** Any record is invalid if the value of any of the columns specified in `key_columns` field is `NA`. The server performs a full scan of the data, and returns `invalid_records_count`.
+
 ### Usage
 
 ```r
@@ -371,7 +377,7 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 |:---------------------| :---------- |
 | **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type |
 | **dataset_name**     | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
-| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
 | **data**             | Data frame which needs to be published |
 | **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
