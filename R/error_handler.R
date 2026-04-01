@@ -306,37 +306,45 @@ print.dataconnect_error <- function(x, ...) {
   #   - authenticationInterceptorDelegate() → "Invalid API token"                          
   #   - rateLimitInterceptor()              → "rate limit exceeded"
 
+  # Shared detail message for auth errors (AUTH_E_001–003 + fallback)
+  auth_detail_msg <- paste0(
+    "Ensure you provide the correct user authentication ",
+    "token. The user token must be valid and generated ",
+    "from the SDK Key Management page in iMedidata > ",
+    "Data Connect > Developer Center."
+  )
+
   if (!is.null(server_msg) && nzchar(server_msg)) {
     if (grepl("authorization header not present", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- "Missing bearer token."
+      detail_msg      <- auth_detail_msg
       detail_expected <- "A valid bearer token."
     } else if (grepl("not provided or formatted incorrectly", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_002"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- "Invalid API token."
+      detail_msg      <- auth_detail_msg
       detail_expected <- "A valid bearer token."
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- "Invalid API token."
+      detail_msg      <- auth_detail_msg
       detail_expected <- "A valid bearer token."
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_004"
       clean_msg       <- "Rate limit exceeded."
-      detail_msg      <- "Rate limit exceeded."
+      detail_msg      <- "Wait before making more requests."
       detail_expected <- "Please wait before making more requests."
     } else {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- "Missing bearer token."
+      detail_msg      <- auth_detail_msg
       detail_expected <- "A valid bearer token."
     }
   } else {
     error_code      <- "AUTH_E_001"
     clean_msg       <- "Authentication token is missing from the request."
-    detail_msg      <- "Missing bearer token."
+    detail_msg      <- auth_detail_msg
     detail_expected <- "A valid bearer token."
   }
 

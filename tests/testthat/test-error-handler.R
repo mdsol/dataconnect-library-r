@@ -444,8 +444,14 @@ test_that(".normalize_enodia_error maps missing auth header to AUTH_E_001", {
   expect_equal(parsed$message, "Authentication token is missing from the request.")
   expect_true(nzchar(parsed$timestamp))
   expect_length(parsed$details, 1)
+  expected_detail_msg <- paste0(
+    "Ensure you provide the correct user authentication ",
+    "token. The user token must be valid and generated ",
+    "from the SDK Key Management page in iMedidata > ",
+    "Data Connect > Developer Center."
+  )
   expect_equal(parsed$details[[1]]$field, "token")
-  expect_equal(parsed$details[[1]]$message, "Missing bearer token.")
+  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
   expect_equal(parsed$details[[1]]$expected, "A valid bearer token.")
 })
 
@@ -459,9 +465,15 @@ test_that(".normalize_enodia_error maps malformed token to AUTH_E_002", {
   json_str <- sub("^AUTH_E_002::", "", result)
   parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
 
+  expected_detail_msg <- paste0(
+    "Ensure you provide the correct user authentication ",
+    "token. The user token must be valid and generated ",
+    "from the SDK Key Management page in iMedidata > ",
+    "Data Connect > Developer Center."
+  )
   expect_equal(parsed$error_code, "AUTH_E_002")
   expect_equal(parsed$message, "Authentication token is invalid or malformed.")
-  expect_equal(parsed$details[[1]]$message, "Invalid API token.")
+  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
 })
 
 # Test: Scenario 3 — Invalid API token (AUTH_E_003)
@@ -474,9 +486,15 @@ test_that(".normalize_enodia_error maps invalid API token to AUTH_E_003", {
   json_str <- sub("^AUTH_E_003::", "", result)
   parsed <- jsonlite::fromJSON(json_str, simplifyDataFrame = FALSE)
 
+  expected_detail_msg <- paste0(
+    "Ensure you provide the correct user authentication ",
+    "token. The user token must be valid and generated ",
+    "from the SDK Key Management page in iMedidata > ",
+    "Data Connect > Developer Center."
+  )
   expect_equal(parsed$error_code, "AUTH_E_003")
   expect_equal(parsed$message, "Authentication token is invalid or malformed.")
-  expect_equal(parsed$details[[1]]$message, "Invalid API token.")
+  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
 })
 
 # Test: Scenario 4 — Rate limit exceeded (AUTH_E_004)
@@ -491,7 +509,7 @@ test_that(".normalize_enodia_error maps rate limit exceeded to AUTH_E_004", {
 
   expect_equal(parsed$error_code, "AUTH_E_004")
   expect_equal(parsed$message, "Rate limit exceeded.")
-  expect_equal(parsed$details[[1]]$message, "Rate limit exceeded.")
+  expect_equal(parsed$details[[1]]$message, "Wait before making more requests.")
   expect_equal(parsed$details[[1]]$expected, "Please wait before making more requests.")
 })
 
