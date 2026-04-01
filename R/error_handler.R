@@ -276,7 +276,7 @@ print.dataconnect_error <- function(x, ...) {
   # We also match the message pattern for robustness.
   enodia_pattern <- paste(
     "FlightUnauthenticatedError",
-    "unauthenticated error",
+    "Flight returned unauthenticated error",
     sep = "|"
   )
 

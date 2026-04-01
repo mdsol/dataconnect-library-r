@@ -404,7 +404,10 @@ test_that(".normalize_enodia_error passes through non-enodia errors unchanged", 
     "Simple error",
     "FlightServerError: some other error",
     "ERROR::some json payload",
-    "Connection refused"
+    "Connection refused",
+    # Structured PREFIX::JSON whose payload mentions "unauthenticated error" — must
+    # NOT be normalised; the broad old pattern would have silently overwritten it.
+    'XYZ_E_099::{"error_code":"XYZ_E_099","message":"unauthenticated error occurred"}'
   )
   for (msg in msgs) {
     expect_equal(.normalize_enodia_error(msg), msg)
