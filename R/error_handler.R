@@ -318,27 +318,33 @@ print.dataconnect_error <- function(x, ...) {
     if (grepl("authorization header not present", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
+      detail_msg      <- NA
       detail_expected <- auth_detail_msg
     } else if (grepl("not provided or formatted incorrectly", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_002"
       clean_msg       <- "Authentication token is invalid or malformed."
+      detail_msg      <- NA
       detail_expected <- auth_detail_msg
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
       clean_msg       <- "Authentication token is invalid or malformed."
+      detail_msg      <- NA
       detail_expected <- auth_detail_msg
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_004"
       clean_msg       <- "Rate limit exceeded."
+      detail_msg      <- NA
       detail_expected <- "Wait before making more requests."
     } else {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
+      detail_msg      <- NA
       detail_expected <- auth_detail_msg
     }
   } else {
     error_code      <- "AUTH_E_001"
     clean_msg       <- "Authentication token is missing from the request."
+    detail_msg      <- NA
     detail_expected <- auth_detail_msg
   }
 
@@ -347,10 +353,11 @@ print.dataconnect_error <- function(x, ...) {
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   esc <- function(s) gsub('"', '\\\\"', s)
   json_payload <- sprintf(
-    '{"error_code":"%s","message":"%s","timestamp":"%s","details":[{"field":"token","expected":"%s"}]}',
+    '{"error_code":"%s","message":"%s","timestamp":"%s","details":[{"field":"token","message":"%s","expected":"%s"}]}',
     error_code,
     esc(clean_msg),
     timestamp,
+    esc(detail_msg),
     esc(detail_expected)
   )
 
