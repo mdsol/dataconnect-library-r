@@ -327,7 +327,7 @@ print.dataconnect_error <- function(x, ...) {
       detail_expected <- "A valid bearer token."
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
-      clean_msg       <- "Authentication token is invalid or malformed."
+      clean_msg       <- "Authentication token is invalid, expired or revoked."
       detail_msg      <- auth_detail_msg
       detail_expected <- "A valid bearer token."
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
