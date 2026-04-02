@@ -451,8 +451,8 @@ test_that(".normalize_enodia_error maps missing auth header to AUTH_E_001", {
     "Data Connect > Developer Center."
   )
   expect_equal(parsed$details[[1]]$field, "token")
-  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
-  expect_equal(parsed$details[[1]]$expected, "A valid bearer token.")
+  expect_null(parsed$details[[1]]$message)
+  expect_equal(parsed$details[[1]]$expected, expected_detail_msg)
 })
 
 # Test: Scenario 2 — Malformed token (AUTH_E_002)
@@ -473,7 +473,8 @@ test_that(".normalize_enodia_error maps malformed token to AUTH_E_002", {
   )
   expect_equal(parsed$error_code, "AUTH_E_002")
   expect_equal(parsed$message, "Authentication token is invalid or malformed.")
-  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
+  expect_null(parsed$details[[1]]$message)
+  expect_equal(parsed$details[[1]]$expected, expected_detail_msg)
 })
 
 # Test: Scenario 3 — Invalid API token (AUTH_E_003)
@@ -493,8 +494,9 @@ test_that(".normalize_enodia_error maps invalid API token to AUTH_E_003", {
     "Data Connect > Developer Center."
   )
   expect_equal(parsed$error_code, "AUTH_E_003")
-  expect_equal(parsed$message, "Authentication token is invalid, expired or revoked.")
-  expect_equal(parsed$details[[1]]$message, expected_detail_msg)
+  expect_equal(parsed$message, "Authentication token is invalid or malformed.")
+  expect_null(parsed$details[[1]]$message)
+  expect_equal(parsed$details[[1]]$expected, expected_detail_msg)
 })
 
 # Test: Scenario 4 — Rate limit exceeded (AUTH_E_004)
@@ -509,8 +511,8 @@ test_that(".normalize_enodia_error maps rate limit exceeded to AUTH_E_004", {
 
   expect_equal(parsed$error_code, "AUTH_E_004")
   expect_equal(parsed$message, "Rate limit exceeded.")
-  expect_equal(parsed$details[[1]]$message, "Wait before making more requests.")
-  expect_equal(parsed$details[[1]]$expected, "Please wait before making more requests.")
+  expect_null(parsed$details[[1]]$message)
+  expect_equal(parsed$details[[1]]$expected, "Wait before making more requests.")
 })
 
 # Test: No server message defaults to AUTH_E_001
