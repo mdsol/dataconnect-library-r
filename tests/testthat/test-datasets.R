@@ -11,14 +11,9 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
   captured_client <- NULL
   captured_criteria <- NULL
 
-  mockery::stub(.get_datasets, ".get_flights", function(client, criteria) {
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) {
     captured_client <<- client
     captured_criteria <<- criteria
-    list(list(dataset_uuid = "d-1"))
-  })
-
-  # Stub .list_flights to return a mock iterator
-  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) {
     list()
   })
 
