@@ -54,6 +54,36 @@
   })
 }
 
+#' Extract app_metadata from a FlightInfo object
+#'
+#' @param item A FlightInfo object
+#' @return The app_metadata list or NULL if not present
+#' @keywords internal
+#' @noRd
+
+.extract_app_metadata <- function(item) {
+  if (is.null(item)) return(NULL)
+
+  meta <- item$app_metadata
+
+  if (is.null(meta) || length(meta) == 0) return(NULL)
+
+  meta_str <- tryCatch({
+    reticulate::py_to_r(meta$decode("utf-8"))
+  }, error = function(e) {
+    warning(sprintf("Failed to decode app_metadata as UTF-8 bytes: %s", e$message))
+    return(NULL)
+  })
+
+  if (is.null(meta_str)) return(NULL)
+
+  meta_list <- tryCatch({
+    jsonlite::fromJSON(meta_str, simplifyDataFrame = FALSE)
+  }, error = function(e) NULL)
+
+  return(meta_list)
+}
+
 #' Process all flight info objects from an iterator
 #'
 #' @param py_iter A Python iterator of FlightInfo objects
@@ -323,7 +353,13 @@
 #' @return A list of datasets
 #' @keywords internal
 #' @noRd
-.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name, page, page_size) {
+.get_datasets <- function(
+  client, study_uuid = NULL,
+  study_environment_uuid,
+  search_dataset_name,
+  page,
+  page_size
+) {
   criteria <- list(
     flight_type = "DATASETS",
     study_uuid = study_uuid,
@@ -332,8 +368,59 @@
     page = page,
     page_size = page_size
   )
+  py_iter <- .list_flights(client, criteria)
 
-  return(.get_flights(client, criteria))
+  idx <- 1
+  total_count <- NA_integer_
+  datasets <- list()
+  pagination <- list(
+    page = NA_integer_,
+    page_size = NA_integer_,
+    total_pages = NA_integer_
+  )
+
+  tryCatch({
+    reticulate::iterate(py_iter, function(item) {
+      if (idx == 1) {
+        app_metadata <- .extract_app_metadata(item)
+
+        if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
+
+          if (!is.null(app_metadata$pagination$total_pages)) {
+            pagination$total_pages <<- as.integer(app_metadata$pagination$total_pages)
+          }
+
+          if (!is.null(app_metadata$pagination$page)) {
+            pagination$page <<- as.integer(app_metadata$pagination$page)
+          }
+
+          if (!is.null(app_metadata$pagination$page_size)) {
+            pagination$page_size <<- as.integer(app_metadata$pagination$page_size)
+          }
+        }
+
+        if (!is.null(item$total_records)) {
+          total_count <<- as.integer(item$total_records)
+        }
+      }
+
+      data <- .extract_data(item)
+
+      if (!is.null(data)) {
+        datasets[[idx]] <<- data
+        idx <<- idx + 1
+      }
+    })
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
+
+  return(list(
+    total_count = total_count,
+    pagination = pagination,
+    datasets = datasets
+  ))
 }
 
 #' List versions of a dataset from a Flight server
