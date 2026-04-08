@@ -84,6 +84,33 @@
   return(meta_list)
 }
 
+#' Attach frame property to a dataset object
+#'
+#' Helper function to attach a dataconnect_tbl frame to a dataset item.
+#' Only attaches frame if the data contains a dataset_uuid (i.e., it's a dataset).
+#'
+#' @param data A dataset object with dataset_uuid, study_uuid, study_env_uuid, dataset_name
+#' @param client A FlightClient object
+#' @return The data object with $frame property attached if it's a dataset, otherwise returns data unchanged
+#' @keywords internal
+#' @noRd
+.attach_dataset_frame <- function(data, client) {
+  # Only attach frame if this is a dataset (has dataset_uuid)
+  if (is.null(data) || is.null(data$dataset_uuid)) {
+    return(data)
+  }
+  
+  base_params <- list(
+    study_uuid = data$study_uuid,
+    study_env_uuid = data$study_env_uuid,
+    dataset_uuid = data$dataset_uuid,
+    dataset_name = data$dataset_name
+  )
+  
+  data$frame <- dataconnect_tbl(client, base_params)
+  return(data)
+}
+
 #' Process all flight info objects from an iterator
 #'
 #' @param py_iter A Python iterator of FlightInfo objects
@@ -368,9 +395,10 @@
     page = page,
     page_size = page_size
   )
-  datasets <- .get_flights(client, criteria)
+
   py_iter <- .list_flights(client, criteria)
 
+  datasets <- list()
   idx <- 1
   total_count <- 0L
   pagination <- list(
@@ -402,6 +430,13 @@
         if (!is.null(item$total_records)) {
           total_count <<- as.integer(item$total_records)
         }
+      }
+
+      data <- .extract_data(item)
+
+      if (!is.null(data)) {
+        data <- .attach_dataset_frame(data, client)
+        datasets[[idx]] <<- data
       }
 
       idx <<- idx + 1
