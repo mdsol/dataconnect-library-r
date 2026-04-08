@@ -350,7 +350,7 @@
 #' @param search_dataset_name full or part of the dataset name to search by
 #' @param page Page number for paginated results
 #' @param page_size Number of results per page
-#' @return A list of datasets
+#' @return A named list with `total_count`, `pagination`, and `datasets`
 #' @keywords internal
 #' @noRd
 .get_datasets <- function(
@@ -368,14 +368,14 @@
     page = page,
     page_size = page_size
   )
+  datasets <- .get_flights(client, criteria)
   py_iter <- .list_flights(client, criteria)
 
   idx <- 1
-  total_count <- NA_integer_
-  datasets <- list()
+  total_count <- 0L
   pagination <- list(
-    page = NA_integer_,
-    page_size = NA_integer_,
+    page = page,
+    page_size = page_size,
     total_pages = NA_integer_
   )
 
@@ -404,12 +404,7 @@
         }
       }
 
-      data <- .extract_data(item)
-
-      if (!is.null(data)) {
-        datasets[[idx]] <<- data
-        idx <<- idx + 1
-      }
+      idx <<- idx + 1
     })
   }, error = function(e) {
     parsed_error <- .parse_dataconnect_error(conditionMessage(e))
