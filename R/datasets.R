@@ -398,9 +398,9 @@
 
   py_iter <- .list_flights(client, criteria)
 
-  datasets <- list()
-  idx <- 1
+  first_item <- TRUE
   total_count <- 0L
+  datasets <- list()
   pagination <- list(
     page = page,
     page_size = page_size,
@@ -409,7 +409,7 @@
 
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
-      if (idx == 1) {
+      if (first_item) {
         app_metadata <- .extract_app_metadata(item)
 
         if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
@@ -430,16 +430,17 @@
         if (!is.null(item$total_records)) {
           total_count <<- as.integer(item$total_records)
         }
+
+        first_item <<- FALSE
       }
 
       data <- .extract_data(item)
 
       if (!is.null(data)) {
         data <- .attach_dataset_frame(data, client)
-        datasets[[idx]] <<- data
+        datasets[[length(datasets) + 1]] <<- data
       }
 
-      idx <<- idx + 1
     })
   }, error = function(e) {
     parsed_error <- .parse_dataconnect_error(conditionMessage(e))
