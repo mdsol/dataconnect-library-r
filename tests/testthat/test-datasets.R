@@ -6,6 +6,7 @@ library(mockery)
 # Source the implementation under test (same pattern as other tests in this repo)
 source("../../R/datasets.R")
 
+# ── .get_datasets tests ──────────────────────────────────────────────────────
 test_that(".get_datasets forwards server-side pagination (page + page_size) in criteria", {
   captured_client <- NULL
   captured_criteria <- NULL
@@ -14,6 +15,16 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
     captured_client <<- client
     captured_criteria <<- criteria
     list(list(dataset_uuid = "d-1"))
+  })
+
+  # Stub .list_flights to return a mock iterator
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) {
+    list()
+  })
+
+  # Stub reticulate::iterate to simulate empty iteration
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) {
+    # Don't call fn, simulating empty iterator
   })
 
   mock_client <- list()
@@ -28,7 +39,8 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
   )
 
   expect_type(out, "list")
-  expect_equal(length(out), 1)
+  expect_true(!is.null(out$datasets))
+  expect_type(out$datasets, "list")
   expect_identical(captured_client, mock_client)
 
   expect_equal(captured_criteria$flight_type, "DATASETS")
@@ -54,6 +66,75 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
   } else {
     fail("Expected criteria to contain study_env_uuid or study_environment_uuid")
   }
+})
+
+test_that(".get_datasets returns total_count = 0L and correct pagination defaults for empty iterator", {
+  mockery::stub(.get_datasets, ".get_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) { })
+
+  out <- .get_datasets(
+    client = list(),
+    study_uuid = "study-1",
+    study_environment_uuid = "env-1",
+    search_dataset_name = "abc",
+    page = 2,
+    page_size = 50
+  )
+  expect_type(out, "list")
+  expect_equal(out$total_count, 0L)
+  expect_type(out$pagination, "list")
+  expect_equal(out$pagination$page, 2)
+  expect_equal(out$pagination$page_size, 50)
+  expect_true(is.na(out$pagination$total_pages))
+})
+
+test_that(".get_datasets uses total_records from first item only", {
+  mockery::stub(.get_datasets, ".get_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
+  call_count <- 0
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) {
+    call_count <<- 1
+    fn(list(total_records = 42))
+    call_count <<- 2
+    fn(list(total_records = 999))
+  })
+  out <- .get_datasets(
+    client = list(),
+    study_uuid = "study-1",
+    study_environment_uuid = "env-1",
+    search_dataset_name = "abc",
+    page = 1,
+    page_size = 10
+  )
+  expect_equal(call_count, 2)
+  expect_equal(out$total_count, 42L)
+})
+
+test_that(".get_datasets extracts pagination from app_metadata if present, otherwise uses defaults", {
+  mockery::stub(.get_datasets, ".get_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
+  # Simulate app_metadata with pagination
+  mockery::stub(.get_datasets, ".extract_app_metadata", function(item) {
+    list(pagination = list(page = 5, page_size = 25, total_pages = 7))
+  })
+  call_count <- 0
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) {
+    call_count <<- 1
+    fn(list(total_records = 123))
+  })
+  out <- .get_datasets(
+    client = list(),
+    study_uuid = "study-1",
+    study_environment_uuid = "env-1",
+    search_dataset_name = "abc",
+    page = 2,
+    page_size = 50
+  )
+  expect_equal(out$pagination$page, 5)
+  expect_equal(out$pagination$page_size, 25)
+  expect_equal(out$pagination$total_pages, 7)
+  expect_equal(out$total_count, 123L)
 })
 
 # ── .get_studies tests ──────────────────────────────────────────────────────
