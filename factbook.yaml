@@ -4,6 +4,7 @@ spec:
   type: library
   lifecycle: production
   owner: List_custom_t348_cds_sdk@3ds.com
+  experience: data
 metadata:
   json_schema: https://github.com/mdsol/platform-standards/tree/main/schemas/v1alpha1.schema.json
   name: dataconnect-library-r
