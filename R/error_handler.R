@@ -2,7 +2,8 @@
 #'
 #' S3 class representing a single error detail entry from a Flight error.
 #' Each detail typically contains information about a specific field that caused
-#' an error, including the field name, error message, and expected value.
+#' an error, including the field name and expected value, and optionally an
+#' error message.
 #'
 #' @param field Character string representing the field name that has an error (optional)
 #' @param message Character string with the specific error message for this field (optional)
@@ -343,7 +344,7 @@ print.dataconnect_error <- function(x, ...) {
   }
 
   # Build the PREFIX::JSON string that .parse_dataconnect_error() already handles.
-  # Includes a details array with field/message/expected for structured error handling.
+  # Includes a details array with field/expected for structured error handling.
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   esc <- function(s) gsub('"', '\\\\"', s)
   json_payload <- sprintf(
@@ -363,13 +364,14 @@ print.dataconnect_error <- function(x, ...) {
 #' operations. Expects error messages in the format "PREFIX::JSON_PAYLOAD"
 #' where JSON_PAYLOAD contains error_code, message, and optionally timestamp 
 #' and details fields. The details field should be an array of objects, each
-#' representing an ErrorDetail with field, message, and expected properties.
+#' representing an ErrorDetail with field and expected properties (and optionally
+#' message).
 #'
 #' @param error_message Character string containing the error message to parse.
 #'   Expected format: "PREFIX::JSON_PAYLOAD" where JSON_PAYLOAD is valid JSON
 #'   containing at minimum error_code and message fields. May also include:
 #'   - timestamp: ISO 8601 formatted timestamp
-#'   - details: Array of error detail objects, each with field, message, expected, etc.
+#'   - details: Array of error detail objects, each with field, expected, and optionally message, etc.
 #'
 #' @return A DataConnectError object containing:
 #'   \item{error_code}{The error code extracted from the JSON payload, or "UNKNOWN" if parsing fails}
