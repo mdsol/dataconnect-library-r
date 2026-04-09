@@ -22,7 +22,7 @@
 #'       \item \code{page}: Page number for paginated results (optional, default: 1)
 #'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
-#'     Returns a list with \code{total_count} (integer) and \code{studies} array.
+#'     Returns a list with \code{total_records} (integer) and \code{studies} array.
 #'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
 #'     Each environment has \code{name} and \code{uuid}.
 #'   }
@@ -35,7 +35,7 @@
 #'       \item \code{page}: Page number for paginated results (optional, default: 1)
 #'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
-#'     Returns dataset specifications.
+#'     Returns a list with \code{total_records} (integer), \code{pagination} (list), and \code{datasets} (list).
 #'   }
 #'   \item{\code{dataset_versions(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid)}}{
 #'     Retrieve all versions of a specific dataset.

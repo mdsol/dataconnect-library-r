@@ -238,7 +238,7 @@ studies(search_study_name = "", page = 1, page_size = 10)
 
 ### Output 
 
-Returns a list containing `total_count` (total number of studies) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` (total studies available across all pages) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
 
 ### datasets()
 
@@ -254,16 +254,16 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 
 ### Arguments
 
-| Argument | Description |
-| :------- | :---------- |
-| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details |
-| **search_dataset_name** | Optional. The approximate name of the dataset |
-| **page** | Optional. Page number for paginated results. Default: 1. |
-| **page_size** | Optional. Number of results per page. Default: 50. |
+| Argument                   | Description                                                                                             |
+| :------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. |
+| **search_dataset_name**    | Optional. The approximate name of the dataset.                                                          |
+| **page**                   | Optional. Page number for paginated results. Default: 1.                                                |
+| **page_size**              | Optional. Number of results per page. Default: 50.                                                      |
 
 ### Output 
 
-Returns all datasets in the given study and study environment and the dataset name if provided. 
+Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
 
 ### dataset_versions()
 

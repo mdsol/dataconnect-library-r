@@ -50,7 +50,7 @@ tryCatch({
     page_size = 10
   )
 
-  print(paste("Total studies found:", result$total_count, "\n"))
+  print(paste("Total studies available across all pages:", result$total_records, "\n"))
 
   for (study in result$studies) {
     print(to_frame(study))
@@ -99,20 +99,28 @@ Search for a dataset in a specific study environment.
 ```{r eval=FALSE}
 
 tryCatch({
-  
+
   datasets <- dc$datasets(
     study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
     search_dataset_name = searchName,
     page = 1,
-    page_size = 5)
-  
-  for(dataset in datasets) {
+    page_size = 5
+  )
+
+  print(paste("Total datasets available across all pages:", datasets$total_records))
+
+  print(sprintf("Page: %s, Page size: %s, Total pages: %s",
+                datasets$pagination$page,
+                datasets$pagination$page_size,
+                datasets$pagination$total_pages))
+
+  for (dataset in datasets$datasets) {
     print(to_frame(dataset))
   }
 
-}, dataconnect_error = function(e){
-  
-  # Catch dataconnect specific errors. 
+}, dataconnect_error = function(e) {
+
+  # Catch dataconnect specific errors.
   # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
   # Instead of printing, exception can be handled programmatically based on the error code or message.
   print(e)

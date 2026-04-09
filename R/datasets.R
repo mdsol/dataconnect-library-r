@@ -54,6 +54,55 @@
   })
 }
 
+#' Extract app_metadata from a FlightInfo object
+#'
+#' @param item A FlightInfo object
+#' @return The app_metadata list or NULL if not present
+#' @keywords internal
+#' @noRd
+.extract_app_metadata <- function(item) {
+  if (is.null(item)) return(NULL)
+
+  meta <- item$app_metadata
+
+  if (is.null(meta) || length(meta) == 0) return(NULL)
+
+  meta_str <- reticulate::py_to_r(meta$decode("utf-8"))
+
+  if (is.null(meta_str)) return(NULL)
+
+  meta_list <- jsonlite::fromJSON(meta_str, simplifyDataFrame = FALSE)
+
+  return(meta_list)
+}
+
+#' Attach frame property to a dataset object
+#'
+#' Helper function to attach a dataconnect_tbl frame to a dataset item.
+#' Only attaches frame if the data contains a dataset_uuid (i.e., it's a dataset).
+#'
+#' @param data A dataset object with dataset_uuid, study_uuid, study_env_uuid, dataset_name
+#' @param client A FlightClient object
+#' @return The data object with $frame property attached if it's a dataset, otherwise returns data unchanged
+#' @keywords internal
+#' @noRd
+.attach_dataset_frame <- function(data, client) {
+  # Only attach frame if this is a dataset (has dataset_uuid)
+  if (is.null(data) || is.null(data$dataset_uuid)) {
+    return(data)
+  }
+  
+  base_params <- list(
+    study_uuid = data$study_uuid,
+    study_env_uuid = data$study_env_uuid,
+    dataset_uuid = data$dataset_uuid,
+    dataset_name = data$dataset_name
+  )
+  
+  data$frame <- dataconnect_tbl(client, base_params)
+  return(data)
+}
+
 #' Process all flight info objects from an iterator
 #'
 #' @param py_iter A Python iterator of FlightInfo objects
@@ -263,12 +312,9 @@
 #' @param search_study_name full or part of the study name to search by
 #' @param page page number for paginated results
 #' @param page_size number of results per page
-#' @return A list with total_count and studies array, where each study contains
-#'         name, uuid and environments array, where each environment
-#'         contains name and uuid
+#' @return A named list with `total_records`, `pagination`, and `studies`
 #' @keywords internal
 #' @noRd
-
 .get_studies <- function(
   client,
   search_study_name = "",
@@ -307,7 +353,7 @@
   })
 
   return(list(
-    total_count = total_records,
+    total_records = total_records,
     studies = studies
   ))
 }
@@ -320,10 +366,16 @@
 #' @param search_dataset_name full or part of the dataset name to search by
 #' @param page Page number for paginated results
 #' @param page_size Number of results per page
-#' @return A list of datasets
+#' @return A named list with `total_records`, `pagination`, and `datasets`
 #' @keywords internal
 #' @noRd
-.get_datasets <- function(client, study_uuid = NULL, study_environment_uuid, search_dataset_name, page, page_size) {
+.get_datasets <- function(
+  client, study_uuid = NULL,
+  study_environment_uuid,
+  search_dataset_name,
+  page,
+  page_size
+) {
   criteria <- list(
     flight_type = "DATASETS",
     study_uuid = study_uuid,
@@ -333,7 +385,62 @@
     page_size = page_size
   )
 
-  return(.get_flights(client, criteria))
+  py_iter <- .list_flights(client, criteria)
+
+  first_item <- TRUE
+  total_records <- 0L
+  datasets <- list()
+  pagination <- list(
+    page = page,
+    page_size = page_size,
+    total_pages = NA_integer_
+  )
+
+  tryCatch({
+    reticulate::iterate(py_iter, function(item) {
+      if (first_item) {
+        app_metadata <- .extract_app_metadata(item)
+
+        if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
+
+          if (!is.null(app_metadata$pagination$total_pages)) {
+            pagination$total_pages <<- as.integer(app_metadata$pagination$total_pages)
+          }
+
+          if (!is.null(app_metadata$pagination$page)) {
+            pagination$page <<- as.integer(app_metadata$pagination$page)
+          }
+
+          if (!is.null(app_metadata$pagination$page_size)) {
+            pagination$page_size <<- as.integer(app_metadata$pagination$page_size)
+          }
+        }
+
+        if (!is.null(item$total_records)) {
+          total_records <<- as.integer(item$total_records)
+        }
+
+        first_item <<- FALSE
+      }
+
+      data <- .extract_data(item)
+
+      if (!is.null(data)) {
+        data <- .attach_dataset_frame(data, client)
+        datasets[[length(datasets) + 1]] <<- data
+      }
+
+    })
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
+  })
+
+  return(list(
+    total_records = total_records,
+    pagination = pagination,
+    datasets = datasets
+  ))
 }
 
 #' List versions of a dataset from a Flight server
