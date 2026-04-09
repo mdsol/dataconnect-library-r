@@ -238,7 +238,7 @@ studies(search_study_name = "", page = 1, page_size = 10)
 
 ### Output 
 
-Returns a list containing `total_count` (total number of studies) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` (total studies available across all pages) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
 
 ### datasets()
 
@@ -263,7 +263,7 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 
 ### Output 
 
-Returns a list containing `total_count` (total number of datasets), `pagination` with `page`, `page_size` and `total_pages` information and a `datasets` array. 
+Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
 
 ### dataset_versions()
 

@@ -63,7 +63,7 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
   }
 })
 
-test_that(".get_datasets returns total_count = 0L and correct pagination defaults for empty iterator", {
+test_that(".get_datasets returns total_records = 0L and correct pagination defaults for empty iterator", {
   mockery::stub(.get_datasets, ".get_flights", function(client, criteria) list())
   mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
   mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) { })
@@ -77,7 +77,7 @@ test_that(".get_datasets returns total_count = 0L and correct pagination default
     page_size = 50
   )
   expect_type(out, "list")
-  expect_equal(out$total_count, 0L)
+  expect_equal(out$total_records, 0L)
   expect_type(out$pagination, "list")
   expect_equal(out$pagination$page, 2)
   expect_equal(out$pagination$page_size, 50)
@@ -103,7 +103,7 @@ test_that(".get_datasets uses total_records from first item only", {
     page_size = 10
   )
   expect_equal(call_count, 2)
-  expect_equal(out$total_count, 42L)
+  expect_equal(out$total_records, 42L)
 })
 
 test_that(".get_datasets extracts pagination from app_metadata if present, otherwise uses defaults", {
@@ -129,7 +129,7 @@ test_that(".get_datasets extracts pagination from app_metadata if present, other
   expect_equal(out$pagination$page, 5)
   expect_equal(out$pagination$page_size, 25)
   expect_equal(out$pagination$total_pages, 7)
-  expect_equal(out$total_count, 123L)
+  expect_equal(out$total_records, 123L)
 })
 
 # ── .get_studies tests ──────────────────────────────────────────────────────
@@ -196,7 +196,7 @@ test_that(".get_studies extracts total_records from first item only", {
 
   # Should use total_records from first item only
   expect_equal(call_count, 2)
-  expect_equal(result$total_count, 100L)
+  expect_equal(result$total_records, 100L)
 })
 
 test_that(".get_studies calls .extract_data with simplify_data_frame = FALSE", {
@@ -264,7 +264,7 @@ test_that(".get_studies returns correct structure with studies", {
   )
 
   expect_type(result, "list")
-  expect_equal(result$total_count, 2L)
+  expect_equal(result$total_records, 2L)
   expect_type(result$studies, "list")
   expect_equal(length(result$studies), 2)
 
@@ -294,7 +294,7 @@ test_that(".get_studies handles empty results", {
   )
 
   expect_type(result, "list")
-  expect_equal(result$total_count, 0L)
+  expect_equal(result$total_records, 0L)
   expect_type(result$studies, "list")
   expect_equal(length(result$studies), 0)
 })
@@ -319,8 +319,8 @@ test_that(".get_studies handles NULL data from .extract_data", {
     search_study_name = ""
   )
 
-  # Should still return total_count from first item
-  expect_equal(result$total_count, 10L)
+  # Should still return total_records from first item
+  expect_equal(result$total_records, 10L)
   # But studies list should be empty
   expect_equal(length(result$studies), 0)
 })

@@ -60,7 +60,6 @@
 #' @return The app_metadata list or NULL if not present
 #' @keywords internal
 #' @noRd
-
 .extract_app_metadata <- function(item) {
   if (is.null(item)) return(NULL)
 
@@ -68,18 +67,11 @@
 
   if (is.null(meta) || length(meta) == 0) return(NULL)
 
-  meta_str <- tryCatch({
-    reticulate::py_to_r(meta$decode("utf-8"))
-  }, error = function(e) {
-    warning(sprintf("Failed to decode app_metadata as UTF-8 bytes: %s", e$message))
-    return(NULL)
-  })
+  meta_str <- reticulate::py_to_r(meta$decode("utf-8"))
 
   if (is.null(meta_str)) return(NULL)
 
-  meta_list <- tryCatch({
-    jsonlite::fromJSON(meta_str, simplifyDataFrame = FALSE)
-  }, error = function(e) NULL)
+  meta_list <- jsonlite::fromJSON(meta_str, simplifyDataFrame = FALSE)
 
   return(meta_list)
 }
@@ -320,12 +312,9 @@
 #' @param search_study_name full or part of the study name to search by
 #' @param page page number for paginated results
 #' @param page_size number of results per page
-#' @return A list with total_count and studies array, where each study contains
-#'         name, uuid and environments array, where each environment
-#'         contains name and uuid
+#' @return A named list with `total_records`, `pagination`, and `studies`
 #' @keywords internal
 #' @noRd
-
 .get_studies <- function(
   client,
   search_study_name = "",
@@ -364,7 +353,7 @@
   })
 
   return(list(
-    total_count = total_records,
+    total_records = total_records,
     studies = studies
   ))
 }
@@ -377,7 +366,7 @@
 #' @param search_dataset_name full or part of the dataset name to search by
 #' @param page Page number for paginated results
 #' @param page_size Number of results per page
-#' @return A named list with `total_count`, `pagination`, and `datasets`
+#' @return A named list with `total_records`, `pagination`, and `datasets`
 #' @keywords internal
 #' @noRd
 .get_datasets <- function(
@@ -399,7 +388,7 @@
   py_iter <- .list_flights(client, criteria)
 
   first_item <- TRUE
-  total_count <- 0L
+  total_records <- 0L
   datasets <- list()
   pagination <- list(
     page = page,
@@ -428,7 +417,7 @@
         }
 
         if (!is.null(item$total_records)) {
-          total_count <<- as.integer(item$total_records)
+          total_records <<- as.integer(item$total_records)
         }
 
         first_item <<- FALSE
@@ -448,7 +437,7 @@
   })
 
   return(list(
-    total_count = total_count,
+    total_records = total_records,
     pagination = pagination,
     datasets = datasets
   ))

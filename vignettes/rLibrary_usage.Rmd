@@ -50,7 +50,7 @@ tryCatch({
     page_size = 10
   )
 
-  print(paste("Total studies found:", result$total_count, "\n"))
+  print(paste("Total studies available across all pages:", result$total_records, "\n"))
 
   for (study in result$studies) {
     print(to_frame(study))
@@ -107,16 +107,13 @@ tryCatch({
     page_size = 5
   )
 
-  # Print total_count
-  print(paste("Total records:", datasets$total_count))
+  print(paste("Total datasets available across all pages:", datasets$total_records))
 
-  # Print pagination information
   print(sprintf("Page: %s, Page size: %s, Total pages: %s",
                 datasets$pagination$page,
                 datasets$pagination$page_size,
                 datasets$pagination$total_pages))
 
-  # Print each dataset
   for (dataset in datasets$datasets) {
     print(to_frame(dataset))
   }
