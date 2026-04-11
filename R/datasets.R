@@ -23,6 +23,27 @@
   })
 }
 
+#' Internal Reference Class for study environment metadata
+#'
+#' @field uuid UUID of the study environment
+#' @field name Name of the study environment
+#' @keywords internal
+#' @noRd
+StudyEnvironment <- setRefClass(
+  "StudyEnvironment",
+  fields = list(
+    uuid = "ANY",
+    name = "ANY"
+  ),
+  methods = list(
+    initialize = function(uuid, name) {
+      if (missing(uuid) || is.null(uuid) || is.na(uuid) || trimws(as.character(uuid)) == "") { uuid <<- NULL } else { uuid <<- as.character(uuid) }
+      if (missing(name) || is.null(name) || is.na(name) || trimws(as.character(name)) == "") { name <<- NULL } else { name <<- as.character(name) }
+    },
+    to_list = function() list(uuid = uuid, name = name)
+  )
+)
+
 #' Extract data from a FlightInfo object
 #'
 #' @param info A FlightInfo object
@@ -342,6 +363,18 @@
       }
 
       data <- .extract_data(item, simplify_data_frame = FALSE)
+
+      if (!is.null(data) && is.list(data$environments)) {
+        data$environments <- Filter(Negate(is.null), lapply(
+          data$environments,
+          function(env) {
+            if (is.null(env$uuid) && is.null(env$name)) return(NULL)
+            env_uuid <- if (!is.null(env$uuid)) as.character(env$uuid) else ""
+            env_name <- if (!is.null(env$name)) as.character(env$name) else ""
+            StudyEnvironment$new(uuid = env_uuid, name = env_name)
+          }
+        ))
+      }
 
       if (!is.null(data)) {
         studies[[length(studies) + 1]] <<- data
