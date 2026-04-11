@@ -3,8 +3,6 @@ context("Study environments")
 library(testthat)
 library(mockery)
 
-source("../../R/datasets.R")
-
 test_that("StudyEnvironment stores uuid and name", {
   env <- StudyEnvironment$new(uuid = "env-1", name = "Prod")
 

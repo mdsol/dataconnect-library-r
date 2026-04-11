@@ -10,6 +10,8 @@ metadata:
   name: dataconnect-library-r
   title: Data Connect Library for R
   description: This R library is built by Medidata to provide technical users with a connection to interact with relevant data in R Studio
+  annotations:
+    product: "Data Connect"
   teams:
     - name: Team 348
       number: 348
