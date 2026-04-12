@@ -364,16 +364,26 @@ StudyEnvironment <- setRefClass(
 
       data <- .extract_data(item, simplify_data_frame = FALSE)
 
-      if (!is.null(data) && is.list(data$environments)) {
-        data$environments <- Filter(Negate(is.null), lapply(
-          data$environments,
-          function(env) {
-            if (is.null(env$uuid) && is.null(env$name)) return(NULL)
-            env_uuid <- if (!is.null(env$uuid)) as.character(env$uuid) else ""
-            env_name <- if (!is.null(env$name)) as.character(env$name) else ""
-            StudyEnvironment$new(uuid = env_uuid, name = env_name)
+      if (!is.null(data) && !is.null(data$environments) && is.list(data$environments)) {
+        make_study_environment <- function(env) {
+          if (is.null(env) || !is.list(env)) {
+            return(NULL)
           }
-        ))
+
+          env_uuid <- if (!is.null(env$uuid)) as.character(env$uuid) else NULL
+          env_name <- if (!is.null(env$name)) as.character(env$name) else NULL
+
+          if (!is.null(StudyEnvironment) && !is.null(StudyEnvironment$new) && is.function(StudyEnvironment$new)) {
+            return(StudyEnvironment$new(uuid = env_uuid, name = env_name)$to_list())
+          }
+
+          return(list(uuid = env_uuid, name = env_name))
+        }
+
+        data$environments <- Filter(
+          Negate(is.null),
+          lapply(data$environments, make_study_environment)
+        )
       }
 
       if (!is.null(data)) {

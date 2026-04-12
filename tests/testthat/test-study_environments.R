@@ -11,8 +11,7 @@ test_that("StudyEnvironment stores uuid and name", {
   expect_equal(env$name, "Prod")
 })
 
-test_that(".get_studies maps environments to StudyEnvironment objects", {
-  # Ensure we stub the version of .get_studies that was just sourced.
+test_that(".get_studies maps environments to a flattened name string", {
   mockery::stub(.get_studies, ".list_flights", list())
   mockery::stub(.get_studies, "reticulate::iterate", function(x, f) f(list(total_records = 1)))
 
@@ -39,16 +38,12 @@ test_that(".get_studies maps environments to StudyEnvironment objects", {
   expect_length(result$studies, 1)
 
   envs <- result$studies[[1]]$environments
-  expect_length(envs, 2)
-  expect_true(inherits(envs[[1]], "refClass"))
-  expect_true(inherits(envs[[2]], "refClass"))
-  expect_equal(envs[[1]]$uuid, "env-1")
-  expect_equal(envs[[1]]$name, "Dev")
-  expect_equal(envs[[2]]$uuid, "env-2")
-  expect_equal(envs[[2]]$name, "Prod")
+  expect_type(envs, "character")
+  expect_equal(envs, "Dev, Prod")
+  expect_false(grepl("env-", envs))
 })
 
-test_that(".get_studies normalises missing fields to NULL and filters fully-empty entries", {
+test_that(".get_studies drops unnamed environments and keeps flattened names", {
   mockery::stub(.get_studies, ".list_flights", function(client, criteria) {
     list()
   })
@@ -57,9 +52,6 @@ test_that(".get_studies normalises missing fields to NULL and filters fully-empt
     fn(list(total_records = 1))
   })
 
-  # env 1: uuid missing  -> uuid = NULL, name = "Prod"
-  # env 2: name missing  -> uuid = "env-2", name = NULL
-  # env 3: both missing  -> filtered out by Filter(Negate(is.null), ...)
   mockery::stub(
     .get_studies,
     ".extract_data",
@@ -79,9 +71,6 @@ test_that(".get_studies normalises missing fields to NULL and filters fully-empt
   result <- .get_studies(client = list(), search_study_name = "")
   envs <- result$studies[[1]]$environments
 
-  expect_length(envs, 2)
-  expect_null(envs[[1]]$uuid)
-  expect_equal(envs[[1]]$name, "Prod")
-  expect_equal(envs[[2]]$uuid, "env-2")
-  expect_null(envs[[2]]$name)
+  expect_type(envs, "character")
+  expect_equal(envs, "Prod")
 })
