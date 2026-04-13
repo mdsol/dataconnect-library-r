@@ -252,7 +252,11 @@ print.dataconnect_error <- function(x, ...) {
 #' characters (from reticulate hints, gRPC debug context) that would incorrectly
 #' route them through the PREFIX::JSON path. This function intercepts them first
 #' and converts to:
-#'   PREFIX::{ "error_code": "...", "message": "...", "timestamp": "..." }
+#'   PREFIX::{ "error_code": "...", "message": "...", "timestamp": "...",
+#'             "details": [{ "field": "token", "message": null, "expected": "..." }] }
+#'
+#' The JSON payload is built with jsonlite::toJSON(auto_unbox = TRUE), so R NA
+#' values (e.g. detail_msg) are serialized as JSON null.
 #'
 #' Known enodia authentication error scenarios handled (source: arrowproxy.go):
 #' \tabular{llll}{
@@ -266,7 +270,8 @@ print.dataconnect_error <- function(x, ...) {
 #' @param error_message Character string — the raw error message
 #'
 #' @return If enodia authentication error: a rewritten string in PREFIX::JSON
-#'   format. Otherwise: the original error_message unchanged.
+#'   format including a details array with field, message (null), and expected.
+#'   Otherwise: the original error_message unchanged.
 #'
 #' @noRd
 #' @keywords internal
@@ -318,48 +323,49 @@ print.dataconnect_error <- function(x, ...) {
     if (grepl("authorization header not present", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("not provided or formatted incorrectly", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_002"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_004"
       clean_msg       <- "Rate limit exceeded."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- "Wait before making more requests."
     } else {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     }
   } else {
     error_code      <- "AUTH_E_001"
     clean_msg       <- "Authentication token is missing from the request."
-    detail_msg      <- NA
+    detail_msg      <- NA_character_
     detail_expected <- auth_detail_msg
   }
 
   # Build the PREFIX::JSON string that .parse_dataconnect_error() already handles.
-  # Includes a details array with field/message/expected for structured error handling.
+  # Uses jsonlite::toJSON with auto_unbox = TRUE so scalar values are not wrapped
+  # in arrays and R NA values (detail_msg) are serialized as JSON null.
   timestamp <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-  esc <- function(s) gsub('"', '\\\\"', s)
-  json_payload <- sprintf(
-    '{"error_code":"%s","message":"%s","timestamp":"%s","details":[{"field":"token","message":"%s","expected":"%s"}]}',
-    error_code,
-    esc(clean_msg),
-    timestamp,
-    esc(detail_msg),
-    esc(detail_expected)
+  payload <- list(
+    error_code = error_code,
+    message    = clean_msg,
+    timestamp  = timestamp,
+    details    = list(
+      list(field = "token", message = detail_msg, expected = detail_expected)
+    )
   )
+  json_payload <- as.character(jsonlite::toJSON(payload, auto_unbox = TRUE))
 
   paste0(error_code, "::", json_payload)
 }
