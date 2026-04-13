@@ -408,8 +408,7 @@ test_that(".get_studies maps realistic study/environment payload and prints outp
   expect_equal(result$studies[[3]]$environments[[3]]$uuid, "")
 })
 
-# Pagination extraction for .get_studies
-test_that(".get_studies extracts pagination from app_metadata if present, otherwise uses defaults", {
+test_that(".get_studies extracts pagination from app_metadata if present", {
   mockery::stub(.get_studies, ".list_flights", function(client, criteria) list())
 
   mockery::stub(.get_studies, ".extract_app_metadata", function(item) {
