@@ -32,24 +32,23 @@
 StudyEnvironment <- setRefClass(
   "StudyEnvironment",
   fields = list(
-    uuid = "ANY",
-    name = "ANY"
+    uuid = "character",
+    name = "character"
   ),
   methods = list(
     initialize = function(uuid, name) {
-      uuid <<- if (missing(uuid) || is.null(uuid) || is.na(uuid) || trimws(as.character(uuid)) == "") {
-        NULL
+      if (missing(uuid) || is.null(uuid) || is.na(uuid) || trimws(as.character(uuid)) == "" || uuid == "ANY") {
+        .self$uuid <<- ""
       } else {
-        as.character(uuid)
+        .self$uuid <<- as.character(uuid)
       }
 
-      name <<- if (missing(name) || is.null(name) || is.na(name) || trimws(as.character(name)) == "") {
-        NULL
+      if (missing(name) || is.null(name) || is.na(name) || trimws(as.character(name)) == "" || name == "ANY") {
+        .self$name <<- ""
       } else {
-        as.character(name)
+        .self$name <<- as.character(name)
       }
-    },
-    to_list = function() list(uuid = uuid, name = name)
+    }
   )
 )
 
@@ -379,18 +378,7 @@ StudyEnvironment <- setRefClass(
             return(NULL)
           }
 
-          # Pass raw values; initialize handles NULL mapping for missing/empty values.
-          env_uuid <- if (!is.null(env$uuid)) env$uuid else NULL
-          env_name <- if (!is.null(env$name)) env$name else NULL
-
-          if (exists("StudyEnvironment", inherits = TRUE) &&
-              !is.null(StudyEnvironment$new) &&
-              is.function(StudyEnvironment$new)
-          ) {
-            return(StudyEnvironment$new(uuid = env_uuid, name = env_name)$to_list())
-          }
-
-          return(list(uuid = env_uuid, name = env_name))
+          return(StudyEnvironment$new(uuid = env$uuid, name = env$name))
         }
 
         data$environments <- Filter(

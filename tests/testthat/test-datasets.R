@@ -414,6 +414,6 @@ test_that(".get_studies maps realistic study/environment payload and prints outp
   expect_equal(length(result$studies[[1]]$environments), 3)
   expect_equal(result$studies[[1]]$environments[[3]]$name, "PROD")
   expect_equal(result$studies[[2]]$therapeutic_area, "Endocrinology")
-  expect_equal(result$studies[[3]]$environments[[2]]$name, NULL)
-  expect_equal(result$studies[[3]]$environments[[3]]$uuid, NULL)
+  expect_equal(result$studies[[3]]$environments[[2]]$name, "")
+  expect_equal(result$studies[[3]]$environments[[3]]$uuid, "")
 })
