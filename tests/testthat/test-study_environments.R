@@ -11,7 +11,7 @@ test_that("StudyEnvironment stores uuid and name", {
   expect_equal(env$name, "Prod")
 })
 
-test_that(".get_studies maps environments to a flattened name string", {
+test_that(".get_studies preserves environments as named list entries", {
   mockery::stub(.get_studies, ".list_flights", list())
   mockery::stub(.get_studies, "reticulate::iterate", function(x, f) f(list(total_records = 1)))
 
@@ -38,12 +38,15 @@ test_that(".get_studies maps environments to a flattened name string", {
   expect_length(result$studies, 1)
 
   envs <- result$studies[[1]]$environments
-  expect_type(envs, "character")
-  expect_equal(envs, "Dev, Prod")
-  expect_false(grepl("env-", envs))
+  expect_type(envs, "list")
+  expect_length(envs, 2)
+  expect_equal(envs[[1]]$name, "Dev")
+  expect_equal(envs[[2]]$name, "Prod")
+  expect_equal(envs[[1]]$uuid, "env-1")
+  expect_equal(envs[[2]]$uuid, "env-2")
 })
 
-test_that(".get_studies drops unnamed environments and keeps flattened names", {
+test_that(".get_studies preserves environment entries with missing fields", {
   mockery::stub(.get_studies, ".list_flights", function(client, criteria) {
     list()
   })
@@ -71,6 +74,12 @@ test_that(".get_studies drops unnamed environments and keeps flattened names", {
   result <- .get_studies(client = list(), search_study_name = "")
   envs <- result$studies[[1]]$environments
 
-  expect_type(envs, "character")
-  expect_equal(envs, "Prod")
+  expect_type(envs, "list")
+  expect_length(envs, 3)
+  expect_equal(envs[[1]]$name, "Prod")
+  expect_null(envs[[1]]$uuid)
+  expect_equal(envs[[2]]$uuid, "env-2")
+  expect_null(envs[[2]]$name)
+  expect_null(envs[[3]]$uuid)
+  expect_null(envs[[3]]$name)
 })
