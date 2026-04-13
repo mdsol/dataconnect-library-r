@@ -149,8 +149,8 @@ DataConnectClient <- setRefClass(
 
     studies = function(
       search_study_name = "",
-      page = NULL,
-      page_size = NULL
+      page = 1,
+      page_size = 50
     ) {
       "Get all studies"
       studies_spec <- .get_studies(

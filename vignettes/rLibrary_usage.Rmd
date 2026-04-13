@@ -45,7 +45,13 @@ Get all available studies or search for a study by name.
 tryCatch({
   result <- dc$studies(search_study_name = "", page = 1, page_size = 10)
 
-  cat(sprintf("\n--- Showing %d of %d Studies ---\n\n", length(result$studies), result$total_records))
+  cat(sprintf("\nPage: %s, Page size: %s, Total pages: %s\n",
+              result$pagination$page,
+              result$pagination$page_size,
+              result$pagination$total_pages))
+
+  cat(sprintf("\n--- Showing %d of %d Studies ---\n\n", length(result$studies),
+              result$total_records))
 
   for (study in result$studies) {
     envs <- sapply(study$environments, function(e) e$name)
