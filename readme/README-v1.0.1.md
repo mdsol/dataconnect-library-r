@@ -1,3 +1,5 @@
+_This document is for an outdated version. Please go to the main [README](../README.md) to refer to the current version._
+
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 - [Installation](#installation)
