@@ -81,7 +81,7 @@ test_that(".get_datasets returns total_records = 0L and correct pagination defau
   expect_type(out$pagination, "list")
   expect_equal(out$pagination$page, 2)
   expect_equal(out$pagination$page_size, 50)
-  expect_true(is.na(out$pagination$total_pages))
+  expect_equal(out$pagination$total_pages, 0L)
 })
 
 test_that(".get_datasets uses total_records from first item only", {

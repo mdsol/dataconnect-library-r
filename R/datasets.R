@@ -437,7 +437,7 @@ StudyEnvironment <- setRefClass(
   pagination <- list(
     page = page,
     page_size = page_size,
-    total_pages = NA_integer_
+    total_pages = 0L
   )
 
   tryCatch({
