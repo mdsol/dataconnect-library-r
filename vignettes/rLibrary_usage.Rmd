@@ -117,7 +117,6 @@ tryCatch({
 
   # Catch dataconnect specific errors.
   # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
-  # Instead of printing, exception can be handled programmatically based on the error code or message.
   print(e)
 
 }, error = function(e) {
@@ -164,7 +163,6 @@ tryCatch({
 
   # Catch dataconnect specific errors.
   # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
-  # Instead of printing, exception can be handled programmatically based on the error code or message.
   print(e)
 
 }, error = function(e) {
@@ -356,7 +354,6 @@ tryCatch({
   
   # Catch dataconnect specific errors. 
   # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
-  # Instead of printing, exception can be handled programmatically based on the error code or message.
   print(e)
 
 }, error = function(e) {
@@ -386,7 +383,6 @@ tryCatch({
   
   # Catch dataconnect specific errors. 
   # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
-  # Instead of printing, exception can be handled programmatically based on the error code or message.
   print(e)
 
 }, error = function(e) {

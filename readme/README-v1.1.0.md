@@ -1,6 +1,7 @@
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 - [Installation](#installation)
+- [What's New in v1.1.0](#whats-new-in-v110)
 - [Quick Start](#quick-start)
   - [Usage](#usage)
   - [Available vignettes in R Studio](#available-vignettes-in-r-studio)
@@ -28,6 +29,22 @@ To use this library, you must have a valid iMedidata account and access to requi
 # Installation
 
 To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_setup.Rmd).
+
+**Note:** Please make sure that you are installing the latest package (v1.1.0) to have access to the latest features and updates. The older versions have been deprecated and may not function properly. 
+Follow the instructions in the aforementioned Installation Guide to install the latest version. 
+
+# What's New in v1.1.0
+
+* Transitioned from `study_environments()` to `studies()` function, which provides a more intuitive way to access studies and their associated environments. The `studies()` function returns a list of studies, each containing its environments, allowing users to easily navigate through the study structure.
+* Pagination for `datasets()` and `studies()` functions to enhance performance when handling large number of datasets and studies.
+* Added `total_records` in the output of `datasets()` and `studies()` functions to provide users with the total count of available records, improving transparency and aiding in data management.
+* Parameter changes in function calls:
+  * _study_uuid_ is now optional for `datasets()` function, allowing users to retrieve datasets across all studies if not specified.
+  * _study_uuid_ and _study_environment_uuid_ are now optional for `dataset_versions()` function, providing more flexibility in retrieving dataset versions without needing to specify the study or environment.
+  * `fetch_data()` function now only requires `dataset_uuid`, simplifying the process of fetching data from a specific dataset version. _study_uuid_ and _study_environment_uuid_ are now deprecated parameters for this function, but accepted if provided, and cross-checked against the _dataset_uuid_ provided.
+  * **key_columns** cannot have `NULL` values during `publish()` and `dry_publish()`.
+* Added `datetime_formats` parameter in `publish()` and `dry_publish()` functions to validate date and timestamp columns in the dataset before publishing to Data Connect. This ensures that datetime fields are in the correct format, improving data quality and consistency in Medidata Data Connect.
+* Improved error handling and messages for better user experience and easier troubleshooting.
 
 # Quick Start
 

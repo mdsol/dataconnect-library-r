@@ -16,11 +16,8 @@ metadata:
       email: List_custom_t348_cds_sdk@3ds.com
   people:
     - role: engineering manager
-      email: henry.he@3ds.com
+      email: List_custom_t348_cds_sdk@3ds.com
     - role: technical owner
-      email: henry.he@3ds.com
-    - role: architect
-      email: srinivas.limgampalli2@3ds.com
+      email: List_custom_t348_cds_sdk@3ds.com
   annotations:
-    jira: "https://jira.mdsol.com/secure/RapidBoard.jspa?rapidView=3993"
     product: Data Connect Library for R
