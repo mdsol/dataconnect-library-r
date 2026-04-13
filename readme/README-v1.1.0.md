@@ -230,11 +230,11 @@ studies(search_study_name = "", page = 1, page_size = 10)
 
 ### Arguments
 
-| Argument               | Description                                 |
-| :--------------------- | :------------------------------------------ |
-| **search_study_name**  | Optional. The approximate name of the study |
-| **page**               | Optional. Page number for paginated results |
-| **page_size**          | Optional. Number of results per page        |
+| Argument               | Description                                              |
+| :--------------------- | :------------------------------------------------------- |
+| **search_study_name**  | Optional. The approximate name of the study.             |
+| **page**               | Optional. Page number for paginated results. Default: 1. |
+| **page_size**          | Optional. Number of results per page. Default: 50.       |
 
 ### Output 
 

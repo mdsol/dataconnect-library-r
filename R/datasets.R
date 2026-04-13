@@ -347,8 +347,8 @@ StudyEnvironment <- setRefClass(
 .get_studies <- function(
   client,
   search_study_name = "",
-  page = NULL,
-  page_size = NULL
+  page,
+  page_size
 ) {
   criteria <- list(
     flight_type = "STUDIES",
@@ -360,14 +360,39 @@ StudyEnvironment <- setRefClass(
   py_iter <- .list_flights(client, criteria)
   studies <- list()
   total_records <- 0L
+  is_first_item <- TRUE
+  pagination <- list(
+    page = page,
+    page_size = page_size,
+    total_pages = 0L
+  )
 
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
-      if (total_records == 0L &&
-          !is.null(item$total_records) &&
-          item$total_records >= 0
-      ) {
-        total_records <<- as.integer(item$total_records)
+
+      if (is_first_item) {
+        app_metadata <- .extract_app_metadata(item)
+
+        if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
+
+          if (!is.null(app_metadata$pagination$total_pages)) {
+            pagination$total_pages <<- as.integer(app_metadata$pagination$total_pages)
+          }
+
+          if (!is.null(app_metadata$pagination$page)) {
+            pagination$page <<- as.integer(app_metadata$pagination$page)
+          }
+
+          if (!is.null(app_metadata$pagination$page_size)) {
+            pagination$page_size <<- as.integer(app_metadata$pagination$page_size)
+          }
+        }
+
+        if (!is.null(item$total_records)) {
+          total_records <<- as.integer(item$total_records)
+        }
+
+        is_first_item <<- FALSE
       }
 
       data <- .extract_data(item, simplify_data_frame = FALSE)
@@ -397,8 +422,9 @@ StudyEnvironment <- setRefClass(
   })
 
   return(list(
-    total_records = total_records,
-    studies = studies
+    pagination = pagination,
+    studies = studies,
+    total_records = total_records
   ))
 }
 
