@@ -273,8 +273,6 @@ print.dataconnect_error <- function(x, ...) {
 #'   format including a details array with field, message (null), and expected.
 #'   Otherwise: the original error_message unchanged.
 #'
-#' @importFrom jsonlite toJSON
-#'
 #' @noRd
 #' @keywords internal
 .normalize_enodia_error <- function(error_message) {
@@ -325,33 +323,33 @@ print.dataconnect_error <- function(x, ...) {
     if (grepl("authorization header not present", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("not provided or formatted incorrectly", server_msg, ignore.case = TRUE)) {
       error_code      <- "AUTH_E_002"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
       clean_msg       <- "Authentication token is invalid or malformed."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_004"
       clean_msg       <- "Rate limit exceeded."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- "Wait before making more requests."
     } else {
       error_code      <- "AUTH_E_001"
       clean_msg       <- "Authentication token is missing from the request."
-      detail_msg      <- NA
+      detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     }
   } else {
     error_code      <- "AUTH_E_001"
     clean_msg       <- "Authentication token is missing from the request."
-    detail_msg      <- NA
+    detail_msg      <- NA_character_
     detail_expected <- auth_detail_msg
   }
 
