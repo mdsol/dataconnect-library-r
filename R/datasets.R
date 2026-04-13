@@ -422,9 +422,9 @@ StudyEnvironment <- setRefClass(
   })
 
   return(list(
+    total_records = total_records,
     pagination = pagination,
     studies = studies,
-    total_records = total_records
   ))
 }
 

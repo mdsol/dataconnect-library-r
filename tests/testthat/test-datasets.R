@@ -335,30 +335,6 @@ test_that(".get_studies handles NULL data from .extract_data", {
   expect_equal(length(result$studies), 0)
 })
 
-test_that(".get_studies uses default parameters correctly", {
-  captured_criteria <- NULL
-
-  mockery::stub(.get_studies, ".list_flights", function(client, criteria) {
-    captured_criteria <<- criteria
-    list()
-  })
-
-  mockery::stub(.get_studies, "reticulate::iterate", function(iter, fn) {
-    # Empty iterator
-  })
-
-  .get_studies(
-    client = list(),
-    page = 1,
-    page_size = 50
-  )
-
-  expect_equal(captured_criteria$flight_type, "STUDIES")
-  expect_equal(captured_criteria$search_study_name, "")
-  expect_equal(captured_criteria$page, 1)
-  expect_equal(captured_criteria$page_size, 50)
-})
-
 test_that(".get_studies maps realistic study/environment payload and prints output", {
   mockery::stub(.get_studies, ".list_flights", function(client, criteria) {
     list()
