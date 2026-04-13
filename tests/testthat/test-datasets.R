@@ -344,3 +344,76 @@ test_that(".get_studies uses default parameters correctly", {
   expect_null(captured_criteria$page)
   expect_null(captured_criteria$page_size)
 })
+
+test_that(".get_studies maps realistic study/environment payload and prints output", {
+  mockery::stub(.get_studies, ".list_flights", function(client, criteria) {
+    list()
+  })
+
+  mockery::stub(.get_studies, "reticulate::iterate", function(iter, fn) {
+    fn(list(total_records = 248))
+    fn(list(total_records = 999))
+    fn(list(total_records = 1000))
+  })
+
+  simulated_studies <- list(
+    list(
+      name = "PWB Oncology Master",
+      uuid = "8f7f8f86-53e3-4ab3-8e2f-0f7f5c16c3d1",
+      phase = "Phase III",
+      therapeutic_area = "Oncology",
+      environments = list(
+        list(name = "DEV", uuid = "f1d2d2f9-48b3-4e2f-9ae1-c9198a9c5d3d"),
+        list(name = "UAT", uuid = "c95f6f4a-c7e8-4db6-8dd2-4b7809fa63b7"),
+        list(name = "PROD", uuid = "2f7ebf83-22db-4e4b-b5e3-a3cde6f11e91")
+      )
+    ),
+    list(
+      name = "Exciter Diabetes Registry",
+      uuid = "b0d6f3c1-8f11-4e37-bec2-2abf0cd9a21e",
+      phase = "Observational",
+      therapeutic_area = "Endocrinology",
+      environments = list(
+        list(name = "DEV", uuid = "a8b3d7d9-9df4-44f0-9947-2367bb85eb48"),
+        list(name = "PROD", uuid = "0db6f6b4-4b5e-44f8-b9a6-0f112d6e1f20")
+      )
+    ),
+    list(
+      name = "CNS Safety Surveillance",
+      uuid = "6a823a5b-9de3-4a1a-bf5e-782f5f8224da",
+      phase = "Post-Marketing",
+      therapeutic_area = "Neurology",
+      environments = list(
+        list(name = "SANDBOX", uuid = "fb5f7679-1c7e-4ab7-a996-2616d2b8f6ce"),
+        list(name = NULL, uuid = "6f9bc6b1-f8a0-4f1a-ae80-5a4aa0cba936"),
+        list(name = "PROD", uuid = NULL)
+      )
+    )
+  )
+
+  call_index <- 0
+  mockery::stub(.get_studies, ".extract_data", function(item, simplify_data_frame) {
+    call_index <<- call_index + 1
+    simulated_studies[[call_index]]
+  })
+
+  result <- .get_studies(
+    client = list(),
+    search_study_name = "onc",
+    page = 1,
+    page_size = 25
+  )
+
+  cat("COMPREHENSIVE_GET_STUDIES_PRINT_START\n", file = stderr())
+  print(result)
+  cat("COMPREHENSIVE_GET_STUDIES_PRINT_END\n", file = stderr())
+
+  expect_equal(result$total_records, 248L)
+  expect_equal(length(result$studies), 3)
+  expect_equal(result$studies[[1]]$name, "PWB Oncology Master")
+  expect_equal(length(result$studies[[1]]$environments), 3)
+  expect_equal(result$studies[[1]]$environments[[3]]$name, "PROD")
+  expect_equal(result$studies[[2]]$therapeutic_area, "Endocrinology")
+  expect_equal(result$studies[[3]]$environments[[2]]$name, "")
+  expect_equal(result$studies[[3]]$environments[[3]]$uuid, "")
+})

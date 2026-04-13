@@ -43,29 +43,24 @@ Get all available studies or search for a study by name.
 ```{r eval=FALSE}
 
 tryCatch({
+  result <- dc$studies(search_study_name = "", page = 1, page_size = 10)
 
-  result <- dc$studies(
-    search_study_name = "",
-    page = 1,
-    page_size = 10
-  )
-
-  print(paste("Total studies available across all pages:", result$total_records, "\n"))
+  cat(sprintf("\n--- Showing %d of %d Studies ---\n\n", length(result$studies), result$total_records))
 
   for (study in result$studies) {
-    print(to_frame(study))
+    envs <- sapply(study$environments, function(e) e$name)
+    envs_list <- paste(envs[nzchar(envs)], collapse = ", ")
+    
+    cat(sprintf("• Study: %s\n", study$name))
+    if (nzchar(envs_list)) {
+      cat(sprintf("  Envs:  %s\n\n", envs_list))
+    } else {
+      cat("  Envs:  (none)\n\n")
+    }
   }
 
-}, dataconnect_error = function(e) {
-  # Catch dataconnect specific errors.
-  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
-  # Instead of printing, exception can be handled programmatically based on the error code or message.
-  print(e)
-
 }, error = function(e) {
-
-  # Catch any other errors
-  cat(e$message, "\n")
+  cat("Error:", e$message, "\n")
 })
 ```
 
