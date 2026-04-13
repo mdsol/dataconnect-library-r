@@ -11,9 +11,16 @@ metadata:
   title: Data Connect Library for R
   description: This R library is built by Medidata to provide technical users with a connection to interact with relevant data in R Studio
   teams:
-    - name: Team 348
+    - name: Team 348 (SDK)
       number: 348
       email: List_custom_t348_cds_sdk@3ds.com
   people:
     - role: engineering manager
-      email: List_custom_t348_cds_sdk@3ds.com
+      email: henry.he@3ds.com
+    - role: technical owner
+      email: henry.he@3ds.com
+    - role: architect
+      email: srinivas.limgampalli2@3ds.com
+  annotations:
+    jira: "https://jira.mdsol.com/secure/RapidBoard.jspa?rapidView=3993"
+    product: Data Connect Library for R
