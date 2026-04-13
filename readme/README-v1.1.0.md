@@ -65,13 +65,16 @@ my_project_token <- "<project_token_here>"
 my_dataset_name <- "your_dataset_name_here"
 my_key_columns <- list("subjid", "visit")
 my_source_datasets <- list("0a4aaf73-1ebf-3f14-b955-f74d56fd7010")
+datetime_formats <- c("date_column" = "MM/dd/yy", "datetime_column" = "yyyy-MM-dd HH:mm:ss")
 
 publish(
   project_token = my_project_token,
   dataset_name = my_dataset_name,
   key_columns = my_key_columns,
-  source_datasets = source_datasets,
-  data = sample_data)
+  source_datasets = my_source_datasets,
+  data = sample_data,
+  datetime_formats = as.list(datetime_formats)
+)
 ```
 
 ## Scheduling
@@ -230,11 +233,11 @@ studies(search_study_name = "", page = 1, page_size = 10)
 
 ### Arguments
 
-| Argument               | Description                                 |
-| :--------------------- | :------------------------------------------ |
-| **search_study_name**  | Optional. The approximate name of the study |
-| **page**               | Optional. Page number for paginated results |
-| **page_size**          | Optional. Number of results per page        |
+| Argument              | Description                                  |
+|:----------------------|:---------------------------------------------|
+| **search_study_name** | Optional. The approximate name of the study. |
+| **page**              | Optional. Page number for paginated results. |
+| **page_size**         | Optional. Number of results per page.        |
 
 ### Output 
 
@@ -279,9 +282,9 @@ dataset_versions(dataset_uuid = dataset_uuid)
 
 ### Arguments
 
-| Argument         | Description                                                                                 |
-| :-------         | :------------------------------------------------------------------------------------------ |
-| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
+| Argument         | Description                                                                                  |
+| :-------         |:---------------------------------------------------------------------------------------------|
+| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function. |
 
 ### Output 
 
@@ -301,9 +304,9 @@ fetch_data(dataset_uuid = dataset_uuid)
 
 ### Arguments
 
-| Argument | Description |
-| :------- | :---------- |
-| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
+| Argument | Description                                                                                                          |
+| :------- |:---------------------------------------------------------------------------------------------------------------------|
+| **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions. |
 
 ### Output 
 
@@ -325,13 +328,13 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 
 ### Arguments 
 
-| Argument             | Description |
-|:---------------------| :---------- |
-| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE |
-| **dataset_name**     | Data Connect expects the dataset name to be unique within the study |
-| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `NA`) in any row. |
-| **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
-| **data**             | Data frame that needs to be validated |
+| Argument             | Description                                                                                                                                                                                       |
+|:---------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE.                                       |
+| **dataset_name**     | Data Connect expects the dataset name to be unique within the study.                                                                                                                              |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `NA`) in any row.      |
+| **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated.                                                                                                  |
+| **data**             | Data frame that needs to be validated.                                                                                                                                                            |
 | **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
 
 ### Output 
@@ -373,14 +376,14 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 
 ### Arguments
 
-| Argument             | Description |
-|:---------------------| :---------- |
-| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type |
-| **dataset_name**     | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
+| Argument             | Description                                                                                                                                                                                          |
+|:---------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type.                                                                                                            |
+| **dataset_name**     | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study.                                                         |
 | **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published. Key columns must not contain null/missing values (for example, `NA`) in any row. |
-| **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
-| **data**             | Data frame which needs to be published |
-| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+| **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published.                                                        |
+| **data**             | Data frame which needs to be published.                                                                                                                                                              |
+| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect.    |
 
 
 ### Output 
@@ -487,7 +490,7 @@ devtools::install_github(
 # Install a specific older version
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.0.0",
+  ref = "v1.0.1",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 ```
