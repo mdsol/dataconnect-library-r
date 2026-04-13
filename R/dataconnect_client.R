@@ -55,7 +55,7 @@
 #'     }
 #'     Returns the actual dataset data.
 #'   }
-#'   \item{\code{dry_publish(project_token, dataset_name, key_columns, source_datasets, data)}}{
+#'   \item{\code{dry_publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)}}{
 #'     Validate publishing parameters without actually publishing data to DataConnect.
 #'     This method performs validation checks and returns feedback without making changes.
 #'     \itemize{
@@ -64,10 +64,11 @@
 #'       \item \code{key_columns}: List of key column names (required)
 #'       \item \code{source_datasets}: List of source dataset references (required)
 #'       \item \code{data}: The data to be validated for publishing (required)
+#'       \item \code{datetime_formats}: The datetime formats to be validated for publishing (optional)
 #'     }
 #'     Returns validation results and any potential issues.
 #'   }
-#'   \item{\code{publish(project_token, dataset_name, key_columns, source_datasets, data)}}{
+#'   \item{\code{publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)}}{
 #'     Publish a dataset to DataConnect service.
 #'     \itemize{
 #'       \item \code{project_token}: Authentication token for the target project (required)
@@ -75,6 +76,7 @@
 #'       \item \code{key_columns}: List of key column names (required)
 #'       \item \code{source_datasets}: List of source dataset references (required)
 #'       \item \code{data}: The data to be published (required, cannot be null)
+#'       \item \code{datetime_formats}: The datetime formats to be applied for publishing (optional)
 #'     }
 #'     Returns the result of the publishing operation.
 #'   }
@@ -99,7 +101,7 @@
 #' versions <- client$dataset_versions(dataset_uuid = dataset_uuid)
 #'
 #' # Fetch data of a specific dataset
-#' data <- client$fetch_data(dataset_uuid)
+#' data <- client$fetch_data(dataset_uuid = dataset_uuid)
 #' 
 #' # Dry run publishing validation
 #' validation <- client$dry_publish(
@@ -107,7 +109,8 @@
 #'   dataset_name = "my_dataset",
 #'   key_columns = c("id"),
 #'   source_datasets = list(),
-#'   data = my_data
+#'   data = my_data,
+#'   datetime_formats = list()
 #' )
 #' 
 #' # Publish dataset
@@ -116,7 +119,8 @@
 #'   dataset_name = "my_dataset",
 #'   key_columns = c("id"),
 #'   source_datasets = list(),
-#'   data = my_data
+#'   data = my_data,
+#'   datetime_formats = list()
 #' )
 #' }
 #' 

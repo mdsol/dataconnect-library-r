@@ -17,4 +17,3 @@ This directory contains documentation snapshots for each release of the `datacon
 | Version | Documentation | Current version |
 |---------|---------------|-----------------|
 | 1.1.0   | [README-v1.1.0.md](readme/README-v1.1.0.md) | Yes |
-| 1.0.1   | [README-v1.0.1.md](readme/README-v1.0.1.md) |     |
