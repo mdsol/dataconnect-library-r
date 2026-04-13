@@ -36,7 +36,7 @@ Follow the instructions in the aforementioned Installation Guide to install the 
 # What's New in v1.1.0
 
 * Transitioned from `study_environments()` to `studies()` function, which provides a more intuitive way to access studies and their associated environments. The `studies()` function returns a list of studies, each containing its environments, allowing users to easily navigate through the study structure.
-* Pagination for `datasets()` and `studies()` functions to enhance performance when handling large number of datasets and studies.
+* Pagination for `datasets()` and `studies()` functions to enhance performance when handling a large number of datasets and studies.
 * Added `total_records` in the output of `datasets()` and `studies()` functions to provide users with the total count of available records, improving transparency and aiding in data management.
 * Parameter changes in function calls:
   * _study_uuid_ is now optional for `datasets()` function, allowing users to retrieve datasets across all studies if not specified.
