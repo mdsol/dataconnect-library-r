@@ -68,7 +68,7 @@ tryCatch({
   for (study in result$studies) {
     envs <- sapply(study$environments, function(e) e$name)
     envs_list <- paste(envs[nzchar(envs)], collapse = ", ")
-    
+
     cat(sprintf("• Study: %s\n", study$name))
     if (nzchar(envs_list)) {
       cat(sprintf("  Envs:  %s\n\n", envs_list))
@@ -77,8 +77,17 @@ tryCatch({
     }
   }
 
+}, dataconnect_error = function(e) {
+
+  # Catch dataconnect specific errors.
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  print(e)
+
 }, error = function(e) {
+
+  # Catch any other errors
   cat("Error:", e$message, "\n")
+
 })
 ```
 
