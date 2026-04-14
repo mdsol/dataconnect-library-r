@@ -1,5 +1,10 @@
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
+**Viewing version 1.1.0** — [View all versions](https://github.com/mdsol/dataconnect-library-r/tags)
+
+**To switch versions:**
+  * Click the *tag selector ▼* above → *Tags* tab → select your version.
+
 - [Installation](#installation)
 - [What's New in v1.1.0](#whats-new-in-v110)
 - [Quick Start](#quick-start)
@@ -464,15 +469,15 @@ The below table provides the supported R column types of Data Connect R library 
 
 **Note**: If a data type and format do not appear, it is possible that Data Connect R Library will not accept the result when publishing back into Medidata Data Connect. To ensure compatibility, convert the data type in your R data frame to support the R data type below.
 
-| R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type |
-| :---------- | :-------- | :--------------------- |
-| **integer** | as.integer(c(1L, 2L)) | INTEGER |
-| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value. |
-| **character** | c("str1", "str2") | STRING |
-| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: R does not store data format, and as a result, the supported date type column will be converted to the **yyyy-MM-dd** format when publishing back to Medidata Data Connect.|
-| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**:  R does not store data format, and as a result, the supported POSIX.ct type column will be converted to **yyyy-MM-dd HH:mm:ss:SSS** format. |
-| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type. |
-| **integer** | bit64::as.integer64(c(1, 2)) | LONG |
+| R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type                                                                                                                                                                              |
+| :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **integer** | as.integer(c(1L, 2L)) | INTEGER                                                                                                                                                                                             |
+| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value.           |
+| **character** | c("str1", "str2") | STRING                                                                                                                                                                                              |
+| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for all date and date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>* If formats are not explicitly specified, the publishing process will result in an error.<br/>* The specified formats are applied during the publishing process to standardize the output; we don't convert the values, we just apply the specified format. |
+| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**:  R does not store data format, and as a result, the supported POSIX.ct type column will be converted to **yyyy-MM-dd HH:mm:ss:SSS** format.                                 |
+| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type.                             |
+| **integer** | bit64::as.integer64(c(1, 2)) | LONG                                                                                                                                                                                                |
 
 
 # Reporting known issues
