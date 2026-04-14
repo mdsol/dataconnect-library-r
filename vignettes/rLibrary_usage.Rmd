@@ -77,6 +77,11 @@ tryCatch({
     }
   }
 
+}, dataconnect_error = function(e) {
+  # Catch dataconnect specific errors.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
 }, error = function(e) {
   cat("Error:", e$message, "\n")
 })
