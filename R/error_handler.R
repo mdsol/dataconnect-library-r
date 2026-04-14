@@ -332,7 +332,7 @@ print.dataconnect_error <- function(x, ...) {
       detail_expected <- auth_detail_msg
     } else if (grepl("Invalid API token", server_msg, ignore.case = TRUE)){
       error_code      <- "AUTH_E_003"
-      clean_msg       <- "Authentication token is invalid or malformed."
+      clean_msg       <- "Authentication token is expired or revoked."
       detail_msg      <- NA_character_
       detail_expected <- auth_detail_msg
     } else if (grepl("rate limit exceeded", server_msg, ignore.case = TRUE)){

@@ -494,7 +494,7 @@ test_that(".normalize_enodia_error maps invalid API token to AUTH_E_003", {
     "Data Connect > Developer Center."
   )
   expect_equal(parsed$error_code, "AUTH_E_003")
-  expect_equal(parsed$message, "Authentication token is invalid or malformed.")
+  expect_equal(parsed$message, "Authentication token is expired or revoked.")
   expect_null(parsed$details[[1]]$message)
   expect_equal(parsed$details[[1]]$expected, expected_detail_msg)
 })
