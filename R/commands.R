@@ -185,6 +185,23 @@
       )
     }
 
+    # Read invalid records table (IPC stream) if any
+    invalid_count <- if (length(result$invalid_record_count) > 0) result$invalid_record_count else 0
+    message("[v2] invalid_record_count: ", invalid_count)
+    if (invalid_count > 0) {
+
+      message("[v5] reading error table from reader...")
+      # Import with convert=FALSE to keep all intermediates as Python objects
+      pa <- reticulate::import("pyarrow", convert = FALSE)
+      error_buf <- reader$read()
+      ipc_reader <- pa$ipc$open_stream(error_buf)
+      py_table <- ipc_reader$read_all()
+      error_table <- arrow::as_arrow_table(py_table)
+      dry_publish_or_publish_result$invalid_records <- as.data.frame(error_table)
+      message("[v5] read ", nrow(dry_publish_or_publish_result$invalid_records), " invalid records")
+      print(dry_publish_or_publish_result$invalid_records)
+    }
+
     dry_publish_or_publish_result
 
   }, error = function(e) {
