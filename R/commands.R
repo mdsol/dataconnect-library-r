@@ -170,7 +170,8 @@
         dataset_name = result$dataset_name,
         invalid_record_count = result$invalid_record_count,
         dataset_version = result$dataset_version,
-        no_of_columns = result$no_of_columns
+        no_of_columns = result$no_of_columns,
+        invalid_records = NULL
       )
     } else {
 
@@ -181,9 +182,23 @@
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
         dataset_batch_number = result$dataset_batch_number,
-        invalid_record_count = result$invalid_record_count
+        invalid_record_count = result$invalid_record_count,
+        invalid_records = NULL
       )
     }
+
+    # Try to read invalid records table (IPC stream) from the server.
+    # The server streams error batches after the JSON result only when there are invalid records.
+    tryCatch({
+      pa <- reticulate::import("pyarrow", convert = FALSE)
+      error_buf <- reader$read()
+      ipc_reader <- pa$ipc$open_stream(error_buf)
+      py_table <- ipc_reader$read_all()
+      error_table <- arrow::as_arrow_table(py_table)
+      dry_publish_or_publish_result$invalid_records <- as.data.frame(error_table)
+    }, error = function(e) {
+      # No error batches in the stream — nothing to read
+    })
 
     dry_publish_or_publish_result
 
