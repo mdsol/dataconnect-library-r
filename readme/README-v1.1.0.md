@@ -40,17 +40,16 @@ Follow the instructions in the aforementioned Installation Guide to install the 
 
 # What's New in v1.1.0
 
-* Transitioned from `study_environments()` to `studies()` function, which provides a more intuitive way to access studies and their associated environments. The `studies()` function returns a list of studies, each containing its environments, allowing users to easily navigate through the study structure.
+* Added `studies()` function, which provides an intuitive way to access studies and their associated environments. The `studies()` function returns a list of studies, each containing its environments, allowing users to easily navigate through the study structure.
 * Pagination for `datasets()` and `studies()` functions to enhance performance when handling a large number of datasets and studies.
 * Added `total_records` in the output of `datasets()` and `studies()` functions to provide users with the total count of available records, improving transparency and aiding in data management.
 * Parameter changes in function calls:
-  * _study_uuid_ is now optional for `datasets()` function, allowing users to retrieve datasets across all studies if not specified.
+  * _study_uuid_ is now optional for `datasets()` function, but accepted if provided, and cross-checked against the _study_environment_uuid_ and _dataset_uuid_ provided.
   * _study_uuid_ and _study_environment_uuid_ are now optional for `dataset_versions()` function, providing more flexibility in retrieving dataset versions without needing to specify the study or environment.
   * `fetch_data()` function now only requires `dataset_uuid`, simplifying the process of fetching data from a specific dataset version. _study_uuid_ and _study_environment_uuid_ are now deprecated parameters for this function, but accepted if provided, and cross-checked against the _dataset_uuid_ provided.
   * **key_columns** cannot have `NULL` values during `publish()` and `dry_publish()`.
 * Added `datetime_formats` parameter in `publish()` and `dry_publish()` functions to validate date and timestamp columns in the dataset before publishing to Data Connect. This ensures that datetime fields are in the correct format, improving data quality and consistency in Medidata Data Connect.
-* Improved error handling and messages for better user experience and easier troubleshooting.
-
+* Error Handling- R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmaticaly. 
 
 # Quick Start
 
@@ -81,7 +80,6 @@ dc <-init(token = "<authentication_token>")
 
 * **Publish data:** You must have a project token to publish a dataset from R IDE to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html). 
 
-**Note:** Records with missing values (`NA`) in any key column are considered invalid. `dry_publish()` scans the full batch and returns `invalid_records_count` (no data is persisted). `publish()` persists only valid records and returns `invalid_records_count` in the response.
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -246,7 +244,7 @@ A data frame with two columns: **name** and **value**
 
 ### Description
 
-Get all available studies or search for a study by name
+Retrieves a list of studies where the user has permission to manage custom code projects. To handle a high volume of studies, use the optional study name search or pagination parameters. 
 
 ### Usage
 
@@ -270,7 +268,7 @@ Returns a list containing `total_records` (total studies available across all pa
 
 ### Description
 
-Get all datasets for a study environment
+Get all datasets for a study environment.
 
 ### Usage
 
@@ -282,6 +280,7 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 
 | Argument                   | Description                                                                                             |
 | :------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _study_environment_uuid_ and _dataset_uuid_ provided. |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. |
 | **search_dataset_name**    | Optional. The approximate name of the dataset.                                                          |
 | **page**                   | Optional. Page number for paginated results. Default: 1.                                                |
@@ -307,6 +306,8 @@ dataset_versions(dataset_uuid = dataset_uuid)
 
 | Argument         | Description                                                                                 |
 | :-------         | :------------------------------------------------------------------------------------------ |
+| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
+| **study_environment_uuid** | Optional. Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 ### Output 
@@ -329,6 +330,8 @@ fetch_data(dataset_uuid = dataset_uuid)
 
 | Argument | Description |
 | :------- | :---------- |
+| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
+| **study_environment_uuid** | Optional. Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
 
 ### Output 
@@ -341,7 +344,6 @@ Returns data from a specific dataset.
 
 Check if the publication results meet validation requirements.
 
-**Note:** Any record is invalid if the value of any of the columns specified in `key_columns` field is `NA`. The server performs a full scan of the data, and returns `invalid_records_count`.
 
 ### Usage
 
@@ -358,30 +360,24 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 | **key_columns**      | List of columns that form the composite key that identifies each unique record in the data to be validated. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets**  | List of source dataset unique identifiers (UUIDs) to be used to create the data being validated |
 | **data**             | Data frame that needs to be validated |
-| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+| **datetime_formats** | Optional. The expected format for date or datetime fields in the data frame. This is used to validate that the date or datetime fields in the data frame are in the correct format before publishing to Data Connect. This should be NULL when none of the fields in the data frame are expected to be in date or datetime type.|
 
 ### Output 
 
-Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function.
+Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in dry publish.. 
 
-### Error Messages & Actions
+### Data Validations 
 
-| Error Message                                                                                                                                          | Action                                                                                                                                                                                                                                                                    |
-|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.**                                                  | Ensure that all parameters are provided.                                                                                                                                                                                                                                  |
-| **key_columns must be a non-empty list.**                                                                                                              | key_columns must contain at least one column name.                                                                                                                                                                                                                        |
-| **invalid input_config passed**                                                                                                                        | Required argument is missing input; make any required adjustment                                                                                                                                                                                                          |
-| **invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name.                                                                                                                                                                                                                                                  |
-| **invalid study_environment_uuid or user doesn't have access to the study_environment_uuid**                                                           | Verify that</br> - The study_environment_uuid is correct.</br> - You have access to that study environment.</br> - The project token being used is in this study environment.                                                                                             |
-| **The source dataset does not exist**                                                                                                                  | Ensure that the source dataset is in the study environment where you intend to publish the dataset. The system does not support the ability to publish a dataset from one study environment to another study environment.                                                 |
-| **Error parsing dataset_uuid**                                                                                                                         | The dataset_uuid is not a valid UUID. Review and provide the correct dataset_uuid.                                                                                                                                                                                        |
-| **Error in validating source dataset**                                                                                                                 | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist**                                                               |
-| **invalid schema passed**                                                                                                                              | Contact Medidata Support.                                                                                                                                                                                                                                                 |
-| **Unsupported field type and format for '{field.name}'. Please refer to the readme file for supported data types and formats.**                        | Convert the column data type in the dataset or dataframe that is being published to a supported field type. Currently supported R field types are logical, integer, numeric, character, Date, and  POSIXct. For details, see  [here](#acceptable-data-types-and-formats). |
-| **Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.**         | Adjust the column name in the dataset or dataframe that is being published.                                                                                                                                                                                               |
-| **Invalid key_columns passed, all key_columns must be part of the schema.**                                                                            | Update the column name in the key_column argument. The key columns should exist in the dataset or dataframe that is being published.                                                                                                                                      |
-| **Invalid datetime formats found: {invalid_formats}**| Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
-| **Missing datetime formats for date/timestamp columns: {columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
+| Validations             | Description |
+|:---------------------| :---------- |
+| **Invalid Input**    | Requirement argument is missing  |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect. |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environement.|
+| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.  |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. |
+
 
 ### publish()
 
@@ -389,7 +385,6 @@ Returns the result of publishing validations. After successful validation testin
 
 Publish dataset to Data Connect.
 
-**Note:** Any record is invalid if the value of any of the columns specified in `key_columns` field is `NA`. The server performs a full scan of the data, and returns `invalid_records_count`.
 
 ### Usage
 
@@ -406,32 +401,24 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 | **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published. Key columns must not contain null/missing values (for example, `NA`) in any row. |
 | **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
 | **data**             | Data frame which needs to be published |
-| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. |
+| **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. This should be NULL when none of the fields in the data frame are expected to be in date or datetime type.|
 
 
 ### Output 
 
-Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use.
+Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use. Refer to the Errors section for a comprehensive list of potential exceptions.
 
-### Error Messages & Actions
+### Data Validations 
 
-| Error Message | Action |
-| :------------ | :----- |
-| **All parameters are required: project_token, dataset_name, key_columns, source_datasets, and data.** | Ensure that all parameters are provided. |
-| **key_columns must be a non-empty list.**| key_columns must contain at least one column name. |
-| **Authentication failed** | Ensure you provide the correct user token and project token. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
-| **You are not authorized to perform this action** | Ensure that you provide the correct user token and project. You must have access to the Developer Center, iMedidata, and the specific study environment. The project token must be from the Custom Code project you created, and the user token must be valid and generated from the user Key Management page in Data Connect > Developer Center. |
-| **Invalid input_config passed** | Required argument is missing. Make required adjustment. |
-| **Invalid dataset_name in input_config, dataset_name must only contain alphanumeric characters and underscores, with a maximum length of 15 characters** | Adjust the dataset_name. |
-| **Invalid study_environment_uuid or user doesn't have access to the study_environment_uuid** |Verify that:</br> - The study_environment_uuid is correct. </br> - You have access to that study environment.</br> - The project token being used is in this study environment.|
-| **The source dataset does not exist** | Ensure the source dataset is in the study environment where the dataset is intended to publish to. The system does not support publishing a dataset from one study environment to another study environment.  |
-| **Error parsing dataset uuid** | The dataset_uuid is not a valid uuid. Review and provide the correct dataset_uuid. |
-| **Error in validating source dataset** | If the following error messages are not present, please contact Medidata Support, otherwise, address the error messages:</br> **- Error parsing dataset_uuid**</br> **- The source dataset does not exist** |
-| **Schema is not valid** | Please contact Medidata Support. |
-| **Error occurred while publishing data** | Verify that the dataset that is being published passes the validation requirement in **dry_publish()**, and that you use the same arguments input in **publish()**. If the error message persists, please contact Medidata Support. |
-| **Invalid datetime format(s): {invalid_formats}** | Please refer to the ReadMe to review the provided datetime formats and ensure they are among the supported formats. |
-| **Missing datetime formats for date/timestamp columns: {columns}**| Please refer to the ReadMe to review the provided datetime formats and ensure that datetime columns have a provided datetime format. |
-
+| Validations             | Description |
+|:---------------------| :---------- |
+| **Invalid Input**    | Requirement argument is missing  |
+| **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
+| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect. |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environement.|
+| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.  |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. |
 
 ### collect()
 
@@ -463,6 +450,37 @@ df %>% head(n=10)
 | :---- | :---- |
 | **n** | The first number of rows will be retrieved. Default: n=6 |
 
+
+## Errors
+
+R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmaticaly. 
+
+| Error Code | Type | Scenario                                                                                                                                                                             |
+| :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| AUTHZ_001	| Authorization	| Authorization service check failed | 
+| VAL_002	| Validation- Page Number	| Page number is not a positive integer 
+| VAL_003	| Validation- Page Size	| Page size is out of range [1, 100] 
+| VAL_004	| Validation- Study Parameter	| Invalid study uuid
+| VAL_005	| Validation- Study Environment Parameter	| Missing or invalid study environment uuid 
+| VAL_006	| Validation- Dataset Parameter	| Invalid dataset uuid
+| VAL_007	| Validation- Configuration Error	| Required input parameters are missing or invalid in configuration  
+| VAL_008	| Validation- Project Token	| Invalid project token 
+| VAL_009	| Validation- Unsupported Data Type	| Unsupported data types.
+| VAL_010	| Validation- Unsupported Data Type	| Unsupported datetime formats.
+| VAL_011	| Validation- Pagination	| Pagination is out of range
+| VAL_012	| Validation- Concurrency	| Project actively being published
+| VAL_013	| Validation- Formatting Error	| Data validation failed. One or more records contain formatting errors.
+| RES_002	| Resource Exceptions- Study Environment  	| No authorized Study Environments found for the authenticated user
+| RES_003	| Resource Exceptions- Invalid parameter | Incorrect UUID combination. 
+| RES_004	| Resource Exceptions- Invalid parameter 	| Incorrect UUID combination.
+| RES_005	| Resource Exceptions- Study Group |  Study Group not found for the Dataset's Study Environment. 
+| RES_006	| Resource Exceptions- Study |	Study Group not found for the Dataset's Study Environment.
+| RES_007	| Resource Exceptions- Client Division | 	Client Division not found for the Dataset's Study Environment.
+| RES_008	| Resource Exceptions- Custom Code Project | Transformation Project is not found. 
+| INT_001	| Internal Application Exception	 | Something went wrong on our end. 
+
+
+
 ## Acceptable Data Types and Formats
 
 The below table provides the supported R column types of Data Connect R library and their representation in Medidata Data Connect.
@@ -471,11 +489,11 @@ The below table provides the supported R column types of Data Connect R library 
 
 | R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type                                                                                                                                                                              |
 | :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **integer** | as.integer(c(1L, 2L)) | INTEGER                                                                                                                                                                                             |
+| **integer** | as.integer(c(1L, 2L)) | INTEGER  |
 | **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value.           |
-| **character** | c("str1", "str2") | STRING                                                                                                                                                                                              |
-| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for all date and date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>* If formats are not explicitly specified, the publishing process will result in an error.<br/>* The specified formats are applied during the publishing process to standardize the output; we don't convert the values, we just apply the specified format. |
-| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**:  R does not store data format, and as a result, the supported POSIX.ct type column will be converted to **yyyy-MM-dd HH:mm:ss:SSS** format.                                 |
+| **character** | c("str1", "str2") | STRING |
+| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for date columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>|
+| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**: To successfully publish a dataset, you must specify a format for date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>|
 | **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type.                             |
 | **integer** | bit64::as.integer64(c(1, 2)) | LONG                                                                                                                                                                                                |
 
