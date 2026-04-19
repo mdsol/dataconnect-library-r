@@ -364,19 +364,19 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 
 ### Output 
 
-Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in dry publish.. 
+Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in `dry_publish()`. 
 
 ### Data Validations 
 
-| Validations             | Description |
-|:---------------------| :---------- |
-| **Invalid Input**    | Requirement argument is missing  |
+| Validations             | Description                                                                                                                                                                                                                                                                                                    |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
 | **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
-| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores |
-| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect. |
-| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environement.|
-| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.  |
-| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. |
+| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect.                                                 |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
+| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
 
 
 ### publish()
@@ -410,15 +410,15 @@ Returns the status of publish. When the dataset is published successfully, you c
 
 ### Data Validations 
 
-| Validations             | Description |
-|:---------------------| :---------- |
-| **Invalid Input**    | Requirement argument is missing  |
+| Validations             | Description                                                                                                                                                                                                                                                                                                    |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
 | **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
-| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores |
-| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect. |
-| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environement.|
-| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.  |
-| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. |
+| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect.                                                 |
+| **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
+| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
 
 ### collect()
 
@@ -453,7 +453,7 @@ df %>% head(n=10)
 
 ## Errors
 
-R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmaticaly. 
+R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
 
 | Error Code | Type | Scenario                                                                                                                                                                             |
 | :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -487,15 +487,15 @@ The below table provides the supported R column types of Data Connect R library 
 
 **Note**: If a data type and format do not appear, it is possible that Data Connect R Library will not accept the result when publishing back into Medidata Data Connect. To ensure compatibility, convert the data type in your R data frame to support the R data type below.
 
-| R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type                                                                                                                                                                              |
-| :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **integer** | as.integer(c(1L, 2L)) | INTEGER  |
-| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value.           |
-| **character** | c("str1", "str2") | STRING |
-| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for date columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>|
-| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**: To successfully publish a dataset, you must specify a format for date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>|
-| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type.                             |
-| **integer** | bit64::as.integer64(c(1, 2)) | LONG                                                                                                                                                                                                |
+| R&nbsp;Data&nbsp;Type | R Example | Data Connect Data Type                                                                                                                                                                         |
+| :---------- | :-------- |:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **integer** | as.integer(c(1L, 2L)) | INTEGER                                                                                                                                                                                        |
+| **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value.      |
+| **character** | c("str1", "str2") | STRING                                                                                                                                                                                         |
+| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for date columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>         |
+| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**: To successfully publish a dataset, you must specify a format for date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)     |
+| **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type.                        |
+| **integer** | bit64::as.integer64(c(1, 2)) | LONG                                                                                                                                                                                           |
 
 
 # Reporting known issues
