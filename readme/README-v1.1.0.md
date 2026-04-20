@@ -49,7 +49,7 @@ Follow the instructions in the aforementioned Installation Guide to install the 
   * `fetch_data()` function now only requires `dataset_uuid`, simplifying the process of fetching data from a specific dataset version. _study_uuid_ and _study_environment_uuid_ are now deprecated parameters for this function, but accepted if provided, and cross-checked against the _dataset_uuid_ provided.
   * **key_columns** cannot have `NULL` values during `publish()` and `dry_publish()`.
 * Added `datetime_formats` parameter in `publish()` and `dry_publish()` functions to validate date and timestamp columns in the dataset before publishing to Data Connect. This ensures that datetime fields are in the correct format, improving data quality and consistency in Medidata Data Connect.
-* Error Handling- R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmaticaly. 
+* Error Handling- R Library raises exceptions for many reasons, such as invalid parameters, authentication errors, and validation failures. We have introduced error codes for each category of errors to be handled programmatically. 
 
 # Quick Start
 
