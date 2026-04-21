@@ -190,13 +190,37 @@
     invalid_count <- if (length(invalid_count_raw) > 0) suppressWarnings(as.integer(invalid_count_raw[[1]])) else 0L
     if (is.na(invalid_count)) invalid_count <- 0L
     if (invalid_count > 0) {
-      # Import with convert=FALSE to keep all intermediates as Python objects
-      pa <- reticulate::import("pyarrow", convert = FALSE)
-      error_buf <- reader$read()
-      ipc_reader <- pa$ipc$open_stream(error_buf)
-      py_table <- ipc_reader$read_all()
-      error_table <- arrow::as_arrow_table(py_table)
-      dry_publish_or_publish_result$invalid_records <- as.data.frame(error_table)
+      invalid_records_result <- tryCatch({
+        # Import with convert=FALSE to keep all intermediates as Python objects
+        pa <- reticulate::import("pyarrow", convert = FALSE)
+        error_buf <- reader$read()
+
+        if (is.null(error_buf) || length(error_buf) == 0) {
+          stop("Invalid records payload was missing or empty")
+        }
+
+        ipc_reader <- pa$ipc$open_stream(error_buf)
+        py_table <- ipc_reader$read_all()
+        error_table <- arrow::as_arrow_table(py_table)
+
+        list(
+          invalid_records = as.data.frame(error_table),
+          warning = NULL
+        )
+      }, error = function(e) {
+        list(
+          invalid_records = NULL,
+          warning = paste("Failed to read invalid records diagnostics:", conditionMessage(e))
+        )
+      })
+
+      if (!is.null(invalid_records_result$invalid_records)) {
+        dry_publish_or_publish_result$invalid_records <- invalid_records_result$invalid_records
+      }
+
+      if (!is.null(invalid_records_result$warning)) {
+        dry_publish_or_publish_result$invalid_records_warning <- invalid_records_result$warning
+      }
     }
 
     dry_publish_or_publish_result

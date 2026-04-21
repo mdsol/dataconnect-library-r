@@ -33,7 +33,7 @@
   # Validate key columns exist in data (case-insensitive)
   missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
   if (length(missing_cols) > 0) {
-    error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
+    error_msg <- paste0("Key column(s) not found: ", paste(missing_cols, collapse = ", "), ".")
     return(list(
       distinct_row_count = NULL,
       error_message = error_msg,
@@ -218,11 +218,13 @@ def count_distinct_rows_py(table, key_columns):
   
   # Extract and parse the response content
   response <- NULL
-  if (length(result) > 0) {
+  if (is.null(result)) {
+    return(NULL)
+  } else if (length(result) > 0) {
     # If do_command processed it successfully, return the first item
     response <- result[[1]]
   } else {
-    # If do_command didn't process it, try to extract manually
+    # Non-NULL result but cannot be parsed/processed
     warning("No processed result from do_command, returning raw result")
     response <- result
   }
