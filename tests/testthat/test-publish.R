@@ -1077,6 +1077,7 @@ test_that("publish appends counts when all rows are duplicates", {
 })
 
 test_that("R06: valid_rows accounts for intersection of duplicates and invalid records", {
+  withr::local_options(dataconnect.calculate_duplicates = TRUE)
   test_data <- data.frame(
     subjid = sprintf("%03d", c(1:88, 1:12)),
     visit = c(rep("V1", 88), rep("V1", 12)),
@@ -1122,6 +1123,7 @@ test_that("R06: valid_rows accounts for intersection of duplicates and invalid r
 })
 
 test_that("dry_publish applies R06 logic for valid_rows", {
+  withr::local_options(dataconnect.calculate_duplicates = TRUE)
   test_data <- data.frame(
     subjid = sprintf("%03d", c(1:88, 1:12)),
     visit = c(rep("V1", 88), rep("V1", 12)),

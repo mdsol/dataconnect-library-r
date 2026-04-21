@@ -63,24 +63,13 @@
     reticulate::py_run_string("
 import pyarrow as pa
 import pyarrow.compute as pac
-import uuid
 
 def count_distinct_rows_py(table, key_columns):
-    key_values = []
-    
-    for key_column in key_columns:
-        if len(key_values) > 0:
-            key_values = pac.binary_join_element_wise(
-                key_values,
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-        else:
-            key_values = pac.binary_join_element_wise(
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-    
-    result_array = pa.array([str(uuid.uuid3(uuid.NAMESPACE_DNS, str(key_value))) for key_value in key_values])
-    return len(pac.unique(result_array))
+    if len(key_columns) == 0:
+        return table.num_rows
+    arrays = [table[col] for col in key_columns]
+    struct_array = pa.StructArray.from_arrays(arrays, names=key_columns)
+    return len(pac.unique(struct_array))
 ", convert = FALSE)
     
     # Call the Python function
