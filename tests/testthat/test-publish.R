@@ -149,6 +149,63 @@ test_that(".count_distinct_rows returns duplicate metadata for character keys", 
   expect_equal(result$actual_key_columns, "id")
 })
 
+test_that(".calculate_duplicate_invalid_intersection counts matching composite keys", {
+  duplicate_key_rows <- data.frame(
+    subjid = c("001", "002"),
+    visit = c("V1", "V1"),
+    stringsAsFactors = FALSE
+  )
+
+  invalid_records <- data.frame(
+    subjid = c("001", "002", "099"),
+    visit = c("V1", "V1", "V1"),
+    stringsAsFactors = FALSE
+  )
+
+  key_columns <- c("subjid", "visit")
+
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(duplicate_key_rows, invalid_records, key_columns),
+    2
+  )
+})
+
+test_that(".calculate_duplicate_invalid_intersection returns zero for empty invalid records", {
+  duplicate_key_rows <- data.frame(
+    subjid = c("001", "002"),
+    visit = c("V1", "V1"),
+    stringsAsFactors = FALSE
+  )
+
+  invalid_records <- data.frame(
+    subjid = character(0),
+    visit = character(0),
+    stringsAsFactors = FALSE
+  )
+
+  key_columns <- c("subjid", "visit")
+
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(duplicate_key_rows, invalid_records, key_columns),
+    0
+  )
+})
+
+test_that(".calculate_duplicate_invalid_intersection returns zero for NULL invalid records", {
+  duplicate_key_rows <- data.frame(
+    subjid = c("001", "002"),
+    visit = c("V1", "V1"),
+    stringsAsFactors = FALSE
+  )
+
+  key_columns <- c("subjid", "visit")
+
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(duplicate_key_rows, NULL, key_columns),
+    0
+  )
+})
+
 test_that(".count_distinct_rows handles all unique rows", {
   test_data <- data.frame(
     id = c(1, 2, 3, 4),

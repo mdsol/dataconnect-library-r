@@ -90,6 +90,46 @@ def count_distinct_rows_py(table, key_columns):
   })
 }
 
+#' Count overlap between duplicate keys and invalid records
+#'
+#' @param duplicate_key_rows Data frame containing duplicated key rows
+#' @param invalid_records Data frame of invalid records returned by server
+#' @param key_columns List or character vector of key column names
+#' @return Integer count of invalid records that match duplicate keys
+#' @keywords internal
+#' @noRd
+.calculate_duplicate_invalid_intersection <- function(duplicate_key_rows, invalid_records, key_columns) {
+  if (is.null(invalid_records) || !is.data.frame(invalid_records) || nrow(invalid_records) == 0) {
+    return(0L)
+  }
+
+  if (is.null(duplicate_key_rows) || !is.data.frame(duplicate_key_rows) || nrow(duplicate_key_rows) == 0) {
+    return(0L)
+  }
+
+  key_cols <- as.character(unlist(key_columns))
+  if (length(key_cols) == 0) {
+    return(0L)
+  }
+
+  key_cols_lower <- tolower(key_cols)
+  duplicate_cols_lower <- tolower(names(duplicate_key_rows))
+  invalid_cols_lower <- tolower(names(invalid_records))
+
+  # Resolve key columns case-insensitively in both data frames
+  duplicate_actual_cols <- names(duplicate_key_rows)[match(key_cols_lower, duplicate_cols_lower)]
+  invalid_actual_cols <- names(invalid_records)[match(key_cols_lower, invalid_cols_lower)]
+
+  if (any(is.na(duplicate_actual_cols)) || any(is.na(invalid_actual_cols))) {
+    return(0L)
+  }
+
+  duplicate_keys <- do.call(paste, c(duplicate_key_rows[, duplicate_actual_cols, drop = FALSE], sep = "\r"))
+  invalid_keys <- do.call(paste, c(invalid_records[, invalid_actual_cols, drop = FALSE], sep = "\r"))
+
+  as.integer(sum(invalid_keys %in% duplicate_keys))
+}
+
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
 # (client version, IP addresses, MAC address) to all Flight operations
