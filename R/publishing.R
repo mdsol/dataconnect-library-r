@@ -4,11 +4,11 @@
 #' @param key_columns List or character vector of key column names
 #' @param compute_metadata Logical; if TRUE, computes duplicate metadata fields.
 #' @return List with the following fields:
-#'   \\item{distinct_row_count}{Integer distinct key-row count, or NULL on error.}
-#'   \\item{error_message}{Character error message, or NULL on success.}
-#'   \\item{duplicate_row_indices}{Integer vector of row indices that are duplicate rows beyond the first occurrence.}
-#'   \\item{duplicate_key_rows}{Data frame of duplicate key rows beyond the first occurrence.}
-#'   \\item{actual_key_columns}{Character vector of matched key columns in original casing.}
+#'   \item{distinct_row_count}{Integer distinct key-row count, or NULL on error.}
+#'   \item{error_message}{Character error message, or NULL on success.}
+#'   \item{duplicate_row_indices}{Integer vector of row indices that are duplicate rows beyond the first occurrence.}
+#'   \item{duplicate_key_rows}{Data frame of duplicate key rows beyond the first occurrence.}
+#'   \item{actual_key_columns}{Character vector of matched key columns in original casing.}
 #' @keywords internal
 #' @noRd
 .count_distinct_rows <- function(data, key_columns, compute_metadata = TRUE) {
