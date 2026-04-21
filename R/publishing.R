@@ -5,7 +5,7 @@
 #' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
 #' @keywords internal
 #' @noRd
-.count_distinct_rows <- function(data, key_columns) {
+.count_distinct_rows <- function(data, key_columns, compute_metadata = TRUE) {
   
   # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
@@ -40,10 +40,14 @@
   # Map key columns to actual data frame column names
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
 
-  key_data <- data[, actual_cols, drop = FALSE]
-  duplicate_mask <- duplicated(key_data, fromLast = FALSE) | duplicated(key_data, fromLast = TRUE)
-  duplicate_row_indices <- which(duplicate_mask)
-  duplicate_key_rows <- key_data[duplicate_mask, , drop = FALSE]
+  duplicate_row_indices <- integer(0)
+  duplicate_key_rows <- data.frame()
+  if (isTRUE(compute_metadata)) {
+    key_data <- data[, actual_cols, drop = FALSE]
+    duplicate_mask <- duplicated(key_data, fromLast = FALSE) | duplicated(key_data, fromLast = TRUE)
+    duplicate_row_indices <- which(duplicate_mask)
+    duplicate_key_rows <- key_data[duplicate_mask, , drop = FALSE]
+  }
   
   tryCatch({
     # Convert data frame to Arrow table
@@ -125,6 +129,7 @@ def count_distinct_rows_py(table, key_columns):
   }
 
   duplicate_keys <- do.call(paste, c(duplicate_key_rows[, duplicate_actual_cols, drop = FALSE], sep = "\r"))
+  duplicate_keys <- unique(duplicate_keys)
   invalid_keys <- do.call(paste, c(invalid_records[, invalid_actual_cols, drop = FALSE], sep = "\r"))
 
   as.integer(sum(invalid_keys %in% duplicate_keys))
@@ -202,7 +207,8 @@ def count_distinct_rows_py(table, key_columns):
     response <- result
   }
   
-  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+  compute_metadata <- getOption("dataconnect.calculate_duplicates", TRUE)
+  distinct_row_result <- .count_distinct_rows(data, config$key_columns, compute_metadata = compute_metadata)
 
   # Append distinct row count and duplicate row count if available
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
@@ -213,11 +219,13 @@ def count_distinct_rows_py(table, key_columns):
       invalid_count <- as.integer(response$invalid_record_count[[1]])
     }
 
-    intersection_count <- .calculate_duplicate_invalid_intersection(
-      distinct_row_result$duplicate_key_rows,
-      response$invalid_records,
-      config$key_columns
-    )
+    if (isTRUE(compute_metadata)) {
+      intersection_count <- .calculate_duplicate_invalid_intersection(
+        distinct_row_result$duplicate_key_rows,
+        response$invalid_records,
+        config$key_columns
+      )
+    }
 
     response$valid_rows <- max(0L, distinct_row_result$distinct_row_count - invalid_count + intersection_count)
     response$duplicate_rows_based_on_keys <- duplicate_count
@@ -270,7 +278,8 @@ def count_distinct_rows_py(table, key_columns):
 
     distinct_row_result <- NULL
     if (result$success) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+      compute_metadata <- getOption("dataconnect.calculate_duplicates", TRUE)
+      distinct_row_result <- .count_distinct_rows(data, config$key_columns, compute_metadata = compute_metadata)
 
       # Append distinct row count and duplicate row count if available
       if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
@@ -279,11 +288,14 @@ def count_distinct_rows_py(table, key_columns):
         if (!is.null(result$invalid_record_count) && length(result$invalid_record_count) > 0 && !is.na(result$invalid_record_count[[1]])) {
           invalid_count <- as.integer(result$invalid_record_count[[1]])
         }
-        intersection_count <- .calculate_duplicate_invalid_intersection(
-          distinct_row_result$duplicate_key_rows,
-          result$invalid_records,
-          config$key_columns
-        )
+        intersection_count <- 0L
+        if (isTRUE(compute_metadata)) {
+          intersection_count <- .calculate_duplicate_invalid_intersection(
+            distinct_row_result$duplicate_key_rows,
+            result$invalid_records,
+            config$key_columns
+          )
+        }
 
         result <- c(result, list(valid_rows = max(0L, distinct_row_result$distinct_row_count - invalid_count + intersection_count)))
         result <- c(result, list(duplicate_rows_based_on_keys = duplicate_count))
