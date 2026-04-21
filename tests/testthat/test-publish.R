@@ -990,6 +990,50 @@ test_that("R06: valid_rows accounts for intersection of duplicates and invalid r
   expect_equal(result$valid_rows, 85)
 })
 
+test_that("dry_publish applies R06 logic for valid_rows", {
+  test_data <- data.frame(
+    subjid = sprintf("%03d", c(1:88, 1:12)),
+    visit = c(rep("V1", 88), rep("V1", 12)),
+    measure = seq_len(100),
+    stringsAsFactors = FALSE
+  )
+
+  config <- list(
+    project_uuid = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name = "my_dataset",
+    dataset_description = "Example dataset",
+    key_columns = list("subjid", "visit"),
+    source_datasets = list(),
+    is_dry_publish = TRUE
+  )
+
+  mock_client <- list()
+
+  mockery::stub(.dry_publish, ".do_command", function(client, command, args = list(), body = NULL) {
+    list(
+      list(
+        success = TRUE,
+        message = "Dataset published successfully.",
+        invalid_record_count = 5,
+        invalid_records = data.frame(
+          subjid = c("001", "002", "089", "090", "091"),
+          visit = c("V1", "V1", "V1", "V1", "V1"),
+          measure = c(1, 2, 89, 90, 91),
+          stringsAsFactors = FALSE
+        )
+      )
+    )
+  })
+
+  result <- .dry_publish(mock_client, config, test_data)
+
+  expect_true(result$success)
+  expect_equal(result$invalid_record_count, 5)
+  expect_equal(result$valid_rows, 85)
+})
+
 test_that("publish does not append counts when upload fails", {
   test_data <- data.frame(
     subjid = c("001", "002", "003"),
