@@ -166,8 +166,14 @@ def count_distinct_rows_py(table, key_columns):
 
   # Append distinct row count and duplicate row count if available
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    response$valid_rows <- distinct_row_result$distinct_row_count
-    response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
+    duplicate_count <- nrow(data) - distinct_row_result$distinct_row_count
+    invalid_count <- 0L
+    if (!is.null(response$invalid_record_count) && length(response$invalid_record_count) > 0 && !is.na(response$invalid_record_count[[1]])) {
+      invalid_count <- as.integer(response$invalid_record_count[[1]])
+    }
+
+    response$valid_rows <- distinct_row_result$distinct_row_count - invalid_count
+    response$duplicate_rows_based_on_keys <- duplicate_count
   }
   
   return(response)
@@ -221,8 +227,14 @@ def count_distinct_rows_py(table, key_columns):
 
       # Append distinct row count and duplicate row count if available
       if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
-        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
+        duplicate_count <- nrow(data) - distinct_row_result$distinct_row_count
+        invalid_count <- 0L
+        if (!is.null(result$invalid_record_count) && length(result$invalid_record_count) > 0 && !is.na(result$invalid_record_count[[1]])) {
+          invalid_count <- as.integer(result$invalid_record_count[[1]])
+        }
+
+        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count - invalid_count))
+        result <- c(result, list(duplicate_rows_based_on_keys = duplicate_count))
       }
     }
 

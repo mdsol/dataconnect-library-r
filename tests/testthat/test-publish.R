@@ -122,6 +122,33 @@ test_that(".count_distinct_rows handles all duplicate rows", {
   expect_equal(result$distinct_row_count, 1)
 })
 
+test_that(".count_distinct_rows returns duplicate row identities for a simple duplicate group", {
+  test_data <- data.frame(
+    id = c(1, 2, 2, 3)
+  )
+
+  result <- .count_distinct_rows(test_data, key_columns = "id")
+
+  expect_null(result$error_message)
+  expect_equal(result$distinct_row_count, 3)
+  expect_equal(result$duplicate_row_indices, c(2, 3))
+  expect_equal(nrow(result$duplicate_key_rows), 2)
+  expect_equal(names(result$duplicate_key_rows), "id")
+})
+
+test_that(".count_distinct_rows returns duplicate metadata for character keys", {
+  test_data <- data.frame(
+    id = c("A", "B", "B", "C"),
+    stringsAsFactors = FALSE
+  )
+
+  result <- .count_distinct_rows(test_data, "id")
+
+  expect_equal(result$duplicate_row_indices, c(2, 3))
+  expect_equal(nrow(result$duplicate_key_rows), 2)
+  expect_equal(result$actual_key_columns, "id")
+})
+
 test_that(".count_distinct_rows handles all unique rows", {
   test_data <- data.frame(
     id = c(1, 2, 3, 4),
