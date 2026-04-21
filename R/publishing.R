@@ -18,11 +18,23 @@
   missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
   if (length(missing_cols) > 0) {
     error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
-    return(list(distinct_row_count = NULL, error_message = error_msg))
+    return(list(
+      distinct_row_count = NULL,
+      error_message = error_msg,
+      duplicate_row_indices = integer(0),
+      duplicate_key_rows = data.frame(),
+      actual_key_columns = character(0)
+    ))
   }
   
   # Map key columns to actual data frame column names
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
+
+  # Identify all rows that are in a duplicate key group
+  key_data <- data[, actual_cols, drop = FALSE]
+  duplicate_mask <- duplicated(key_data, fromLast = FALSE) | duplicated(key_data, fromLast = TRUE)
+  duplicate_row_indices <- which(duplicate_mask)
+  duplicate_key_rows <- key_data[duplicate_mask, , drop = FALSE]
   
   tryCatch({
     # Convert data frame to Arrow table
@@ -58,11 +70,23 @@ def count_distinct_rows_py(table, key_columns):
     py_cols <- reticulate::r_to_py(as.list(actual_cols))
     distinct_count <- as.integer(reticulate::py_to_r(py_func(arrow_table, py_cols)))
     
-    return(list(distinct_row_count = distinct_count, error_message = NULL))
+    return(list(
+      distinct_row_count = distinct_count,
+      error_message = NULL,
+      duplicate_row_indices = duplicate_row_indices,
+      duplicate_key_rows = duplicate_key_rows,
+      actual_key_columns = actual_cols
+    ))
     
   }, error = function(e) {
     error_msg <- paste("Error counting distinct rows:", e$message)
-    return(list(distinct_row_count = NULL, error_message = error_msg))
+    return(list(
+      distinct_row_count = NULL,
+      error_message = error_msg,
+      duplicate_row_indices = duplicate_row_indices,
+      duplicate_key_rows = duplicate_key_rows,
+      actual_key_columns = actual_cols
+    ))
   })
 }
 
