@@ -131,8 +131,8 @@ test_that(".count_distinct_rows returns duplicate row identities for a simple du
 
   expect_null(result$error_message)
   expect_equal(result$distinct_row_count, 3)
-  expect_equal(result$duplicate_row_indices, c(2, 3))
-  expect_equal(nrow(result$duplicate_key_rows), 2)
+  expect_equal(result$duplicate_row_indices, 3)
+  expect_equal(nrow(result$duplicate_key_rows), 1)
   expect_equal(names(result$duplicate_key_rows), "id")
 })
 
@@ -144,8 +144,8 @@ test_that(".count_distinct_rows returns duplicate metadata for character keys", 
 
   result <- .count_distinct_rows(test_data, "id")
 
-  expect_equal(result$duplicate_row_indices, c(2, 3))
-  expect_equal(nrow(result$duplicate_key_rows), 2)
+  expect_equal(result$duplicate_row_indices, 3)
+  expect_equal(nrow(result$duplicate_key_rows), 1)
   expect_equal(result$actual_key_columns, "id")
 })
 
@@ -167,6 +167,27 @@ test_that(".calculate_duplicate_invalid_intersection counts matching composite k
   expect_equal(
     .calculate_duplicate_invalid_intersection(duplicate_key_rows, invalid_records, key_columns),
     2
+  )
+})
+
+test_that(".calculate_duplicate_invalid_intersection avoids key-collision false positives", {
+  duplicate_key_rows <- data.frame(
+    subjid = c("A\rB"),
+    visit = c("C"),
+    stringsAsFactors = FALSE
+  )
+
+  invalid_records <- data.frame(
+    subjid = c("A"),
+    visit = c("B\rC"),
+    stringsAsFactors = FALSE
+  )
+
+  key_columns <- c("subjid", "visit")
+
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(duplicate_key_rows, invalid_records, key_columns),
+    0
   )
 })
 
@@ -836,6 +857,110 @@ test_that("do_put_command handles the new writer/reader pattern correctly", {
   # Verify the result structure
   expect_type(result, "list")
   expect_true(result$success == TRUE)
+})
+
+test_that("do_put_command attaches invalid_records when invalid_record_count > 0", {
+  config <- list(
+    project_uuid = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name = "my_dataset",
+    dataset_description = "Example dataset",
+    key_columns = list("subjid", "visit"),
+    source_datasets = list()
+  )
+
+  sample_data <- data.frame(
+    subjid = c("001"),
+    visit = c("V1"),
+    stringsAsFactors = FALSE
+  )
+
+  read_calls <- 0
+
+  mock_client <- structure(
+    list(
+      `do_put` = function(descriptor, schema, options) {
+        mock_writer <- structure(
+          list(
+            write_table = function(data) NULL,
+            done_writing = function() NULL,
+            close = function() NULL
+          ),
+          class = "MockWriter"
+        )
+
+        mock_reader <- structure(
+          list(
+            read = function() {
+              read_calls <<- read_calls + 1
+              if (read_calls == 1) {
+                return(charToRaw('{"status":true,"dataset_name":"my_dataset","dataset_uuid":"test-uuid","dataset_version":"1","dataset_batch_number":1,"invalid_record_count":[1]}'))
+              }
+              charToRaw("mock_ipc_payload")
+            }
+          ),
+          class = "MockReader"
+        )
+
+        list(mock_writer, mock_reader)
+      }
+    ),
+    class = "MockFlightClient"
+  )
+
+  mockery::stub(.do_put_command, "arrow::arrow_table", function(data) {
+    structure(list(num_rows = nrow(data), schema = list()), class = "Table")
+  })
+
+  mockery::stub(.do_put_command, "reticulate::import", function(module, convert = TRUE) {
+    if (identical(module, "pyarrow.flight")) {
+      return(list(FlightDescriptor = list(for_path = function(path) "mock_descriptor")))
+    }
+    if (identical(module, "pyarrow")) {
+      return(list(ipc = list(open_stream = function(buf) list(read_all = function() "mock_py_table"))))
+    }
+    stop("Unexpected module import")
+  })
+
+  mockery::stub(.do_put_command, "reticulate::r_to_py", function(x) {
+    list(encode = function(encoding) "mock_bytes")
+  })
+
+  mockery::stub(.do_put_command, "arrow::as_arrow_table", function(py_table) {
+    data.frame(subjid = "001", visit = "V1", error = "invalid", stringsAsFactors = FALSE)
+  })
+
+  mockery::stub(.do_put_command, ".get_flight_options", mock_flight_options)
+
+  result <- .do_put_command(mock_client, config, sample_data)
+
+  expect_true(result$success)
+  expect_equal(result$invalid_record_count, 1)
+  expect_true(is.data.frame(result$invalid_records))
+  expect_equal(nrow(result$invalid_records), 1)
+  expect_equal(read_calls, 2)
+})
+
+test_that("dry_publish returns response as-is when do_command result is NULL", {
+  config <- list(
+    project_uuid = "ec079457-9ddc-4c7f-9144-f2212c6b76ad",
+    study_uuid = "e2144dd5-2ca7-4b1d-9973-20d166f9a560",
+    study_environment_uuid = "cec1f2a7-07ba-4fa8-bfcf-34fbc5d56793",
+    dataset_name = "my_dataset",
+    dataset_description = "Example dataset",
+    key_columns = list("subjid", "visit"),
+    source_datasets = list(),
+    is_dry_publish = TRUE
+  )
+
+  mock_client <- list()
+
+  mockery::stub(.dry_publish, ".do_command", function(client, command, args = list(), body = NULL) {
+    NULL
+  })
+
+  expect_null(.dry_publish(mock_client, config, sample_data))
 })
 
 # Tests for .publish function integration with .count_distinct_rows

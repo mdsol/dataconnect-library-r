@@ -44,7 +44,7 @@
   duplicate_key_rows <- data.frame()
   if (isTRUE(compute_metadata)) {
     key_data <- data[, actual_cols, drop = FALSE]
-    duplicate_mask <- duplicated(key_data, fromLast = FALSE) | duplicated(key_data, fromLast = TRUE)
+    duplicate_mask <- duplicated(key_data, fromLast = FALSE)
     duplicate_row_indices <- which(duplicate_mask)
     duplicate_key_rows <- key_data[duplicate_mask, , drop = FALSE]
   }
@@ -128,9 +128,17 @@ def count_distinct_rows_py(table, key_columns):
     return(0L)
   }
 
-  duplicate_keys <- do.call(paste, c(duplicate_key_rows[, duplicate_actual_cols, drop = FALSE], sep = "\r"))
-  duplicate_keys <- unique(duplicate_keys)
-  invalid_keys <- do.call(paste, c(invalid_records[, invalid_actual_cols, drop = FALSE], sep = "\r"))
+  duplicate_key_data <- duplicate_key_rows[, duplicate_actual_cols, drop = FALSE]
+  invalid_key_data <- invalid_records[, invalid_actual_cols, drop = FALSE]
+  names(invalid_key_data) <- names(duplicate_key_data)
+
+  combined_key_data <- rbind(duplicate_key_data, invalid_key_data)
+  combined_keys <- do.call(interaction, c(combined_key_data, drop = TRUE, lex.order = TRUE))
+
+  duplicate_row_count <- nrow(duplicate_key_data)
+  invalid_row_count <- nrow(invalid_key_data)
+  duplicate_keys <- unique(combined_keys[seq_len(duplicate_row_count)])
+  invalid_keys <- combined_keys[duplicate_row_count + seq_len(invalid_row_count)]
 
   as.integer(sum(invalid_keys %in% duplicate_keys))
 }
@@ -205,6 +213,10 @@ def count_distinct_rows_py(table, key_columns):
     # If do_command didn't process it, try to extract manually
     warning("No processed result from do_command, returning raw result")
     response <- result
+  }
+
+  if (is.null(response) || !is.list(response)) {
+    return(response)
   }
   
   compute_metadata <- getOption("dataconnect.calculate_duplicates", TRUE)
