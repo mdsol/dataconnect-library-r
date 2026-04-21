@@ -10,7 +10,6 @@
   # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
 
-  # No key columns — treat all rows as distinct
   if (length(key_cols) == 0) {
     return(list(
       distinct_row_count = nrow(data),
@@ -41,7 +40,6 @@
   # Map key columns to actual data frame column names
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
 
-  # Identify all rows that are in a duplicate key group
   key_data <- data[, actual_cols, drop = FALSE]
   duplicate_mask <- duplicated(key_data, fromLast = FALSE) | duplicated(key_data, fromLast = TRUE)
   duplicate_row_indices <- which(duplicate_mask)
@@ -101,14 +99,6 @@ def count_distinct_rows_py(table, key_columns):
   })
 }
 
-#' Count overlap between duplicate keys and invalid records
-#'
-#' @param duplicate_key_rows Data frame containing duplicated key rows
-#' @param invalid_records Data frame of invalid records returned by server
-#' @param key_columns List or character vector of key column names
-#' @return Integer count of invalid records that match duplicate keys
-#' @keywords internal
-#' @noRd
 .calculate_duplicate_invalid_intersection <- function(duplicate_key_rows, invalid_records, key_columns) {
   if (is.null(invalid_records) || !is.data.frame(invalid_records) || nrow(invalid_records) == 0) {
     return(0L)
@@ -127,7 +117,6 @@ def count_distinct_rows_py(table, key_columns):
   duplicate_cols_lower <- tolower(names(duplicate_key_rows))
   invalid_cols_lower <- tolower(names(invalid_records))
 
-  # Resolve key columns case-insensitively in both data frames
   duplicate_actual_cols <- names(duplicate_key_rows)[match(key_cols_lower, duplicate_cols_lower)]
   invalid_actual_cols <- names(invalid_records)[match(key_cols_lower, invalid_cols_lower)]
 
