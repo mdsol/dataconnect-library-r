@@ -208,11 +208,18 @@ def count_distinct_rows_py(table, key_columns):
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
     duplicate_count <- nrow(data) - distinct_row_result$distinct_row_count
     invalid_count <- 0L
+    intersection_count <- 0L
     if (!is.null(response$invalid_record_count) && length(response$invalid_record_count) > 0 && !is.na(response$invalid_record_count[[1]])) {
       invalid_count <- as.integer(response$invalid_record_count[[1]])
     }
 
-    response$valid_rows <- distinct_row_result$distinct_row_count - invalid_count
+    intersection_count <- .calculate_duplicate_invalid_intersection(
+      distinct_row_result$duplicate_key_rows,
+      response$invalid_records,
+      config$key_columns
+    )
+
+    response$valid_rows <- distinct_row_result$distinct_row_count - invalid_count + intersection_count
     response$duplicate_rows_based_on_keys <- duplicate_count
   }
   
