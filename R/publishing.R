@@ -137,18 +137,22 @@ def count_distinct_rows_py(table, key_columns):
   duplicate_key_data <- duplicate_key_rows[, duplicate_actual_cols, drop = FALSE]
   invalid_key_data <- invalid_records[, invalid_actual_cols, drop = FALSE]
   names(invalid_key_data) <- names(duplicate_key_data)
+  join_cols <- names(duplicate_key_data)
 
-  combined_key_data <- rbind(duplicate_key_data, invalid_key_data)
-  combined_keys <- do.call(interaction, c(combined_key_data, drop = TRUE, lex.order = TRUE))
+  duplicate_key_data <- duplicate_key_data[stats::complete.cases(duplicate_key_data), , drop = FALSE]
+  invalid_key_data <- invalid_key_data[stats::complete.cases(invalid_key_data), , drop = FALSE]
 
-  duplicate_row_count <- nrow(duplicate_key_data)
-  invalid_row_count <- nrow(invalid_key_data)
-  duplicate_keys <- unique(combined_keys[seq_len(duplicate_row_count)])
-  invalid_keys <- combined_keys[duplicate_row_count + seq_len(invalid_row_count)]
-  duplicate_keys <- duplicate_keys[!is.na(duplicate_keys)]
-  invalid_keys <- invalid_keys[!is.na(invalid_keys)]
+  if (nrow(duplicate_key_data) == 0 || nrow(invalid_key_data) == 0) {
+    return(0L)
+  }
 
-  as.integer(sum(invalid_keys %in% duplicate_keys, na.rm = TRUE))
+  matching_invalid_rows <- merge(
+    invalid_key_data,
+    unique(duplicate_key_data),
+    by = join_cols
+  )
+
+  as.integer(nrow(matching_invalid_rows))
 }
 
 # Import required functions

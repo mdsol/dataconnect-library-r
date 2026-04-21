@@ -172,14 +172,14 @@ test_that(".calculate_duplicate_invalid_intersection counts matching composite k
 
 test_that(".calculate_duplicate_invalid_intersection avoids key-collision false positives", {
   duplicate_key_rows <- data.frame(
-    subjid = c("A\rB"),
+    subjid = c("A.B"),
     visit = c("C"),
     stringsAsFactors = FALSE
   )
 
   invalid_records <- data.frame(
     subjid = c("A"),
-    visit = c("B\rC"),
+    visit = c("B.C"),
     stringsAsFactors = FALSE
   )
 
