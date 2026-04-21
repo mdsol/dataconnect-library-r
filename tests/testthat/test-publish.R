@@ -1106,3 +1106,95 @@ test_that("publish handles case-insensitive key column matching", {
   expect_equal(result$duplicate_rows_based_on_keys, 1)
 })
 
+test_that("R06: valid_rows is never negative (AC-04)", {
+  # 5 unique rows, but server reports 10 invalid — more than total distinct
+  # Formula without clamping: 5 - 10 + 0 = -5 → must clamp to 0
+  test_data <- data.frame(
+    subjid = c("001", "002", "003", "004", "005"),
+    visit  = c("V1",  "V1",  "V1",  "V1",  "V1"),
+    measure = 1:5,
+    stringsAsFactors = FALSE
+  )
+
+  config <- list(
+    project_uuid             = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid               = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid   = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name             = "my_dataset",
+    dataset_description      = "Example dataset",
+    key_columns              = list("subjid", "visit"),
+    source_datasets          = list()
+  )
+
+  mock_client <- list()
+
+  mockery::stub(.publish, "arrow::arrow_table", function(data) {
+    list(num_rows = nrow(data), schema = list())
+  })
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = 10,
+      invalid_records      = data.frame(
+        subjid  = c("001", "002", "003", "004", "005", "006", "007", "008", "009", "010"),
+        visit   = rep("V1", 10),
+        measure = 1:10,
+        stringsAsFactors = FALSE
+      )
+    )
+  })
+
+  result <- .publish(mock_client, config, test_data)
+
+  expect_true(result$success)
+  expect_equal(result$valid_rows, 0)
+})
+
+test_that("R06: handles NULL key_columns correctly (AC-05)", {
+  # 100 rows, no key_columns — all rows treated as distinct
+  # 5 invalid records reported by server, no duplicates → valid_rows = 95
+  test_data <- data.frame(
+    subjid  = sprintf("%03d", 1:100),
+    visit   = rep("V1", 100),
+    measure = 1:100,
+    stringsAsFactors = FALSE
+  )
+
+  config <- list(
+    project_uuid           = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid             = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name           = "my_dataset",
+    dataset_description    = "Example dataset",
+    key_columns            = NULL,
+    source_datasets        = list()
+  )
+
+  mock_client <- list()
+
+  mockery::stub(.publish, "arrow::arrow_table", function(data) {
+    list(num_rows = nrow(data), schema = list())
+  })
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = 5,
+      invalid_records      = data.frame(
+        subjid  = c("001", "002", "003", "004", "005"),
+        visit   = rep("V1", 5),
+        measure = 1:5,
+        stringsAsFactors = FALSE
+      )
+    )
+  })
+
+  result <- .publish(mock_client, config, test_data)
+
+  expect_true(result$success)
+  expect_equal(result$valid_rows, 95)
+})
+

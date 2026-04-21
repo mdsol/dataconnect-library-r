@@ -9,7 +9,18 @@
   
   # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
-  
+
+  # No key columns — treat all rows as distinct
+  if (length(key_cols) == 0) {
+    return(list(
+      distinct_row_count = nrow(data),
+      error_message = NULL,
+      duplicate_row_indices = integer(0),
+      duplicate_key_rows = data.frame(),
+      actual_key_columns = character(0)
+    ))
+  }
+
   # Convert column names to lowercase for case-insensitive comparison
   key_cols_lower <- tolower(key_cols)
   data_cols_lower <- tolower(names(data))
@@ -219,7 +230,7 @@ def count_distinct_rows_py(table, key_columns):
       config$key_columns
     )
 
-    response$valid_rows <- distinct_row_result$distinct_row_count - invalid_count + intersection_count
+    response$valid_rows <- max(0L, distinct_row_result$distinct_row_count - invalid_count + intersection_count)
     response$duplicate_rows_based_on_keys <- duplicate_count
   }
   
@@ -279,8 +290,13 @@ def count_distinct_rows_py(table, key_columns):
         if (!is.null(result$invalid_record_count) && length(result$invalid_record_count) > 0 && !is.na(result$invalid_record_count[[1]])) {
           invalid_count <- as.integer(result$invalid_record_count[[1]])
         }
+        intersection_count <- .calculate_duplicate_invalid_intersection(
+          distinct_row_result$duplicate_key_rows,
+          result$invalid_records,
+          config$key_columns
+        )
 
-        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count - invalid_count))
+        result <- c(result, list(valid_rows = max(0L, distinct_row_result$distinct_row_count - invalid_count + intersection_count)))
         result <- c(result, list(duplicate_rows_based_on_keys = duplicate_count))
       }
     }
