@@ -2,7 +2,13 @@
 #'
 #' @param data Data frame to analyze
 #' @param key_columns List or character vector of key column names
-#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
+#' @param compute_metadata Logical; if TRUE, computes duplicate metadata fields.
+#' @return List with the following fields:
+#'   \\item{distinct_row_count}{Integer distinct key-row count, or NULL on error.}
+#'   \\item{error_message}{Character error message, or NULL on success.}
+#'   \\item{duplicate_row_indices}{Integer vector of row indices that are duplicate rows beyond the first occurrence.}
+#'   \\item{duplicate_key_rows}{Data frame of duplicate key rows beyond the first occurrence.}
+#'   \\item{actual_key_columns}{Character vector of matched key columns in original casing.}
 #' @keywords internal
 #' @noRd
 .count_distinct_rows <- function(data, key_columns, compute_metadata = TRUE) {
@@ -139,8 +145,10 @@ def count_distinct_rows_py(table, key_columns):
   invalid_row_count <- nrow(invalid_key_data)
   duplicate_keys <- unique(combined_keys[seq_len(duplicate_row_count)])
   invalid_keys <- combined_keys[duplicate_row_count + seq_len(invalid_row_count)]
+  duplicate_keys <- duplicate_keys[!is.na(duplicate_keys)]
+  invalid_keys <- invalid_keys[!is.na(invalid_keys)]
 
-  as.integer(sum(invalid_keys %in% duplicate_keys))
+  as.integer(sum(invalid_keys %in% duplicate_keys, na.rm = TRUE))
 }
 
 # Import required functions
@@ -219,17 +227,19 @@ def count_distinct_rows_py(table, key_columns):
     return(response)
   }
   
-  compute_metadata <- getOption("dataconnect.calculate_duplicates", TRUE)
+  invalid_count <- 0L
+  if (!is.null(response$invalid_record_count) && length(response$invalid_record_count) > 0) {
+    invalid_count <- suppressWarnings(as.integer(response$invalid_record_count[[1]]))
+    if (is.na(invalid_count)) invalid_count <- 0L
+  }
+
+  compute_metadata <- invalid_count > 0L && isTRUE(getOption("dataconnect.calculate_duplicates", TRUE))
   distinct_row_result <- .count_distinct_rows(data, config$key_columns, compute_metadata = compute_metadata)
 
   # Append distinct row count and duplicate row count if available
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
     duplicate_count <- nrow(data) - distinct_row_result$distinct_row_count
-    invalid_count <- 0L
     intersection_count <- 0L
-    if (!is.null(response$invalid_record_count) && length(response$invalid_record_count) > 0 && !is.na(response$invalid_record_count[[1]])) {
-      invalid_count <- as.integer(response$invalid_record_count[[1]])
-    }
 
     if (isTRUE(compute_metadata)) {
       intersection_count <- .calculate_duplicate_invalid_intersection(
@@ -290,16 +300,18 @@ def count_distinct_rows_py(table, key_columns):
 
     distinct_row_result <- NULL
     if (result$success) {
-      compute_metadata <- getOption("dataconnect.calculate_duplicates", TRUE)
+      invalid_count <- 0L
+      if (!is.null(result$invalid_record_count) && length(result$invalid_record_count) > 0) {
+        invalid_count <- suppressWarnings(as.integer(result$invalid_record_count[[1]]))
+        if (is.na(invalid_count)) invalid_count <- 0L
+      }
+
+      compute_metadata <- invalid_count > 0L && isTRUE(getOption("dataconnect.calculate_duplicates", TRUE))
       distinct_row_result <- .count_distinct_rows(data, config$key_columns, compute_metadata = compute_metadata)
 
       # Append distinct row count and duplicate row count if available
       if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
         duplicate_count <- nrow(data) - distinct_row_result$distinct_row_count
-        invalid_count <- 0L
-        if (!is.null(result$invalid_record_count) && length(result$invalid_record_count) > 0 && !is.na(result$invalid_record_count[[1]])) {
-          invalid_count <- as.integer(result$invalid_record_count[[1]])
-        }
         intersection_count <- 0L
         if (isTRUE(compute_metadata)) {
           intersection_count <- .calculate_duplicate_invalid_intersection(

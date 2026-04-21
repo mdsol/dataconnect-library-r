@@ -943,6 +943,12 @@ test_that("do_put_command attaches invalid_records when invalid_record_count > 0
 })
 
 test_that("dry_publish returns response as-is when do_command result is NULL", {
+  sample_data <- data.frame(
+    subjid = c("001"),
+    visit = c("V1"),
+    stringsAsFactors = FALSE
+  )
+
   config <- list(
     project_uuid = "ec079457-9ddc-4c7f-9144-f2212c6b76ad",
     study_uuid = "e2144dd5-2ca7-4b1d-9973-20d166f9a560",
