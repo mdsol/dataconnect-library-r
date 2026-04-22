@@ -114,11 +114,11 @@ init(token = "<authentication_token>")
 
 ### Arguments
 
-|    Argument  | Description |
-|:-------------| :---------- |
-| **url**      | Server URL. Default url="enodia-gateway.platform.imedidata.com" |
-| **port**     | Server port. Default port="443" |
-| **use_tls**  | Denotes whether to use TLS. Default use_tl=="TRUE" |
+|    Argument  | Description                                                                                                              |
+|:-------------|:-------------------------------------------------------------------------------------------------------------------------|
+| **url**      | Server URL. Default url="enodia-gateway.platform.imedidata.com"                                                          |
+| **port**     | Server port. Default port="443"                                                                                          |
+| **use_tls**  | Denotes whether to use TLS. Default use_tls = "TRUE"                                                                     |
 | **token**    | Authentication token, this is the user authentication token generated from the Developer Center in Medidata Data Connect |
 
 ### Output 
