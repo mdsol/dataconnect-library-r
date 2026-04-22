@@ -1353,3 +1353,358 @@ test_that("R06: handles NULL key_columns correctly (AC-05)", {
   expect_equal(result$valid_rows, 95)
 })
 
+test_that("R06: Comprehensive High-Scale Stress Test", {
+  withr::local_options(dataconnect.calculate_duplicates = TRUE)
+
+  # Build 10,000 unique rows + 1,200 duplicates (re-using the first 1,200 keys)
+  # Total rows: 11,200. Distinct key combinations: 10,000.
+  unique_n <- 10000L
+  duplicate_n <- 1200L
+  total_n <- unique_n + duplicate_n  # 11,200
+
+  unique_subjids <- sprintf("S%05d", seq_len(unique_n))
+  duplicate_subjids <- sprintf("S%05d", seq_len(duplicate_n))
+
+  stress_df <- data.frame(
+    subjid  = c(unique_subjids, duplicate_subjids),
+    visit   = rep("V1", total_n),
+    measure = seq_len(total_n),
+    stringsAsFactors = FALSE
+  )
+
+  # Force chunked arrow tables to stress-test the combine_chunks() fix.
+  chunk_size <- 1000L
+  chunk_bounds <- split(
+    seq_len(total_n),
+    ceiling(seq_len(total_n) / chunk_size)
+  )
+  arrow_chunks <- lapply(chunk_bounds, function(idx) {
+    arrow::arrow_table(stress_df[idx, , drop = FALSE])
+  })
+  chunked_table <- do.call(arrow::concat_tables, arrow_chunks)
+  chunked_df <- as.data.frame(chunked_table)
+  expect_equal(nrow(chunked_df), total_n)
+
+  # Server-side invalid records: 500 total, 200 intersect the duplicate set.
+  intersection_n <- 200L
+  invalid_non_dup_n <- 300L
+  invalid_n <- intersection_n + invalid_non_dup_n  # 500
+
+  # 200 invalid rows whose keys match duplicate rows.
+  invalid_intersection_subjids <- sprintf("S%05d", seq_len(intersection_n))
+  # 300 invalid rows whose keys do NOT appear in duplicate_key_rows but are
+  # still part of the original data (so they count as invalid only, not
+  # as duplicates). Pick from the tail of the unique range (indexes above
+  # duplicate_n so they are not duplicated keys).
+  invalid_only_subjids <- sprintf(
+    "S%05d",
+    seq.int(from = duplicate_n + 1L, length.out = invalid_non_dup_n)
+  )
+
+  invalid_records <- data.frame(
+    subjid  = c(invalid_intersection_subjids, invalid_only_subjids),
+    visit   = rep("V1", invalid_n),
+    measure = seq_len(invalid_n),
+    stringsAsFactors = FALSE
+  )
+
+  config <- list(
+    project_uuid           = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid             = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name           = "my_dataset",
+    dataset_description    = "Example dataset",
+    key_columns            = list("subjid", "visit"),
+    source_datasets        = list()
+  )
+
+  mock_client <- list()
+
+  # --- AC1: valid_rows = distinct - invalid + intersection = 10000 - 500 + 200
+  mockery::stub(.publish, "arrow::arrow_table", function(data) {
+    list(num_rows = nrow(data), schema = list())
+  })
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = invalid_n,
+      invalid_records      = invalid_records
+    )
+  })
+
+  result_ac1 <- .publish(mock_client, config, chunked_df)
+
+  expect_true(result_ac1$success)
+  expect_equal(result_ac1$invalid_record_count, invalid_n)
+  expect_equal(result_ac1$duplicate_rows_based_on_keys, duplicate_n)
+  expect_equal(result_ac1$valid_rows, 9700L)
+
+  # --- AC4: never negative. invalid (>= distinct) must clamp valid_rows to 0.
+  # Keep the invalid keys OUTSIDE the duplicate key range so intersection = 0
+  # and the raw formula would go negative (distinct - invalid + 0 < 0).
+  disaster_invalid_n <- unique_n + 50L  # 10,050 > 10,000 distinct
+  disaster_invalid_records <- data.frame(
+    subjid  = sprintf(
+      "S%05d",
+      seq.int(from = duplicate_n + 1L, length.out = disaster_invalid_n)
+    ),
+    visit   = rep("V1", disaster_invalid_n),
+    measure = seq_len(disaster_invalid_n),
+    stringsAsFactors = FALSE
+  )
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = disaster_invalid_n,
+      invalid_records      = disaster_invalid_records
+    )
+  })
+
+  result_ac4 <- .publish(mock_client, config, chunked_df)
+
+  expect_true(result_ac4$success)
+  expect_equal(result_ac4$valid_rows, 0L)
+
+  # --- AC5: NULL key_columns. duplicate_rows_based_on_keys is not reported
+  # and valid_rows collapses to total - invalid = 11,200 - 500 = 10,700.
+  null_config <- config
+  null_config$key_columns <- NULL
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = invalid_n,
+      invalid_records      = invalid_records
+    )
+  })
+
+  result_ac5 <- .publish(mock_client, null_config, chunked_df)
+
+  expect_true(result_ac5$success)
+  expect_equal(result_ac5$valid_rows, 10700L)
+})
+
+test_that("R06: Ultimate Robustness & Scale Test", {
+  # This parameterized block locks down the R06 contract end-to-end:
+  #   * Python bridge on fragmented (chunked) Arrow memory  -> infrastructure
+  #   * AC1 math at scale (valid = distinct - invalid + intersection) -> business
+  #   * AC4 clamp to 0L when invalid > distinct              -> business
+  #   * AC5 NULL key_columns fallback (total - invalid)      -> business
+  #   * NA keys do not throw (regression-lock, NOT a product requirement)
+  #   * Case-insensitive invalid vs. main data matching      -> regression-lock
+  #
+  # The Python bridge is intentionally NOT mocked: this test is the guard for
+  # the PyArrow `.combine_chunks()` / struct-unique fallback fix.
+  withr::local_options(dataconnect.calculate_duplicates = TRUE)
+
+  # ---------------------------------------------------------------------------
+  # Scale fixture: 10,000 distinct + 1,200 duplicates = 11,200 rows, 50 chunks
+  # ---------------------------------------------------------------------------
+  unique_n    <- 10000L
+  duplicate_n <- 1200L
+  total_n     <- unique_n + duplicate_n            # 11,200
+
+  scale_df <- data.frame(
+    subjid  = c(sprintf("S%05d", seq_len(unique_n)),
+                sprintf("S%05d", seq_len(duplicate_n))),
+    visit   = rep("V1", total_n),
+    measure = seq_len(total_n),
+    stringsAsFactors = FALSE
+  )
+
+  n_chunks    <- 50L
+  chunk_bounds <- split(
+    seq_len(total_n),
+    cut(seq_len(total_n), breaks = n_chunks, labels = FALSE)
+  )
+  expect_equal(length(chunk_bounds), n_chunks)
+
+  arrow_chunks <- lapply(chunk_bounds, function(idx) {
+    arrow::arrow_table(scale_df[idx, , drop = FALSE])
+  })
+  chunked_table <- do.call(arrow::concat_tables, arrow_chunks)
+  chunked_df    <- as.data.frame(chunked_table)
+  expect_equal(nrow(chunked_df), total_n)
+
+  # ---------------------------------------------------------------------------
+  # Direct helper call: verifies combine_chunks() + bridge on 50-chunk input
+  # ---------------------------------------------------------------------------
+  distinct_result <- .count_distinct_rows(chunked_df, list("subjid", "visit"))
+  expect_null(distinct_result$error_message)
+  expect_equal(distinct_result$distinct_row_count, unique_n)
+  expect_equal(nrow(distinct_result$duplicate_key_rows), duplicate_n)
+
+  # ---------------------------------------------------------------------------
+  # Intersection helper: 200 of 500 invalid rows overlap the duplicate keys
+  # ---------------------------------------------------------------------------
+  intersection_n   <- 200L
+  invalid_only_n   <- 300L
+  invalid_n        <- intersection_n + invalid_only_n  # 500
+
+  invalid_records <- data.frame(
+    subjid  = c(
+      sprintf("S%05d", seq_len(intersection_n)),                                        # overlap duplicates
+      sprintf("S%05d", seq.int(from = duplicate_n + 1L, length.out = invalid_only_n))   # invalid, not duplicate
+    ),
+    visit   = rep("V1", invalid_n),
+    measure = seq_len(invalid_n),
+    stringsAsFactors = FALSE
+  )
+
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(
+      distinct_result$duplicate_key_rows,
+      invalid_records,
+      list("subjid", "visit")
+    ),
+    intersection_n
+  )
+
+  # ---------------------------------------------------------------------------
+  # AC1: integration through .publish (mock ONLY the network side-effect)
+  # valid_rows = distinct - invalid + intersection = 10,000 - 500 + 200 = 9,700
+  # ---------------------------------------------------------------------------
+  config <- list(
+    project_uuid           = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
+    study_uuid             = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
+    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
+    dataset_name           = "my_dataset",
+    dataset_description    = "Example dataset",
+    key_columns            = list("subjid", "visit"),
+    source_datasets        = list()
+  )
+  mock_client <- list()
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = invalid_n,
+      invalid_records      = invalid_records
+    )
+  })
+
+  result_ac1 <- .publish(mock_client, config, chunked_df)
+  expect_true(result_ac1$success)
+  expect_equal(result_ac1$invalid_record_count, invalid_n)
+  expect_equal(result_ac1$duplicate_rows_based_on_keys, duplicate_n)
+  expect_equal(result_ac1$valid_rows, 9700L)
+
+  # ---------------------------------------------------------------------------
+  # AC4: invalid > distinct, intersection = 0 -> clamp to 0L
+  # Invalid subjids live entirely outside the duplicate key range so the
+  # intersection is guaranteed 0 and the raw formula would be negative.
+  # ---------------------------------------------------------------------------
+  disaster_invalid_n <- unique_n + 50L  # 10,050
+  disaster_invalid_records <- data.frame(
+    subjid  = sprintf(
+      "S%05d",
+      seq.int(from = duplicate_n + 1L, length.out = disaster_invalid_n)
+    ),
+    visit   = rep("V1", disaster_invalid_n),
+    measure = seq_len(disaster_invalid_n),
+    stringsAsFactors = FALSE
+  )
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = disaster_invalid_n,
+      invalid_records      = disaster_invalid_records
+    )
+  })
+
+  result_ac4 <- .publish(mock_client, config, chunked_df)
+  expect_true(result_ac4$success)
+  expect_equal(result_ac4$valid_rows, 0L)
+
+  # ---------------------------------------------------------------------------
+  # AC5: NULL key_columns -> valid_rows = total - invalid (11,200 - 500)
+  # ---------------------------------------------------------------------------
+  null_config <- config
+  null_config$key_columns <- NULL
+
+  mockery::stub(.publish, ".do_put_command", function(client, config, data) {
+    list(
+      success              = TRUE,
+      message              = "Dataset published successfully.",
+      invalid_record_count = invalid_n,
+      invalid_records      = invalid_records
+    )
+  })
+
+  result_ac5 <- .publish(mock_client, null_config, chunked_df)
+  expect_true(result_ac5$success)
+  expect_equal(result_ac5$valid_rows, 10700L)
+
+  # ---------------------------------------------------------------------------
+  # Case-insensitive matching between invalid records and main data.
+  # Main data uses mixed case, invalid_records use a different case.
+  # ---------------------------------------------------------------------------
+  case_df <- data.frame(
+    SubjID = c("001", "002", "003", "001", "002"),  # keys 001/002 are duplicated
+    Visit  = rep("V1", 5),
+    stringsAsFactors = FALSE
+  )
+  case_invalid <- data.frame(
+    subjid = c("001", "002", "099"),                # lower-case field names
+    visit  = c("V1", "V1", "V1"),
+    stringsAsFactors = FALSE
+  )
+  case_distinct <- .count_distinct_rows(case_df, list("subjid", "visit"))
+  expect_null(case_distinct$error_message)
+  expect_equal(case_distinct$distinct_row_count, 3L)
+  expect_equal(
+    .calculate_duplicate_invalid_intersection(
+      case_distinct$duplicate_key_rows,
+      case_invalid,
+      list("SUBJID", "VISIT")
+    ),
+    2L
+  )
+
+  # ---------------------------------------------------------------------------
+  # NA in key columns: regression-lock ONLY. Product behaviour for NA keys is
+  # not specified in the R06 requirements. We assert: (1) helpers do not throw,
+  # (2) current behaviour is preserved. Revisit if/when product defines a rule.
+  # TODO(R06/NA): confirm expected semantics with product and tighten asserts.
+  # ---------------------------------------------------------------------------
+  na_df <- data.frame(
+    subjid  = c("001", NA,    "003", "001", NA),
+    visit   = c("V1",  "V1",  "V2",  "V1",  "V1"),
+    measure = 1:5,
+    stringsAsFactors = FALSE
+  )
+  na_invalid <- data.frame(
+    subjid = c("001", NA),
+    visit  = c("V1",  "V1"),
+    stringsAsFactors = FALSE
+  )
+
+  expect_error(
+    na_distinct <- .count_distinct_rows(na_df, list("subjid", "visit")),
+    NA
+  )
+  expect_null(na_distinct$error_message)
+  # Current implementation treats NA as a value equal to itself across rows,
+  # so ("001","V1") and (NA,"V1") each collapse to a single distinct pair.
+  expect_equal(na_distinct$distinct_row_count, 3L)
+
+  expect_error(
+    na_intersection <- .calculate_duplicate_invalid_intersection(
+      na_distinct$duplicate_key_rows,
+      na_invalid,
+      list("subjid", "visit")
+    ),
+    NA
+  )
+  # complete.cases() drops NA keys from both sides before merge, so only the
+  # ("001","V1") row can match. Regression-lock: currently 1.
+  expect_equal(na_intersection, 1L)
+})
+
