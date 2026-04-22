@@ -20,10 +20,9 @@ We will acknowledge your email within 48 hours and provide a more detailed respo
 ### Supported Versions
 | Version | Supported          |
 |---------| ------------------ |
-| 1.0.0   | ✅                |
 | 1.0.1   | ✅                |
 | 1.1.0   | ✅                |
-
+| 1.2.0   | ✅                |
 ### Security Update Process
 
 1. Security issues are prioritized and addressed immediately
