@@ -11,7 +11,7 @@ This vignette reflects the *latest version* of the `dataconnect` R library.
 If you are using an older version, the functions or parameters described here may differ from your installed version.
 
 ***View version-matched documentation:***
-On GitHub, use the branch/tag selector to switch to your version's tag (e.g., `v1.1.0`).
+On GitHub, use the branch/tag selector to switch to your version's tag (e.g., `v1.0.1`).
 
 ### Check your version
 
