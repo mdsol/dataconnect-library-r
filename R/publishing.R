@@ -58,20 +58,35 @@
   tryCatch({
     # Convert data frame to Arrow table
     arrow_table <- arrow::arrow_table(data)
-    
-    # Execute the Python implementation directly
-    reticulate::py_run_string("
-import pyarrow as pa
-import pyarrow.compute as pac
 
-def count_distinct_rows_py(table, key_columns):
-    if len(key_columns) == 0:
-        return table.num_rows
-    arrays = [table[col] for col in key_columns]
-    struct_array = pa.StructArray.from_arrays(arrays, names=key_columns)
-    return len(pac.unique(struct_array))
-", convert = FALSE)
-    
+    # Build the Python helper as a list of lines so indentation is explicit
+    # and never mixes tabs/spaces. ChunkedArrays are normalised with
+    # combine_chunks(). pa.compute.unique() on struct arrays is attempted
+    # first; on PyArrow builds that raise ArrowNotImplementedError we fall
+    # back to a pure-Python tuple-set count for stability across versions.
+    py_lines <- c(
+      "import pyarrow as pa",
+      "import pyarrow.compute as pac",
+      "",
+      "if not globals().get('_dataconnect_pyarrow_logged', False):",
+      "    print('[dataconnect] pyarrow version:', pa.__version__)",
+      "    _dataconnect_pyarrow_logged = True",
+      "",
+      "def count_distinct_rows_py(table, key_columns):",
+      "    if len(key_columns) == 0:",
+      "        return table.num_rows",
+      "    selected = table.select(key_columns).combine_chunks()",
+      "    arrays = [selected.column(col).combine_chunks() for col in key_columns]",
+      "    try:",
+      "        struct_array = pa.StructArray.from_arrays(arrays, names=key_columns)",
+      "        return len(pac.unique(struct_array))",
+      "    except (pa.lib.ArrowNotImplementedError, NotImplementedError, TypeError):",
+      "        columns = [arr.to_pylist() for arr in arrays]",
+      "        return len({tuple(row) for row in zip(*columns)})",
+      ""
+    )
+    reticulate::py_run_string(paste(py_lines, collapse = "\n"), convert = FALSE)
+
     # Call the Python function
     # Convert actual_cols to Python list explicitly
     py_func <- reticulate::py_eval("count_distinct_rows_py", convert = FALSE)
@@ -273,6 +288,9 @@ def count_distinct_rows_py(table, key_columns):
   # Input validation
   if (is.null(client)) {
     stop("Client must be provided")
+  }
+  if (is.null(config)) {
+    stop("Configuration must be provided")
   }
   if (is.null(data)) {
     stop("Data must be provided")

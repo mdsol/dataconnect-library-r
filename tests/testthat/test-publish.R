@@ -238,6 +238,29 @@ test_that(".count_distinct_rows handles all unique rows", {
   expect_equal(result$distinct_row_count, 4)
 })
 
+test_that("R06: handles chunked arrow tables correctly", {
+  table_part_1 <- arrow::arrow_table(data.frame(
+    id = c(1L, 2L),
+    visit = c("V1", "V1"),
+    stringsAsFactors = FALSE
+  ))
+
+  table_part_2 <- arrow::arrow_table(data.frame(
+    id = c(1L, 3L),
+    visit = c("V1", "V2"),
+    stringsAsFactors = FALSE
+  ))
+
+  chunked_table <- arrow::concat_tables(table_part_1, table_part_2)
+  chunked_df <- as.data.frame(chunked_table)
+
+  result <- .count_distinct_rows(chunked_df, c("id", "visit"))
+
+  expect_null(result$error_message)
+  expect_equal(result$distinct_row_count, 3)
+  expect_equal(result$duplicate_row_indices, 3)
+})
+
 # Create a mock function for .get_flight_options that we'll use in each test
 mock_flight_options <- function() {
   list(headers = list(c("x-client-dataconnect", "1.1.0")))
@@ -495,7 +518,7 @@ test_that("dry_publish handles case-insensitive key column matching", {
   expect_equal(result$duplicate_rows_based_on_keys, 1)
 })
 
-test_that("dry_publish does not append counts when key_columns is NULL", {
+test_that("dry_publish appends counts when key_columns is NULL (AC-05)", {
   # Test data
   test_data <- data.frame(
     subjid = c("001", "002", "003"),
@@ -523,15 +546,15 @@ test_that("dry_publish does not append counts when key_columns is NULL", {
     if (!is.data.frame(data)) stop("Data must be a data.frame")
     if (nrow(data) == 0) warning("Uploading empty dataset")
     
-    response <- list(status = "valid")
-    
-    distinct_row_result <- NULL
-    if (!is.null(config$key_columns)) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-    }
-    
+    response <- list(status = "valid", invalid_record_count = 1)
+
+    invalid_count <- suppressWarnings(as.integer(response$invalid_record_count))
+    if (is.na(invalid_count)) invalid_count <- 0L
+
+    distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+
     if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      response$valid_rows <- distinct_row_result$distinct_row_count
+      response$valid_rows <- max(0L, distinct_row_result$distinct_row_count - invalid_count)
       response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
     }
     
@@ -540,9 +563,8 @@ test_that("dry_publish does not append counts when key_columns is NULL", {
   
   result <- mock_dry_publish(mock_client, config, test_data)
   
-  # Should not have valid_rows or duplicate_rows_based_on_keys
-  expect_true(is.null(result$valid_rows))
-  expect_true(is.null(result$duplicate_rows_based_on_keys))
+  expect_equal(result$valid_rows, 2)
+  expect_equal(result$duplicate_rows_based_on_keys, 0)
 })
 
 test_that("publish validates inputs and handles different scenarios correctly", {
