@@ -170,7 +170,8 @@
         dataset_name = result$dataset_name,
         invalid_record_count = result$invalid_record_count,
         dataset_version = result$dataset_version,
-        no_of_columns = result$no_of_columns
+        no_of_columns = result$no_of_columns,
+        invalid_records = NULL
       )
     } else {
 
@@ -181,9 +182,41 @@
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
         dataset_batch_number = result$dataset_batch_number,
-        invalid_record_count = result$invalid_record_count
+        invalid_record_count = result$invalid_record_count,
+        invalid_records = NULL
       )
     }
+
+    # Try to read invalid records table (IPC stream) from the server.
+    # The server streams error batches after the JSON result only when there are invalid records.
+    # Batches are read one at a time and converted to R immediately so Python can release each
+    # batch before the next is fetched — avoids materialising the entire stream in memory at once.
+    tryCatch({
+      pa <- reticulate::import("pyarrow", convert = FALSE)
+      error_buf <- reader$read()
+      ipc_reader <- pa$ipc$open_stream(error_buf)
+
+      # Each batch is converted to an Arrow Table immediately so the Python batch
+      # can be GC'd before the next is read — safe for huge invalid-record counts.
+      # arrow::concat_tables() is O(n); a single as.data.frame() call at the end
+      chunks <- list()
+      repeat {
+        batch <- tryCatch(
+          ipc_reader$read_next_batch(),
+          error = function(e) NULL  # StopIteration signals end of stream
+        )
+        if (is.null(batch)) break
+        chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
+      }
+
+      if (length(chunks) > 0) {
+        dry_publish_or_publish_result$invalid_records <- as.data.frame(
+          arrow::concat_tables(chunks)
+        )
+      }
+    }, error = function(e) {
+      # No error batches in the stream — nothing to read
+    })
 
     dry_publish_or_publish_result
 
