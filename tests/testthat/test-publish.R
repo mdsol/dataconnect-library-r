@@ -1,5 +1,6 @@
 # 3.2.2: .do_put_command sends data in multiple chunks
 test_that(".do_put_command sends data in multiple chunks", {
+    options(dataconnect.chunk_size = 10)
   # 1. Setup date
   df <- data.frame(id = 1:50, value = rnorm(50))
   tbl <- arrow::arrow_table(df)
@@ -812,6 +813,7 @@ test_that("do_put_command handles the new writer/reader pattern correctly", {
   )
 
   # Create a mock arrow table
+
   mock_arrow_table <- structure(
     list(
       num_rows = 2,
@@ -819,6 +821,7 @@ test_that("do_put_command handles the new writer/reader pattern correctly", {
     ),
     class = "Table"
   )
+  mock_arrow_table$Slice <- function(offset, length) mock_arrow_table
 
   # Mock arrow::arrow_table
   mockery::stub(.do_put_command, "arrow::arrow_table", function(data) {

@@ -85,6 +85,9 @@
 #' @keywords internal
 #' @noRd
 .do_put_command <- function(client, config, data) {
+      # Ensure arrow_data is always an Arrow Table
+      arrow_data <- if (inherits(data, "data.frame")) arrow::arrow_table(data) else data
+    chunk_size <- getOption("dataconnect.chunk_size", 10000)
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -133,15 +136,24 @@
     # Ensure writer is always closed, even if an error occurs below
     on.exit(writer$close(), add = TRUE)
 
-    # If we have data, write it using the writer (matching Python pattern)
-    arrow_data <- reticulate::r_to_py(arrow_data)
-
     if (!is.null(arrow_data)) {
-      writer$write_table(arrow_data)
+      num_rows <- arrow_data$num_rows
+      if (num_rows == 0) {
+        writer$write_table(reticulate::r_to_py(arrow_data))
+      } else {
+        for (i in seq(0, num_rows - 1, by = chunk_size)) {
+          chunk_len <- min(chunk_size, num_rows - i)
+          chunk <- arrow_data$Slice(i, chunk_len)
+          writer$write_table(reticulate::r_to_py(chunk))
+          rm(chunk)
+        }
+        gc()
+      }
     }
 
     writer$done_writing()
 
+    # Keep the original response reading logic
     raw_bytes <- reader$read()
     result_str <- if (is.raw(raw_bytes)) {
       rawToChar(raw_bytes)
@@ -200,7 +212,7 @@
       # No error batches in the stream — nothing to read
     })
 
-    dry_publish_or_publish_result
+    return(dry_publish_or_publish_result)
 
   }, error = function(e) {
 
