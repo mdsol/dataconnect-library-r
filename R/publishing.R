@@ -1,3 +1,29 @@
+# Calculates valid_rows using Venn logic (R06):
+# valid_rows = total_rows - invalid_rows - (duplicates - intersection)
+.calculate_venn_valid_rows <- function(total_rows, duplicate_keys_df, invalid_records_df, key_columns) {
+  # If no duplicates, subtract only invalids
+  if (is.null(duplicate_keys_df) || nrow(duplicate_keys_df) == 0) {
+    invalid_count <- if (is.null(invalid_records_df)) 0 else nrow(invalid_records_df)
+    return(as.integer(max(0, total_rows - invalid_count)))
+  }
+
+  # If no invalid records, subtract only duplicates
+  if (is.null(invalid_records_df) || nrow(invalid_records_df) == 0) {
+    return(as.integer(max(0, total_rows - nrow(duplicate_keys_df))))
+  }
+
+  # Compute intersection between duplicates and invalids using key columns
+  key_cols <- unlist(key_columns)
+  intersection_count <- nrow(merge(
+    duplicate_keys_df[, key_cols, drop = FALSE],
+    invalid_records_df[, key_cols, drop = FALSE]
+  ))
+
+  net_duplicates <- nrow(duplicate_keys_df) - intersection_count
+  invalid_count <- nrow(invalid_records_df)
+  valid_rows <- total_rows - invalid_count - net_duplicates
+  return(as.integer(max(0, valid_rows)))
+}
 #' Count distinct rows based on key columns using Python/PyArrow
 #'
 #' @param data Data frame to analyze
@@ -47,6 +73,7 @@ def count_distinct_rows_py(table, key_columns):
     error_message <<- paste("Error counting distinct rows:", e$message)
     distinct_count <<- NULL
   })
+  # Note: duplicate_key_rows is required for Venn intersection logic in R06
   duplicate_key_rows <- NULL
   if (!is.null(actual_cols) && length(actual_cols) > 0) {
     duplicate_key_rows <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]

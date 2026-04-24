@@ -8,6 +8,47 @@ library(mockery)
 source("../../R/commands.R")
 source("../../R/publishing.R")
 
+# Test for Venn logic (R06): valid_rows = total - invalid - (duplicates - intersection)
+test_that("Venn logic R06: valid_rows accounts for intersection of duplicates and invalid records", {
+  # Setup test data (5 rows, 2 duplicates)
+  test_data <- data.frame(
+    id = c(1, 2, 3, 1, 2),
+    val = c("A", "B", "C", "A", "B")
+  )
+
+  # Simulate 2 invalid records from server (one duplicate, one unique)
+  invalid_from_server <- data.frame(
+    id = c(1, 3),
+    val = c("A", "C")
+  )
+
+  # Expected calculation:
+  # Total rows = 5
+  # Invalid rows = 2 (id 1, id 3)
+  # Duplicate rows = 2 (id 1, id 2)
+  # Intersection = 1 (id 1)
+  # Net duplicates = 2 - 1 = 1
+  # Valid rows = 5 - 2 - 1 = 2
+
+  result <- .calculate_venn_valid_rows(
+    total_rows = 5,
+    duplicate_keys_df = test_data[c(4, 5), ],
+    invalid_records_df = invalid_from_server,
+    key_columns = list("id")
+  )
+
+  expect_equal(result, 2)
+})
+context("Publishing operations")
+
+# Load required libraries
+library(testthat)
+library(mockery)
+
+# Directly source the files we need to test
+source("../../R/commands.R")
+source("../../R/publishing.R")
+
 # Unit tests for .count_distinct_rows
 test_that(".count_distinct_rows returns correct count with valid key columns", {
   test_data <- data.frame(
