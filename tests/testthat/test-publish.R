@@ -1,3 +1,32 @@
+# 3.2.2: .do_put_command sends data in multiple chunks
+test_that(".do_put_command sends data in multiple chunks", {
+  # 1. Setup date
+  df <- data.frame(id = 1:50, value = rnorm(50))
+  tbl <- arrow::arrow_table(df)
+
+  # 2. Setup Mocks corect (ca listă de funcții)
+  write_table_mock <- mockery::mock(NULL, cycle = TRUE)
+  mock_writer <- list(
+    write_table = write_table_mock,
+    done_writing = function() NULL,
+    close = function() NULL
+  )
+  mock_reader <- list(read = function() charToRaw('{"status": "success"}'))
+  mock_client <- list(
+    do_put = function(descriptor, schema, options) list(mock_writer, mock_reader)
+  )
+
+  # 3. Stubbing pentru opțiuni
+  mockery::stub(.do_put_command, ".get_flight_options", function() list())
+
+  # 4. Execuție
+  # IMPORTANT: Momentan codul va ignora faptul că vrem chunks
+  .do_put_command(mock_client, list(is_dry_publish = FALSE), tbl)
+
+  # 5. Verificare TDD
+  # Ne așteptăm la 5 apeluri (50 rows / 10 per chunk), dar va găsi doar 1.
+  mockery::expect_called(write_table_mock, 5)
+})
 # 3.2.1: Arrow Table Chunking Helper
 test_that("arrow_table can be sliced into chunks correctly", {
   # Create a data.frame with 50 rows
