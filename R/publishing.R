@@ -157,6 +157,17 @@ def count_distinct_rows_py(table, key_columns):
     response <- result
   }
   
+  # Venn logic for valid_rows and duplicate count
+  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+  if (!is.null(distinct_row_result)) {
+    response$valid_rows <- .calculate_venn_valid_rows(
+      total_rows = nrow(data),
+      duplicate_keys_df = distinct_row_result$duplicate_key_rows,
+      invalid_records_df = response$invalid_records_table,
+      key_columns = config$key_columns
+    )
+    response$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
+  }
   return(response)
 }
 
@@ -206,10 +217,14 @@ def count_distinct_rows_py(table, key_columns):
     if (result$success) {
       distinct_row_result <- .count_distinct_rows(data, config$key_columns)
 
-      # Append distinct row count and duplicate row count if available
-      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
-        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
+      if (!is.null(distinct_row_result)) {
+        result$valid_rows <- .calculate_venn_valid_rows(
+          total_rows = nrow(data),
+          duplicate_keys_df = distinct_row_result$duplicate_key_rows,
+          invalid_records_df = result$invalid_records_table,
+          key_columns = config$key_columns
+        )
+        result$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
       }
     }
 
