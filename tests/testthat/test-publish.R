@@ -132,7 +132,7 @@ test_that(".count_distinct_rows returns correct stats and duplicate rows (Native
   # We expect the new native R implementation to return a list with these specific names
   result <- .count_distinct_rows(test_data, list("id"))
   
-  # Assertions that will likely fail on the current code (RED PHASE)
+  # Assertions that will likely fail on the current code (  RED PHASE)
   expect_equal(result$distinct_row_count, 3L)
   expect_s3_class(result$duplicate_key_rows, "data.frame")
   expect_equal(nrow(result$duplicate_key_rows), 2L)

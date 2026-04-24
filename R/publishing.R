@@ -6,29 +6,19 @@
 #' @keywords internal
 #' @noRd
 .count_distinct_rows <- function(data, key_columns) {
-  
-  # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
-  
-  # Convert column names to lowercase for case-insensitive comparison
   key_cols_lower <- tolower(key_cols)
   data_cols_lower <- tolower(names(data))
-  
-  # Validate key columns exist in data (case-insensitive)
   missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
   if (length(missing_cols) > 0) {
     error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
     return(list(distinct_row_count = NULL, error_message = error_msg))
   }
-  
-  # Map key columns to actual data frame column names
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
-  
+  distinct_count <- NULL
+  error_message <- NULL
   tryCatch({
-    # Convert data frame to Arrow table
     arrow_table <- arrow::arrow_table(data)
-    
-    # Execute the Python implementation directly
     reticulate::py_run_string("
 import pyarrow as pa
 import pyarrow.compute as pac
@@ -36,7 +26,6 @@ import uuid
 
 def count_distinct_rows_py(table, key_columns):
     key_values = []
-    
     for key_column in key_columns:
         if len(key_values) > 0:
             key_values = pac.binary_join_element_wise(
@@ -47,23 +36,26 @@ def count_distinct_rows_py(table, key_columns):
             key_values = pac.binary_join_element_wise(
                 pac.cast(table[key_column], pa.string()),
                 pa.scalar('-'))
-    
     result_array = pa.array([str(uuid.uuid3(uuid.NAMESPACE_DNS, str(key_value))) for key_value in key_values])
     return len(pac.unique(result_array))
 ", convert = FALSE)
-    
-    # Call the Python function
-    # Convert actual_cols to Python list explicitly
     py_func <- reticulate::py_eval("count_distinct_rows_py", convert = FALSE)
     py_cols <- reticulate::r_to_py(as.list(actual_cols))
     distinct_count <- as.integer(reticulate::py_to_r(py_func(arrow_table, py_cols)))
-    
-    return(list(distinct_row_count = distinct_count, error_message = NULL))
-    
+    error_message <- NULL
   }, error = function(e) {
-    error_msg <- paste("Error counting distinct rows:", e$message)
-    return(list(distinct_row_count = NULL, error_message = error_msg))
+    error_message <<- paste("Error counting distinct rows:", e$message)
+    distinct_count <<- NULL
   })
+  duplicate_key_rows <- NULL
+  if (!is.null(actual_cols) && length(actual_cols) > 0) {
+    duplicate_key_rows <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
+  }
+  return(list(
+    distinct_row_count = distinct_count,
+    duplicate_key_rows = duplicate_key_rows,
+    error_message = error_message
+  ))
 }
 
 # Import required functions
@@ -136,14 +128,6 @@ def count_distinct_rows_py(table, key_columns):
     # If do_command didn't process it, try to extract manually
     warning("No processed result from do_command, returning raw result")
     response <- result
-  }
-  
-  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-  # Append distinct row count and duplicate row count if available
-  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    response$valid_rows <- distinct_row_result$distinct_row_count
-    response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
   }
   
   return(response)
