@@ -1,3 +1,28 @@
+# 3.2.1: Arrow Table Chunking Helper
+test_that("arrow_table can be sliced into chunks correctly", {
+  # Create a data.frame with 50 rows
+  df <- data.frame(
+    id = 1:50,
+    value = rnorm(50)
+  )
+  # Convert to Arrow Table
+  tbl <- arrow::arrow_table(df)
+  chunk_size <- 10
+  n_chunks <- 5
+  chunks <- vector("list", n_chunks)
+  for (i in seq_len(n_chunks)) {
+    offset <- (i - 1) * chunk_size
+    chunks[[i]] <- tbl$Slice(offset, chunk_size)
+  }
+  # Each chunk should have 10 rows
+  chunk_rows <- vapply(chunks, function(x) x$num_rows, integer(1))
+  expect_true(all(chunk_rows == 10))
+  # The sum of all chunk rows should be 50
+  expect_equal(sum(chunk_rows), 50)
+  # The fifth chunk should contain ids 41:50
+  expect_equal(as.data.frame(chunks[[5]])$id, 41:50)
+})
+
 # 3.0 Safety: Case-insensitive mapping works for mandatory keys
 test_that("3.0 Safety: Case-insensitive mapping works for mandatory keys", {
   # Setup: column is 'id' (lowercase)
