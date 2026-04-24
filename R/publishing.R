@@ -32,14 +32,8 @@
 #' @keywords internal
 #' @noRd
 .count_distinct_rows <- function(data, key_columns) {
-  key_cols <- as.character(unlist(key_columns))
-  key_cols_lower <- tolower(key_cols)
+  key_cols_lower <- tolower(as.character(unlist(key_columns)))
   data_cols_lower <- tolower(names(data))
-  missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
-  if (length(missing_cols) > 0) {
-    error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
-    return(list(distinct_row_count = NULL, error_message = error_msg))
-  }
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
   distinct_count <- NULL
   error_message <- NULL

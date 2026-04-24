@@ -3,7 +3,7 @@ test_that("3.0 Safety: Case-insensitive mapping works for mandatory keys", {
   # Setup: column is 'id' (lowercase)
   test_data <- data.frame(id = c(1, 1, 2), val = c("a", "a", "b"))
   # Action: request 'ID' (uppercase)
-  res <- .count_distinct_rows(test_data, list("ID"))
+  res <- dataconnect:::.count_distinct_rows(test_data, list("ID"))
   # Assert:
   expect_equal(res$distinct_row_count, 2)
   expect_equal(nrow(res$duplicate_key_rows), 1)
