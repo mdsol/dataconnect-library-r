@@ -122,16 +122,23 @@ test_that(".count_distinct_rows handles all duplicate rows", {
   expect_equal(result$distinct_row_count, 1)
 })
 
-test_that(".count_distinct_rows handles all unique rows", {
+test_that(".count_distinct_rows returns correct stats and duplicate rows (Native R)", {
+  # Setup data with actual duplicates
   test_data <- data.frame(
-    id = c(1, 2, 3, 4),
-    name = c("A", "B", "C", "D")
+    id = c(1, 2, 3, 1, 2), # 1 and 2 are repeated
+    name = c("A", "B", "C", "A", "B")
   )
   
-  result <- .count_distinct_rows(test_data, "id")
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 4)
+  # We expect the new native R implementation to return a list with these specific names
+  result <- .count_distinct_rows(test_data, list("id"))
+  
+  # Assertions that will likely fail on the current code (RED PHASE)
+  expect_equal(result$distinct_row_count, 3L)
+  expect_s3_class(result$duplicate_key_rows, "data.frame")
+  expect_equal(nrow(result$duplicate_key_rows), 2L)
+  expect_equal(result$duplicate_key_rows$id, c(1, 2))
 })
+
 
 # Create a mock function for .get_flight_options that we'll use in each test
 mock_flight_options <- function() {
