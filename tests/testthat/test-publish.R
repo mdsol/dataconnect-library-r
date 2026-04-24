@@ -545,8 +545,11 @@ test_that("publish handles publishing with required data correctly", {
   # Mock .get_flight_options
   mockery::stub(.publish, ".get_flight_options", mock_flight_options)
 
-  # Test the function with data (since data is now required)
-  sample_data <- data.frame(x = 1:3, y = letters[1:3])
+  sample_data <- data.frame(
+    subjid = c('S1', 'S2', 'S3'),
+    visit = c('V1', 'V1', 'V2'),
+    measurement = 1:3
+  )
   result <- .publish(mock_client, config, sample_data)
 
   # Verify the correct transformation and call occurred
