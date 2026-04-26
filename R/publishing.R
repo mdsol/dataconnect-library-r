@@ -91,12 +91,11 @@
     warning("No processed result from do_command, returning raw result")
     response <- result
   }
-  
   # Venn logic for valid_rows and duplicate count
   distinct_total <- .count_distinct_rows(data, config$key_columns)
   distinct_invalid <- list(distinct_row_count = 0)
-  if (!is.null(response$invalid_records_table) && nrow(response$invalid_records_table) > 0) {
-    distinct_invalid <- .count_distinct_rows(response$invalid_records_table, config$key_columns)
+  if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+    distinct_invalid <- .count_distinct_rows(response$invalid_records, config$key_columns)
   }
   if (!is.null(distinct_total$distinct_row_count)) {
     inv_count <- if(is.null(distinct_invalid$distinct_row_count)) 0 else distinct_invalid$distinct_row_count
@@ -152,8 +151,8 @@ tryCatch({
       distinct_total <- .count_distinct_rows(data, config$key_columns)
       distinct_invalid <- list(distinct_row_count = 0)
       
-      if (!is.null(result$invalid_records_table) && nrow(result$invalid_records_table) > 0) {
-        distinct_invalid <- .count_distinct_rows(result$invalid_records_table, config$key_columns)
+      if (!is.null(result$invalid_records) && nrow(result$invalid_records) > 0) {
+        distinct_invalid <- .count_distinct_rows(result$invalid_records, config$key_columns)
       }
       
       if (!is.null(distinct_total$distinct_row_count)) {

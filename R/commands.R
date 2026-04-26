@@ -85,9 +85,10 @@
 #' @keywords internal
 #' @noRd
 .do_put_command <- function(client, config, data) {
-      # Ensure arrow_data is always an Arrow Table
-      arrow_data <- if (inherits(data, "data.frame")) arrow::arrow_table(data) else data
-    chunk_size <- getOption("dataconnect.chunk_size", 10000)
+  # Ensure arrow_data is always an Arrow Table
+  arrow_data <- if (inherits(data, "data.frame")) arrow::arrow_table(data) else data
+  chunk_size <- getOption("dataconnect.chunk_size", 10000)
+
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -204,32 +205,19 @@
     # Batches are read one at a time and converted to R immediately so Python can release each
     # batch before the next is fetched — avoids materialising the entire stream in memory at once.
     tryCatch({
-      pa <- reticulate::import("pyarrow", convert = FALSE)
       error_buf <- reader$read()
-      ipc_reader <- pa$ipc$open_stream(error_buf)
-
-      # Each batch is converted to an Arrow Table immediately so the Python batch
-      # can be GC'd before the next is read — safe for huge invalid-record counts.
-      # arrow::concat_tables() is O(n); a single as.data.frame() call at the end
-      chunks <- list()
+      ipc_reader <- arrow::RecordBatchStreamReader$create(error_buf)
+      batches <- list()
       repeat {
-        batch <- tryCatch(
-          ipc_reader$read_next_batch(),
-          error = function(e) NULL  # StopIteration signals end of stream
-        )
+        batch <- tryCatch(ipc_reader$read_next_batch(), error = function(e) NULL)
         if (is.null(batch)) break
-        chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
+        batches <- c(batches, list(as.data.frame(batch)))
       }
-
-      if (length(chunks) > 0) {
-        dry_publish_or_publish_result$invalid_records <- as.data.frame(
-          arrow::concat_tables(chunks)
-        )
+      if (length(batches) > 0) {
+        dry_publish_or_publish_result$invalid_records <- do.call(rbind, batches)
       }
     }, error = function(e) {
-      # No error batches in the stream — nothing to read
     })
-
     return(dry_publish_or_publish_result)
 
   }, error = function(e) {
