@@ -224,7 +224,7 @@ test_that(".count_distinct_rows returns correct stats and duplicate rows (Native
 
 # Create a mock function for .get_flight_options that we'll use in each test
 mock_flight_options <- function() {
-  list(headers = list(c("x-client-dataconnect", "1.1.0")))
+  list(headers = list(c("x-client-dataconnect", "1.2.0")))
 }
 
 # Create sample data and schema that will be used across tests
