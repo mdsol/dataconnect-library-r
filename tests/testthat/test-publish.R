@@ -105,15 +105,7 @@ test_that("Venn logic R06: valid_rows accounts for intersection of duplicates an
 
   expect_equal(result, 2)
 })
-context("Publishing operations")
 
-# Load required libraries
-library(testthat)
-library(mockery)
-
-# Directly source the files we need to test
-source("../../R/commands.R")
-source("../../R/publishing.R")
 
 # Unit tests for .count_distinct_rows
 test_that(".count_distinct_rows returns correct count with valid key columns", {
