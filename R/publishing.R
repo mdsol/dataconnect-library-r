@@ -1,82 +1,23 @@
-# Calculates valid_rows using Venn logic (R06):
-# valid_rows = total_rows - invalid_rows - (duplicates - intersection)
-.calculate_venn_valid_rows <- function(total_rows, duplicate_keys_df, invalid_records_df, key_columns) {
-  # If no duplicates, subtract only invalids
-  if (is.null(duplicate_keys_df) || nrow(duplicate_keys_df) == 0) {
-    invalid_count <- if (is.null(invalid_records_df)) 0 else nrow(invalid_records_df)
-    return(as.integer(max(0, total_rows - invalid_count)))
-  }
-
-  # If no invalid records, subtract only duplicates
-  if (is.null(invalid_records_df) || nrow(invalid_records_df) == 0) {
-    return(as.integer(max(0, total_rows - nrow(duplicate_keys_df))))
-  }
-
-  # Compute intersection between duplicates and invalids using key columns
-  key_cols <- unlist(key_columns)
-  intersection_count <- nrow(merge(
-    duplicate_keys_df[, key_cols, drop = FALSE],
-    invalid_records_df[, key_cols, drop = FALSE]
-  ))
-
-  net_duplicates <- nrow(duplicate_keys_df) - intersection_count
-  invalid_count <- nrow(invalid_records_df)
-  valid_rows <- total_rows - invalid_count - net_duplicates
-  return(as.integer(max(0, valid_rows)))
-}
-#' Count distinct rows based on key columns using Python/PyArrow
+#' Count distinct rows based on key columns using Native R
 #'
 #' @param data Data frame to analyze
 #' @param key_columns List or character vector of key column names
-#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
-#' @keywords internal
-#' @noRd
+#' @return List with distinct_row_count (integer or NULL), duplicate_key_rows and error_message
+#' 
 .count_distinct_rows <- function(data, key_columns) {
-  key_cols_lower <- tolower(as.character(unlist(key_columns)))
-  data_cols_lower <- tolower(names(data))
-  actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
-  distinct_count <- NULL
-  error_message <- NULL
-  tryCatch({
-    arrow_table <- arrow::arrow_table(data)
-    reticulate::py_run_string("
-import pyarrow as pa
-import pyarrow.compute as pac
-import uuid
-
-def count_distinct_rows_py(table, key_columns):
-    key_values = []
-    for key_column in key_columns:
-        if len(key_values) > 0:
-            key_values = pac.binary_join_element_wise(
-                key_values,
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-        else:
-            key_values = pac.binary_join_element_wise(
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-    result_array = pa.array([str(uuid.uuid3(uuid.NAMESPACE_DNS, str(key_value))) for key_value in key_values])
-    return len(pac.unique(result_array))
-", convert = FALSE)
-    py_func <- reticulate::py_eval("count_distinct_rows_py", convert = FALSE)
-    py_cols <- reticulate::r_to_py(as.list(actual_cols))
-    distinct_count <- as.integer(reticulate::py_to_r(py_func(arrow_table, py_cols)))
-    error_message <- NULL
-  }, error = function(e) {
-    error_message <<- paste("Error counting distinct rows:", e$message)
-    distinct_count <<- NULL
-  })
-  # Note: duplicate_key_rows is required for Venn intersection logic in R06
-  duplicate_key_rows <- NULL
-  if (!is.null(actual_cols) && length(actual_cols) > 0) {
-    duplicate_key_rows <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
+  key_cols <- as.character(unlist(key_columns))
+  if (length(key_cols) == 0) {
+    return(list(distinct_row_count = nrow(data), duplicate_key_rows = data[0, , drop = FALSE], error_message = NULL))
   }
-  return(list(
-    distinct_row_count = distinct_count,
-    duplicate_key_rows = duplicate_key_rows,
-    error_message = error_message
-  ))
+  actual_cols <- names(data)[match(tolower(key_cols), tolower(names(data)))]
+  res <- tryCatch({
+    count <- nrow(unique(data[, actual_cols, drop = FALSE]))
+    dups <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
+    list(count = count, dups = dups, err = NULL)
+  }, error = function(e) {
+    list(count = NULL, dups = NULL, err = e$message)
+  })
+  return(list(distinct_row_count = res$count, duplicate_key_rows = res$dups, error_message = res$err))
 }
 
 # Import required functions
@@ -152,15 +93,15 @@ def count_distinct_rows_py(table, key_columns):
   }
   
   # Venn logic for valid_rows and duplicate count
-  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-  if (!is.null(distinct_row_result)) {
-    response$valid_rows <- .calculate_venn_valid_rows(
-      total_rows = nrow(data),
-      duplicate_keys_df = distinct_row_result$duplicate_key_rows,
-      invalid_records_df = response$invalid_records_table,
-      key_columns = config$key_columns
-    )
-    response$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
+  distinct_total <- .count_distinct_rows(data, config$key_columns)
+  distinct_invalid <- list(distinct_row_count = 0)
+  if (!is.null(response$invalid_records_table) && nrow(response$invalid_records_table) > 0) {
+    distinct_invalid <- .count_distinct_rows(response$invalid_records_table, config$key_columns)
+  }
+  if (!is.null(distinct_total$distinct_row_count)) {
+    inv_count <- if(is.null(distinct_invalid$distinct_row_count)) 0 else distinct_invalid$distinct_row_count
+    response$valid_rows <- as.integer(max(0, distinct_total$distinct_row_count - inv_count))
+    response$duplicate_rows_based_on_keys <- nrow(distinct_total$duplicate_key_rows)
   }
   return(response)
 }
@@ -204,27 +145,27 @@ def count_distinct_rows_py(table, key_columns):
     warning("Uploading empty dataset")
   }
 
-  tryCatch({
+tryCatch({
     result <- .do_put_command(client, config, arrow_data)
 
-    distinct_row_result <- NULL
     if (result$success) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-      if (!is.null(distinct_row_result)) {
-        result$valid_rows <- .calculate_venn_valid_rows(
-          total_rows = nrow(data),
-          duplicate_keys_df = distinct_row_result$duplicate_key_rows,
-          invalid_records_df = result$invalid_records_table,
-          key_columns = config$key_columns
-        )
-        result$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
+      distinct_total <- .count_distinct_rows(data, config$key_columns)
+      distinct_invalid <- list(distinct_row_count = 0)
+      
+      if (!is.null(result$invalid_records_table) && nrow(result$invalid_records_table) > 0) {
+        distinct_invalid <- .count_distinct_rows(result$invalid_records_table, config$key_columns)
+      }
+      
+      if (!is.null(distinct_total$distinct_row_count)) {
+        inv_count <- if (is.null(distinct_invalid$distinct_row_count)) 0 else distinct_invalid$distinct_row_count
+        result$valid_rows <- as.integer(max(0, distinct_total$distinct_row_count - inv_count))
+        result$duplicate_rows_based_on_keys <- nrow(distinct_total$duplicate_key_rows)
       }
     }
 
     return(result)
-    }, error = function(e) {
-      parsed_error <- .parse_dataconnect_error(conditionMessage(e))
-      .throw_dataconnect_error(parsed_error)
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
   })
 }
