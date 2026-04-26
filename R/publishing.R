@@ -6,10 +6,13 @@
 #' 
 .count_distinct_rows <- function(data, key_columns) {
   key_cols <- as.character(unlist(key_columns))
+  
   if (length(key_cols) == 0) {
-    return(list(distinct_row_count = nrow(data), duplicate_key_rows = data[0, , drop = FALSE], error_message = NULL))
+    stop("Argument 'key_columns' is mandatory for duplicate and valid rows calculation.")
   }
+  
   actual_cols <- names(data)[match(tolower(key_cols), tolower(names(data)))]
+  
   res <- tryCatch({
     count <- nrow(unique(data[, actual_cols, drop = FALSE]))
     dups <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
@@ -17,6 +20,7 @@
   }, error = function(e) {
     list(count = NULL, dups = NULL, err = e$message)
   })
+  
   return(list(distinct_row_count = res$count, duplicate_key_rows = res$dups, error_message = res$err))
 }
 
