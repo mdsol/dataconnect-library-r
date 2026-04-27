@@ -154,7 +154,6 @@
 
     writer$done_writing()
 
-    # Keep the original response reading logic
     raw_bytes <- reader$read()
     result_str <- if (is.raw(raw_bytes)) {
       rawToChar(raw_bytes)
@@ -205,20 +204,33 @@
     # Batches are read one at a time and converted to R immediately so Python can release each
     # batch before the next is fetched — avoids materialising the entire stream in memory at once.
     tryCatch({
+      pa <- reticulate::import("pyarrow", convert = FALSE)
       error_buf <- reader$read()
-      ipc_reader <- arrow::RecordBatchStreamReader$create(error_buf)
-      batches <- list()
+      ipc_reader <- pa$ipc$open_stream(error_buf)
+
+      # Each batch is converted to an Arrow Table immediately so the Python batch
+      # can be GC'd before the next is read — safe for huge invalid-record counts.
+      # arrow::concat_tables() is O(n); a single as.data.frame() call at the end
+      chunks <- list()
       repeat {
-        batch <- tryCatch(ipc_reader$read_next_batch(), error = function(e) NULL)
+        batch <- tryCatch(
+          ipc_reader$read_next_batch(),
+          error = function(e) NULL  # StopIteration signals end of stream
+        )
         if (is.null(batch)) break
-        batches <- c(batches, list(as.data.frame(batch)))
+        chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
       }
-      if (length(batches) > 0) {
-        dry_publish_or_publish_result$invalid_records <- do.call(rbind, batches)
+
+      if (length(chunks) > 0) {
+        dry_publish_or_publish_result$invalid_records <- as.data.frame(
+          arrow::concat_tables(chunks)
+        )
       }
     }, error = function(e) {
+      # No error batches in the stream — nothing to read
     })
-    return(dry_publish_or_publish_result)
+
+    dry_publish_or_publish_result
 
   }, error = function(e) {
 
@@ -234,7 +246,7 @@
       )
     }
 
-    return(dry_publish_or_publish_result)
+    dry_publish_or_publish_result
   })
 }
 
