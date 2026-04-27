@@ -1,27 +1,43 @@
-#' Count distinct rows based on key columns using Native R
+#' Count distinct rows based on key columns using Python/PyArrow
 #'
 #' @param data Data frame to analyze
 #' @param key_columns List or character vector of key column names
-#' @return List with distinct_row_count (integer or NULL), duplicate_key_rows and error_message
-#' 
+#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
+#' @keywords internal
+#' @noRd
 .count_distinct_rows <- function(data, key_columns) {
+  
+  # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
   
+  # David S: Key columns are mandatory
   if (length(key_cols) == 0) {
     stop("Argument 'key_columns' is mandatory for duplicate and valid rows calculation.")
   }
   
-  actual_cols <- names(data)[match(tolower(key_cols), tolower(names(data)))]
+  # Convert column names to lowercase for case-insensitive comparison
+  key_cols_lower <- tolower(key_cols)
+  data_cols_lower <- tolower(names(data))
   
-  res <- tryCatch({
+  # Map key columns to actual data frame column names
+  actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
+  
+  tryCatch({
+    # Native R Logic replacing Python/Reticulate block
     count <- nrow(unique(data[, actual_cols, drop = FALSE]))
     dups <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
-    list(count = count, dups = dups, err = NULL)
+    
+    # Return structure extended with duplicate rows for Venn calculation
+    return(list(
+      distinct_row_count = count, 
+      duplicate_key_rows = dups,
+      error_message = NULL
+    ))
+    
   }, error = function(e) {
-    list(count = NULL, dups = NULL, err = e$message)
+    error_msg <- paste("Error counting distinct rows:", e$message)
+    return(list(distinct_row_count = NULL, duplicate_key_rows = NULL, error_message = error_msg))
   })
-  
-  return(list(distinct_row_count = res$count, duplicate_key_rows = res$dups, error_message = res$err))
 }
 
 # Import required functions
@@ -52,7 +68,8 @@
   if (is.null(data)) {
     stop("Data must be provided")
   }
- # Convert data to Arrow table
+
+  # Convert data to Arrow table
   if (is.data.frame(data)) {
     arrow_data <- arrow::arrow_table(data)
   } else {
@@ -95,17 +112,24 @@
     warning("No processed result from do_command, returning raw result")
     response <- result
   }
-  # Venn logic for valid_rows and duplicate count
-  distinct_total <- .count_distinct_rows(data, config$key_columns)
-  distinct_invalid <- list(distinct_row_count = 0)
-  if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
-    distinct_invalid <- .count_distinct_rows(response$invalid_records, config$key_columns)
+  
+  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+
+  # Append distinct row count and duplicate row count if available
+  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+    # Calculate invalid distinct rows to apply net duplicates Venn logic
+    invalid_distinct <- 0
+    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+      invalid_res <- .count_distinct_rows(response$invalid_records, config$key_columns)
+      if (!is.null(invalid_res$distinct_row_count)) {
+        invalid_distinct <- invalid_res$distinct_row_count
+      }
+    }
+    
+    response$valid_rows <- as.integer(max(0, distinct_row_result$distinct_row_count - invalid_distinct))
+    response$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
   }
-  if (!is.null(distinct_total$distinct_row_count)) {
-    inv_count <- if(is.null(distinct_invalid$distinct_row_count)) 0 else distinct_invalid$distinct_row_count
-    response$valid_rows <- as.integer(max(0, distinct_total$distinct_row_count - inv_count))
-    response$duplicate_rows_based_on_keys <- nrow(distinct_total$duplicate_key_rows)
-  }
+  
   return(response)
 }
 
@@ -148,21 +172,26 @@
     warning("Uploading empty dataset")
   }
 
-tryCatch({
+  tryCatch({
     result <- .do_put_command(client, config, arrow_data)
 
+    distinct_row_result <- NULL
     if (result$success) {
-      distinct_total <- .count_distinct_rows(data, config$key_columns)
-      distinct_invalid <- list(distinct_row_count = 0)
-      
-      if (!is.null(result$invalid_records) && nrow(result$invalid_records) > 0) {
-        distinct_invalid <- .count_distinct_rows(result$invalid_records, config$key_columns)
-      }
-      
-      if (!is.null(distinct_total$distinct_row_count)) {
-        inv_count <- if (is.null(distinct_invalid$distinct_row_count)) 0 else distinct_invalid$distinct_row_count
-        result$valid_rows <- as.integer(max(0, distinct_total$distinct_row_count - inv_count))
-        result$duplicate_rows_based_on_keys <- nrow(distinct_total$duplicate_key_rows)
+      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
+
+      # Append distinct row count and duplicate row count if available
+      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+        # Calculate invalid distinct rows to apply net duplicates Venn logic
+        invalid_distinct <- 0
+        if (!is.null(result$invalid_records) && nrow(result$invalid_records) > 0) {
+          invalid_res <- .count_distinct_rows(result$invalid_records, config$key_columns)
+          if (!is.null(invalid_res$distinct_row_count)) {
+            invalid_distinct <- invalid_res$distinct_row_count
+          }
+        }
+        
+        result <- c(result, list(valid_rows = as.integer(max(0, distinct_row_result$distinct_row_count - invalid_distinct))))
+        result <- c(result, list(duplicate_rows_based_on_keys = nrow(distinct_row_result$duplicate_key_rows)))
       }
     }
 
