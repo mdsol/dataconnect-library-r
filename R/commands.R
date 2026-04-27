@@ -220,11 +220,8 @@
         if (is.null(batch)) break
         chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
       }
-
       if (length(chunks) > 0) {
-        dry_publish_or_publish_result$invalid_records <- as.data.frame(
-          arrow::concat_tables(chunks)
-        )
+        dry_publish_or_publish_result$invalid_records <- do.call(rbind, lapply(chunks, as.data.frame))
       }
     }, error = function(e) {
       # No error batches in the stream — nothing to read
