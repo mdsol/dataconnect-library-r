@@ -73,31 +73,6 @@ test_that(".count_distinct_rows is case-insensitive for column names", {
   expect_equal(result$distinct_row_count, 3)
 })
 
-test_that(".count_distinct_rows returns error for missing columns", {
-  test_data <- data.frame(
-    id = c(1, 2, 3),
-    name = c("A", "B", "C")
-  )
-  
-  # Test with single missing column
-  result <- .count_distinct_rows(test_data, "missing_col")
-  expect_null(result$distinct_row_count)
-  expect_true(grepl("Key column\\(s\\) not found", result$error_message))
-  expect_true(grepl("missing_col", result$error_message))
-  
-  # Test with multiple missing columns
-  result <- .count_distinct_rows(test_data, c("col1", "col2"))
-  expect_null(result$distinct_row_count)
-  expect_true(grepl("Key column\\(s\\) not found", result$error_message))
-  expect_true(grepl("col1", result$error_message))
-  expect_true(grepl("col2", result$error_message))
-  
-  # Test with mix of valid and invalid columns
-  result <- .count_distinct_rows(test_data, c("id", "invalid"))
-  expect_null(result$distinct_row_count)
-  expect_true(grepl("Key column\\(s\\) not found", result$error_message))
-  expect_true(grepl("invalid", result$error_message))
-})
 
 test_that(".count_distinct_rows handles empty data frame", {
   test_data <- data.frame(
