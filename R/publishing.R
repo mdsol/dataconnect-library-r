@@ -137,15 +137,7 @@ def count_distinct_rows_py(table, key_columns):
     warning("No processed result from do_command, returning raw result")
     response <- result
   }
-  
-  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-  # Append distinct row count and duplicate row count if available
-  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    response$valid_rows <- distinct_row_result$distinct_row_count
-    response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-  }
-  
+    
   return(response)
 }
 
@@ -190,17 +182,6 @@ def count_distinct_rows_py(table, key_columns):
 
   tryCatch({
     result <- .do_put_command(client, config, arrow_data)
-
-    distinct_row_result <- NULL
-    if (result$success) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-      # Append distinct row count and duplicate row count if available
-      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        result <- c(result, list(valid_rows = distinct_row_result$distinct_row_count))
-        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
-      }
-    }
 
     return(result)
     }, error = function(e) {
