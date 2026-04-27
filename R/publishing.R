@@ -10,7 +10,6 @@
   # Convert key_columns from list to character vector if needed
   key_cols <- as.character(unlist(key_columns))
   
-  # David S: Key columns are mandatory
   if (length(key_cols) == 0) {
     stop("Argument 'key_columns' is mandatory for duplicate and valid rows calculation.")
   }
@@ -23,7 +22,6 @@
   actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
   
   tryCatch({
-    # Native R Logic replacing Python/Reticulate block
     count <- nrow(unique(data[, actual_cols, drop = FALSE]))
     dups <- data[duplicated(data[, actual_cols, drop = FALSE]), actual_cols, drop = FALSE]
     
@@ -38,6 +36,33 @@
     error_msg <- paste("Error counting distinct rows:", e$message)
     return(list(distinct_row_count = NULL, duplicate_key_rows = NULL, error_message = error_msg))
   })
+}
+
+#' Append valid rows and duplicate counts using Venn logic
+#'
+#' @param response The result list from the server operation
+#' @param data Original data.frame
+#' @param key_columns Key columns for distinct calculations
+#' @return Modified response list
+#' @keywords internal
+#' @noRd
+.append_venn_stats <- function(response, data, key_columns) {
+  distinct_row_result <- .count_distinct_rows(data, key_columns)
+
+  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+    invalid_distinct <- 0
+    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+      invalid_res <- .count_distinct_rows(response$invalid_records, key_columns)
+      if (!is.null(invalid_res$distinct_row_count)) {
+        invalid_distinct <- invalid_res$distinct_row_count
+      }
+    }
+    
+    response$valid_rows <- as.integer(max(0, distinct_row_result$distinct_row_count - invalid_distinct))
+    response$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
+  }
+  
+  return(response)
 }
 
 # Import required functions
@@ -112,26 +137,13 @@
     warning("No processed result from do_command, returning raw result")
     response <- result
   }
-  
-  distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-  # Append distinct row count and duplicate row count if available
-  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    # Calculate invalid distinct rows to apply net duplicates Venn logic
-    invalid_distinct <- 0
-    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
-      invalid_res <- .count_distinct_rows(response$invalid_records, config$key_columns)
-      if (!is.null(invalid_res$distinct_row_count)) {
-        invalid_distinct <- invalid_res$distinct_row_count
-      }
-    }
-    
-    response$valid_rows <- as.integer(max(0, distinct_row_result$distinct_row_count - invalid_distinct))
-    response$duplicate_rows_based_on_keys <- nrow(distinct_row_result$duplicate_key_rows)
+  if (!is.null(response)) {
+    response <- .append_venn_stats(response, data, config$key_columns)
   }
   
   return(response)
-}
+  }
+
 
 #' Publish configuration, schema and data to the server
 #'
@@ -175,24 +187,8 @@
   tryCatch({
     result <- .do_put_command(client, config, arrow_data)
 
-    distinct_row_result <- NULL
     if (result$success) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
-      # Append distinct row count and duplicate row count if available
-      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        # Calculate invalid distinct rows to apply net duplicates Venn logic
-        invalid_distinct <- 0
-        if (!is.null(result$invalid_records) && nrow(result$invalid_records) > 0) {
-          invalid_res <- .count_distinct_rows(result$invalid_records, config$key_columns)
-          if (!is.null(invalid_res$distinct_row_count)) {
-            invalid_distinct <- invalid_res$distinct_row_count
-          }
-        }
-        
-        result <- c(result, list(valid_rows = as.integer(max(0, distinct_row_result$distinct_row_count - invalid_distinct))))
-        result <- c(result, list(duplicate_rows_based_on_keys = nrow(distinct_row_result$duplicate_key_rows)))
-      }
+      result <- .append_venn_stats(result, data, config$key_columns)
     }
 
     return(result)
