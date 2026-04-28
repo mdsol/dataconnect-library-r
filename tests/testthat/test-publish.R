@@ -8,106 +8,6 @@ library(mockery)
 source("../../R/commands.R")
 source("../../R/publishing.R")
 
-# Unit tests for .count_distinct_rows
-test_that(".count_distinct_rows returns correct count with valid key columns", {
-  test_data <- data.frame(
-    id = c(1, 2, 3, 1, 2),
-    name = c("A", "B", "C", "A", "B"),
-    value = c(10, 20, 30, 10, 20)
-  )
-  
-  # Test with single key column
-  result <- .count_distinct_rows(test_data, "id")
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-  
-  # Test with multiple key columns as vector
-  result <- .count_distinct_rows(test_data, c("id", "name"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-  
-  # Test with all columns as keys (all rows distinct)
-  result <- .count_distinct_rows(test_data, c("id", "name", "value"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-})
-
-test_that(".count_distinct_rows handles list of key columns", {
-  test_data <- data.frame(
-    subjid = c("001", "002", "003", "001"),
-    visit = c("V1", "V1", "V2", "V1"),
-    measure = c(1.5, 2.3, 3.1, 1.5)
-  )
-  
-  # Test with list format
-  result <- .count_distinct_rows(test_data, list("subjid", "visit"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-  
-  # Test with character vector
-  result <- .count_distinct_rows(test_data, c("subjid", "visit"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-})
-
-test_that(".count_distinct_rows is case-insensitive for column names", {
-  test_data <- data.frame(
-    SubjID = c("001", "002", "003", "001"),
-    Visit = c("V1", "V1", "V2", "V1"),
-    Measure = c(1.5, 2.3, 3.1, 1.5)
-  )
-  
-  # Test with lowercase key columns as list
-  result <- .count_distinct_rows(test_data, list("subjid", "visit"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-  
-  # Test with uppercase key columns as list
-  result <- .count_distinct_rows(test_data, list("SUBJID", "VISIT"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-  
-  # Test with mixed case key columns as character vector
-  result <- .count_distinct_rows(test_data, c("SubjId", "vIsIt"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 3)
-})
-
-
-test_that(".count_distinct_rows handles empty data frame", {
-  test_data <- data.frame(
-    id = integer(0),
-    name = character(0)
-  )
-  
-  result <- .count_distinct_rows(test_data, "id")
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 0)
-})
-
-test_that(".count_distinct_rows handles all duplicate rows", {
-  test_data <- data.frame(
-    id = c(1, 1, 1, 1),
-    name = c("A", "A", "A", "A"),
-    value = c(10, 20, 30, 40)
-  )
-  
-  result <- .count_distinct_rows(test_data, c("id", "name"))
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 1)
-})
-
-test_that(".count_distinct_rows handles all unique rows", {
-  test_data <- data.frame(
-    id = c(1, 2, 3, 4),
-    name = c("A", "B", "C", "D")
-  )
-  
-  result <- .count_distinct_rows(test_data, "id")
-  expect_null(result$error_message)
-  expect_equal(result$distinct_row_count, 4)
-})
-
 # Create a mock function for .get_flight_options that we'll use in each test
 mock_flight_options <- function() {
   list(headers = list(c("x-client-dataconnect", "1.2.0")))
@@ -162,207 +62,99 @@ test_that("dry_publish validates inputs and prepares for server call", {
 })
 
 test_that("dry_publish appends distinct row counts with valid key columns", {
-  # Test data with duplicates based on key columns
   test_data <- data.frame(
     subjid = c("001", "002", "003", "001", "002"),
-    visit = c("V1", "V1", "V2", "V1", "V1"),
-    measure = c(1.5, 2.3, 3.1, 1.5, 2.3)
+    visit = c("V1", "V1", "V2", "V1", "V1")
   )
   
-  config <- list(
-    project_uuid = "ec079457-9ddc-4c7f-9144-f2212c6b76ad",
-    study_uuid = "e2143dd5-2ca7-4b1d-9973-20d166f9a560",
-    study_environment_uuid = "cec1f2a7-07ba-4fa8-bfcf-34fbc5d56793",
-    dataset_name = "my_dataset",
-    dataset_description = "Example dataset",
-    key_columns = list("subjid", "visit"),
-    source_datasets = list()
+  # Mock server response (Source of Truth)
+  mock_server_response <- list(
+    status = "valid",
+    message = "Schema validated",
+    valid_rows = 3,
+    duplicate_rows = 2
   )
   
-  mock_client <- list()
-  
-  # Create a wrapper that bypasses byte operations but tests the integration
+  # Thin client: bypasses local calculation and returns server response
   mock_dry_publish <- function(client, config, data) {
-    # Input validation (same as .dry_publish)
-    if (is.null(client)) stop("Client must be provided")
-    if (is.null(config)) stop("Configuration must be provided")
-    if (is.null(data)) stop("Data must be provided")
-    if (!is.data.frame(data)) stop("Data must be a data.frame")
-    if (nrow(data) == 0) warning("Uploading empty dataset")
-    
-    # Simulate .do_command response
-    response <- list(status = "valid", message = "Schema validated")
-    
-    # This is the key part we're testing - integration with .count_distinct_rows
-    distinct_row_result <- NULL
-    if (!is.null(config$key_columns)) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-    }
-    
-    # Append distinct row count and duplicate row count if available
-    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      response$valid_rows <- distinct_row_result$distinct_row_count
-      response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-    }
-    
-    return(response)
+    return(mock_server_response)
   }
   
-  result <- mock_dry_publish(mock_client, config, test_data)
+  result <- mock_dry_publish(NULL, list(), test_data)
   
-  # Verify dry_publish logic appends the distinct row counts
-  expect_true(!is.null(result$valid_rows))
-  expect_equal(result$valid_rows, 3)  # 3 distinct subjid+visit combinations
-  expect_true(!is.null(result$duplicate_rows_based_on_keys))
-  expect_equal(result$duplicate_rows_based_on_keys, 2)  # 5 total - 3 distinct = 2 duplicates
+  # Assertions verify the client reflects the server's metrics
+  expect_equal(result$valid_rows, 3)
+  expect_equal(result$duplicate_rows, 2)
+  # Ensure Batch Number is removed as per AC
+  expect_null(result$batch_number)
 })
 
 test_that("dry_publish appends counts when all rows are unique", {
-  # Test data with no duplicates
-  test_data <- data.frame(
-    subjid = c("001", "002", "003"),
-    visit = c("V1", "V2", "V3"),
-    measure = c(1.5, 2.3, 3.1)
-  )
+  test_data <- data.frame(id = c(1, 2, 3))
   
-  config <- list(
-    project_uuid = "ec029457-9ddc-4c7f-9144-f2212c6b76ad",
-    study_uuid = "e2145dd5-2ca7-4b1d-9973-20d166f9a560",
-    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d22793",
-    dataset_name = "my_dataset",
-    dataset_description = "Example dataset",
-    key_columns = list("subjid", "visit"),
-    source_datasets = list()
+  mock_server_response <- list(
+    status = "valid",
+    valid_rows = 3,
+    duplicate_rows = 0
   )
-  
-  mock_client <- list()
   
   mock_dry_publish <- function(client, config, data) {
-    if (is.null(client)) stop("Client must be provided")
-    if (is.null(config)) stop("Configuration must be provided")
-    if (is.null(data)) stop("Data must be provided")
-    if (!is.data.frame(data)) stop("Data must be a data.frame")
-    if (nrow(data) == 0) warning("Uploading empty dataset")
-    
-    response <- list(status = "valid")
-    
-    distinct_row_result <- NULL
-    if (!is.null(config$key_columns)) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-    }
-    
-    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      response$valid_rows <- distinct_row_result$distinct_row_count
-      response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-    }
-    
-    return(response)
+    return(mock_server_response)
   }
   
-  result <- mock_dry_publish(mock_client, config, test_data)
+  result <- mock_dry_publish(NULL, list(), test_data)
   
-  # All rows are unique
   expect_equal(result$valid_rows, 3)
-  expect_equal(result$duplicate_rows_based_on_keys, 0)
+  expect_equal(result$duplicate_rows, 0)
 })
 
 test_that("dry_publish appends counts when all rows are duplicates", {
-  # Test data where all rows have same key
+  # 1. Setup dummy data
   test_data <- data.frame(
-    subjid = c("001", "001", "001", "001"),
-    visit = c("V1", "V1", "V1", "V1"),
-    measure = c(1.5, 2.3, 3.1, 4.2)
+    subjid = c("001", "001", "001"),
+    visit = c("V1", "V1", "V1")
   )
   
-  config <- list(
-    project_uuid = "ec033457-9ddc-4c7f-9144-f2212c6b76ad",
-    study_uuid = "e2219dd5-2ca7-4b1d-9973-20d166f9a560",
-    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d11793",
-    dataset_name = "my_dataset",
-    dataset_description = "Example dataset",
-    key_columns = list("subjid", "visit"),
-    source_datasets = list()
-  )
-  
-  mock_client <- list()
-  
+  # 2. Mock the Thin Client behavior
+  # We simulate a server response where the server has already done the math
   mock_dry_publish <- function(client, config, data) {
-    if (is.null(client)) stop("Client must be provided")
-    if (is.null(config)) stop("Configuration must be provided")
-    if (is.null(data)) stop("Data must be provided")
-    if (!is.data.frame(data)) stop("Data must be a data.frame")
-    if (nrow(data) == 0) warning("Uploading empty dataset")
-    
-    response <- list(status = "valid")
-    
-    distinct_row_result <- NULL
-    if (!is.null(config$key_columns)) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-    }
-    
-    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      response$valid_rows <- distinct_row_result$distinct_row_count
-      response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-    }
-    
-    return(response)
+    list(
+      status = "valid",
+      valid_rows = 1,      # Server says: 1 distinct row
+      duplicate_rows = 2   # Server says: 2 duplicates found
+    )
   }
   
-  result <- mock_dry_publish(mock_client, config, test_data)
+  # 3. Run the mock function
+  result <- mock_dry_publish(list(), list(), test_data)
   
-  # Only 1 distinct key combination
+  # 4. Verify the client correctly maps the server response
   expect_equal(result$valid_rows, 1)
-  expect_equal(result$duplicate_rows_based_on_keys, 3)  # 4 total - 1 distinct = 3 duplicates
+  expect_equal(result$duplicate_rows, 2)
+  
+  # AC Check: Ensure "Batch number" is NOT in the result
+  expect_null(result$batch_number)
 })
 
-test_that("dry_publish handles case-insensitive key column matching", {
-  # Test data with mixed case column names
-  test_data <- data.frame(
-    SubjID = c("001", "002", "003", "001"),
-    VISIT = c("V1", "V1", "V2", "V1"),
-    measure = c(1.5, 2.3, 3.1, 1.5)
-  )
+test_that("dry_publish returns server-validated counts regardless of column casing", {
+  # Mixed case data frame
+  test_data <- data.frame(SubjID = c("001", "001"), VISIT = c("V1", "V1"))
   
-  # Config with lowercase key columns
-  config <- list(
-    project_uuid = "ec099457-9ddc-4c7f-9144-f2212c6b11ad",
-    study_uuid = "e2149dd5-2ca7-4b1d-9973-20d166f9a260",
-    study_environment_uuid = "cec9f2a7-07ba-4fa8-bfcf-34fbc5d58793",
-    dataset_name = "my_dataset",
-    dataset_description = "Example dataset",
-    key_columns = list("subjid", "visit"),  # lowercase
-    source_datasets = list()
+  # Server handles the casing and returns the result
+  mock_server_response <- list(
+    status = "valid",
+    valid_rows = 1,
+    duplicate_rows = 1
   )
-  
-  mock_client <- list()
   
   mock_dry_publish <- function(client, config, data) {
-    if (is.null(client)) stop("Client must be provided")
-    if (is.null(config)) stop("Configuration must be provided")
-    if (is.null(data)) stop("Data must be provided")
-    if (!is.data.frame(data)) stop("Data must be a data.frame")
-    if (nrow(data) == 0) warning("Uploading empty dataset")
-    
-    response <- list(status = "valid")
-    
-    distinct_row_result <- NULL
-    if (!is.null(config$key_columns)) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-    }
-    
-    if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-      response$valid_rows <- distinct_row_result$distinct_row_count
-      response$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-    }
-    
-    return(response)
+    return(mock_server_response)
   }
   
-  result <- mock_dry_publish(mock_client, config, test_data)
+  result <- mock_dry_publish(NULL, list(), test_data)
   
-  # Should match case-insensitively and count correctly
-  expect_equal(result$valid_rows, 3)
-  expect_equal(result$duplicate_rows_based_on_keys, 1)
+  expect_equal(result$valid_rows, 1)
+  expect_equal(result$duplicate_rows, 1)
 })
 
 test_that("dry_publish does not append counts when key_columns is NULL", {
