@@ -75,19 +75,18 @@ def count_distinct_rows_py(table, key_columns):
 #' @keywords internal
 #' @noRd
 .get_valid_rows <- function(response, data, key_columns) {
-  # only for publish and not for dry_publish
   distinct_row_result <- .count_distinct_rows(data, key_columns)
   valid_rows <- 0
 
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    invalid_distinct <- 0
+    invalid_distinct_row_count <- 0
     if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
-      invalid_res <- .count_distinct_rows(response$invalid_records, key_columns)
-      if (!is.null(invalid_res$distinct_row_count)) {
-        invalid_distinct <- invalid_res$distinct_row_count
+      invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
+      if (!is.null(invalid_result$distinct_row_count)) {
+        invalid_distinct_row_count <- invalid_result$distinct_row_count
       }
     }
-    net_duplicate_rows <- distinct_row_result$distinct_row_count - invalid_distinct
+    net_duplicate_rows <- distinct_row_result$distinct_row_count - invalid_distinct_row_count
     valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows 
   }
   
@@ -221,11 +220,12 @@ def count_distinct_rows_py(table, key_columns):
 
     distinct_row_result <- NULL
     if (result$success) {
-      result$valid_rows <- .get_valid_rows(result, data, config$key_columns)
       distinct_row_result <- .count_distinct_rows(data, config$key_columns)
-
+      valid_rows = .get_valid_rows(result, data, config$key_columns)
+      result <- c(result, list(valid_rows = valid_rows))
+      
       if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        result$duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
+        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
       }
     }
 
