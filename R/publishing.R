@@ -66,6 +66,34 @@ def count_distinct_rows_py(table, key_columns):
   })
 }
 
+#' Append valid rows and duplicate counts using Venn logic
+#'
+#' @param response The result list from the server operation
+#' @param data Original data.frame
+#' @param key_columns Key columns for distinct calculations
+#' @return Modified response list
+#' @keywords internal
+#' @noRd
+.get_valid_rows <- function(response, data, key_columns) {
+  # only for publish and not for dry_publish
+  distinct_row_result <- .count_distinct_rows(data, key_columns)
+  valid_rows <- 0
+
+  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+    invalid_distinct <- 0
+    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+      invalid_res <- .count_distinct_rows(response$invalid_records, key_columns)
+      if (!is.null(invalid_res$distinct_row_count)) {
+        invalid_distinct <- invalid_res$distinct_row_count
+      }
+    }
+    net_duplicate_rows <- distinct_row_result$distinct_row_count - invalid_distinct
+    valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows 
+  }
+  
+  return(valid_rows)
+}
+
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
 # (client version, IP addresses, MAC address) to all Flight operations
