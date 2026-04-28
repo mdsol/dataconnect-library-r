@@ -66,12 +66,12 @@ def count_distinct_rows_py(table, key_columns):
   })
 }
 
-#' Append valid rows and duplicate counts using Venn logic
+#' Calculate valid rows using Venn logic
 #'
-#' @param response The result list from the server operation
+#' @param response The result list from the server operation (expected to contain invalid_records)
 #' @param data Original data.frame
 #' @param key_columns Key columns for distinct calculations
-#' @return Modified response list
+#' @return Integer representing the calculated number of valid rows
 #' @keywords internal
 #' @noRd
 .get_valid_rows <- function(response, data, key_columns) {
@@ -86,10 +86,24 @@ def count_distinct_rows_py(table, key_columns):
         invalid_distinct_row_count <- invalid_result$distinct_row_count
       }
     }
-    net_duplicate_rows <- distinct_row_result$distinct_row_count - invalid_distinct_row_count
-    valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows 
   }
-  
+
+  # Total duplicate rows in the original data (all rows minus distinct rows by key)
+  duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
+
+  # Duplicate rows among the invalid records (all invalid rows minus distinct invalid rows)
+  duplicate_invalid_rows <- nrow(response$invalid_records) - invalid_distinct_row_count
+
+  # Net duplicates: remove the duplicates that are already counted as invalid
+  # (so we don't double-count rows that are both invalid and duplicated)
+  net_duplicate_rows <- duplicate_rows_based_on_keys - duplicate_invalid_rows
+
+  # Final valid rows:
+  #   = all rows
+  #   - invalid rows (as flagged by the server)
+  #   - net duplicates (excluding those already counted as invalid)
+  valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows
+    
   return(valid_rows)
 }
 
