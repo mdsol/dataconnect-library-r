@@ -169,6 +169,8 @@
         errors = result$errors,
         dataset_name = result$dataset_name,
         invalid_record_count = result$invalid_record_count,
+        valid_rows = result$valid_rows,
+        duplicate_rows_based_on_keys = result$duplicate_rows,
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns,
         invalid_records = NULL
@@ -181,8 +183,9 @@
         dataset_name = result$dataset_name,
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
-        dataset_batch_number = result$dataset_batch_number,
         invalid_record_count = result$invalid_record_count,
+        valid_rows = result$valid_rows,
+        duplicate_rows_based_on_keys = result$duplicate_rows,
         invalid_records = NULL
       )
     }
