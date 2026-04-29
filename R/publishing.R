@@ -1,3 +1,45 @@
+
+#' Calculate valid rows using Venn logic
+#'
+#' @param response The result list from the server operation (expected to contain invalid_records)
+#' @param data Original data.frame
+#' @param key_columns Key columns for distinct calculations
+#' @return Integer representing the calculated number of valid rows
+#' @keywords internal
+#' @noRd
+.get_valid_rows <- function(response, data, key_columns) {
+  distinct_row_result <- .count_distinct_rows(data, key_columns)
+  valid_rows <- 0
+  invalid_distinct_row_count <- 0
+
+  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
+    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+      invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
+      if (!is.null(invalid_result$distinct_row_count)) {
+        invalid_distinct_row_count <- invalid_result$distinct_row_count
+      }
+    }
+  }
+
+  # Total duplicate rows in the original data (all rows minus distinct rows by key)
+  duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
+
+  # Duplicate rows among the invalid records (all invalid rows minus distinct invalid rows)
+  duplicate_invalid_rows <- nrow(response$invalid_records) - invalid_distinct_row_count
+
+  # Net duplicates: remove the duplicates that are already counted as invalid
+  # (so we don't double-count rows that are both invalid and duplicated)
+  net_duplicate_rows <- duplicate_rows_based_on_keys - duplicate_invalid_rows
+
+  # Final valid rows:
+  #   = all rows
+  #   - invalid rows (as flagged by the server)
+  #   - net duplicates (excluding those already counted as invalid)
+  valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows
+    
+  return(valid_rows)
+}
+
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
 # (client version, IP addresses, MAC address) to all Flight operations
@@ -114,7 +156,10 @@
 
   tryCatch({
     result <- .do_put_command(client, config, arrow_data)
-
+    if (result$success) {
+      valid_rows = .get_valid_rows(result, data, config$key_columns)
+      result <- c(result, list(valid_rows = valid_rows))
+    }
     return(result)
     }, error = function(e) {
       parsed_error <- .parse_dataconnect_error(conditionMessage(e))
