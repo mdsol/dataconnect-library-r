@@ -156,17 +156,10 @@
 
   tryCatch({
     result <- .do_put_command(client, config, arrow_data)
-    distinct_row_result <- NULL
     if (result$success) {
-      distinct_row_result <- .count_distinct_rows(data, config$key_columns)
       valid_rows = .get_valid_rows(result, data, config$key_columns)
       result <- c(result, list(valid_rows = valid_rows))
-      
-      if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-        result <- c(result, list(duplicate_rows_based_on_keys = nrow(data) - distinct_row_result$distinct_row_count))
-      }
     }
-
     return(result)
     }, error = function(e) {
       parsed_error <- .parse_dataconnect_error(conditionMessage(e))
