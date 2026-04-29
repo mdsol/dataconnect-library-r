@@ -1,4 +1,70 @@
+#' Count distinct rows based on key columns using Python/PyArrow
+#'
+#' @param data Data frame to analyze
+#' @param key_columns List or character vector of key column names
+#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
+#' @keywords internal
+#' @noRd
+.count_distinct_rows <- function(data, key_columns) {
+  
+  # Convert key_columns from list to character vector if needed
+  key_cols <- as.character(unlist(key_columns))
+  
+  # Convert column names to lowercase for case-insensitive comparison
+  key_cols_lower <- tolower(key_cols)
+  data_cols_lower <- tolower(names(data))
+  
+  # Validate key columns exist in data (case-insensitive)
+  missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
+  if (length(missing_cols) > 0) {
+    error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
+    return(list(distinct_row_count = NULL, error_message = error_msg))
+  }
+  
+  # Map key columns to actual data frame column names
+  actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
+  
+  tryCatch({
+    # Convert data frame to Arrow table
+    arrow_table <- arrow::arrow_table(data)
+    
+    # Execute the Python implementation directly
+    reticulate::py_run_string("
+import pyarrow as pa
+import pyarrow.compute as pac
+import uuid
 
+def count_distinct_rows_py(table, key_columns):
+    key_values = []
+    
+    for key_column in key_columns:
+        if len(key_values) > 0:
+            key_values = pac.binary_join_element_wise(
+                key_values,
+                pac.cast(table[key_column], pa.string()),
+                pa.scalar('-'))
+        else:
+            key_values = pac.binary_join_element_wise(
+                pac.cast(table[key_column], pa.string()),
+                pa.scalar('-'))
+    
+    result_array = pa.array([str(uuid.uuid3(uuid.NAMESPACE_DNS, str(key_value))) for key_value in key_values])
+    return len(pac.unique(result_array))
+", convert = FALSE)
+    
+    # Call the Python function
+    # Convert actual_cols to Python list explicitly
+    py_func <- reticulate::py_eval("count_distinct_rows_py", convert = FALSE)
+    py_cols <- reticulate::r_to_py(as.list(actual_cols))
+    distinct_count <- as.integer(reticulate::py_to_r(py_func(arrow_table, py_cols)))
+    
+    return(list(distinct_row_count = distinct_count, error_message = NULL))
+    
+  }, error = function(e) {
+    error_msg <- paste("Error counting distinct rows:", e$message)
+    return(list(distinct_row_count = NULL, error_message = error_msg))
+  })
+}
 #' Calculate valid rows using Venn logic
 #'
 #' @param response The result list from the server operation (expected to contain invalid_records)
