@@ -75,18 +75,25 @@ def count_distinct_rows_py(table, key_columns):
 #' @noRd
 .get_valid_rows <- function(response, data, key_columns) {
   distinct_row_result <- .count_distinct_rows(data, key_columns)
+  # If we couldn't compute distinct row count, we can't reliably calculate valid rows, so return NA
+  if (is.null(distinct_row_result$distinct_row_count)) {
+    warning("Unable to compute valid row count: ", distinct_row_result$error_message)
+    return(NA_integer_)
+    }
+
   valid_rows <- 0
   invalid_distinct_row_count <- 0
   num_invalid_rows <- if (is.null(response$invalid_records)) 0 else nrow(response$invalid_records)
 
-  if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    if (num_invalid_rows > 0) {
-      invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
-      if (!is.null(invalid_result$distinct_row_count)) {
-        invalid_distinct_row_count <- invalid_result$distinct_row_count
-      }
+  if (num_invalid_rows > 0) {
+    invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
+    if (is.null(invalid_result$distinct_row_count)) {
+      warning("Unable to compute valid row count from invalid records: ",
+              invalid_result$error_message)
+      return(NA_integer_)
     }
-  }
+    invalid_distinct_row_count <- invalid_result$distinct_row_count
+}
 
   # Total duplicate rows in the original data (all rows minus distinct rows by key)
   duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count

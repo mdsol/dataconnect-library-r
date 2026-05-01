@@ -282,3 +282,47 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
   # Expect the final valid_rows to be the calculated one (100), not the NULL
   expect_equal(result$valid_rows, 100)
 })
+
+test_that(".get_valid_rows returns NA_integer_ with a warning when distinct count cannot be computed", {
+  # 1. Setup test data with NO column named "missing_key"
+  test_data <- data.frame(
+    subjid = c("001", "002", "003"),
+    measure = c(1.5, 2.3, 3.1)
+  )
+
+  mock_response <- list(
+    success = TRUE,
+    invalid_records = NULL
+  )
+
+  # 2. Use a key that does not exist in the data — this forces
+  # .count_distinct_rows to return distinct_row_count = NULL
+  # with an informative error_message.
+  key_columns <- list("missing_key")
+
+  # 3. Execute and verify it warns + returns NA_integer_ instead of
+  # silently propagating numeric(0) through the Venn arithmetic.
+  expect_warning(
+    result <- .get_valid_rows(mock_response, test_data, key_columns),
+    "Unable to compute valid row count"
+  )
+
+  expect_true(is.na(result))
+  expect_identical(result, NA_integer_)
+  expect_equal(length(result), 1L)
+})
+
+test_that(".get_valid_rows returns NA when distinct count fails on invalid_records", {
+  test_data <- data.frame(subjid = c("001", "002", "003"), measure = 1:3)
+
+  # invalid_records has a *different* schema — missing 'subjid'
+  invalid_df <- data.frame(other_col = c("x", "y"))
+
+  mock_response <- list(success = TRUE, invalid_records = invalid_df)
+
+  expect_warning(
+    result <- .get_valid_rows(mock_response, test_data, list("subjid")),
+    "invalid records"
+  )
+  expect_identical(result, NA_integer_)
+})
