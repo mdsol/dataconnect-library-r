@@ -221,3 +221,108 @@ test_that(".get_valid_rows perfectly handles the complex Venn diagram scenario",
   # 4. Verify the exact diagram output
   expect_equal(result, 85)
 })
+
+test_that(".get_valid_rows handles NULL invalid_records perfectly without crashing to numeric(0)", {
+  # 1. Setup test data: 4 rows total
+  # Distinct keys: "001", "002", "003" (3 distinct rows total, 1 duplicate for "001")
+  test_data <- data.frame(
+    subjid = c("001", "001", "002", "003"),
+    measure = c(1.5, 2.3, 3.1, 4.2)
+  )
+  
+  # 2. Setup response exactly as it comes when everything is valid
+  # No errors means invalid_records is NULL
+  mock_response <- list(
+    success = TRUE,
+    invalid_records = NULL
+  )
+  
+  key_columns <- list("subjid")
+  
+  # 3. Execute the function
+  # Math: 4 total rows - 0 invalid rows - 1 duplicate = 3 Valid Rows
+  result <- .get_valid_rows(mock_response, test_data, key_columns)
+  
+  # 4. Verify the output is exactly a single number, not NULL or numeric(0)
+  expect_equal(result, 3)
+  expect_true(is.numeric(result))
+  expect_false(length(result) == 0, info = "Result evaluated to numeric(0) due to NULL math!")
+})
+
+test_that(".publish correctly overwrites valid_rows without creating duplicate keys", {
+  # 1. Setup dummy data and client (we won't actually use them due to stubs)
+  dummy_client <- list()
+  dummy_data <- data.frame(subjid = "001", val = 1)
+  
+  # 2. Mock what .do_put_command returns natively (with a NULL valid_rows)
+  mock_put_result <- list(
+    success = TRUE, 
+    dataset_name = "DS1TEST",
+    valid_rows = NULL,  # This comes naturally from the response
+    invalid_records = NULL
+  )
+  
+  # 3. Stub the internal functions so .publish doesn't do real work
+  # Tell .publish that when it calls .do_put_command, it gets mock_put_result
+  mockery::stub(.publish, ".do_put_command", mock_put_result)
+  
+  # Tell .publish that when it calculates .get_valid_rows, it just gets 100
+  mockery::stub(.publish, ".get_valid_rows", 100)
+  
+  # 4. Execute the publish command
+  result <- .publish(dummy_client, test_config, dummy_data)
+  
+  # 5. Verifications
+  keys <- names(result)
+  
+  # Expect the length of unique keys to match the length of all keys
+  expect_equal(length(keys), length(unique(keys)), 
+               info = "The resulting list contains duplicate names (like $valid_rows)!")
+               
+  # Expect the final valid_rows to be the calculated one (100), not the NULL
+  expect_equal(result$valid_rows, 100)
+})
+
+test_that(".get_valid_rows returns NA_integer_ with a warning when distinct count cannot be computed", {
+  # 1. Setup test data with NO column named "missing_key"
+  test_data <- data.frame(
+    subjid = c("001", "002", "003"),
+    measure = c(1.5, 2.3, 3.1)
+  )
+
+  mock_response <- list(
+    success = TRUE,
+    invalid_records = NULL
+  )
+
+  # 2. Use a key that does not exist in the data — this forces
+  # .count_distinct_rows to return distinct_row_count = NULL
+  # with an informative error_message.
+  key_columns <- list("missing_key")
+
+  # 3. Execute and verify it warns + returns NA_integer_ instead of
+  # silently propagating numeric(0) through the Venn arithmetic.
+  expect_warning(
+    result <- .get_valid_rows(mock_response, test_data, key_columns),
+    "Unable to compute valid row count"
+  )
+
+  expect_true(is.na(result))
+  expect_identical(result, NA_integer_)
+  expect_equal(length(result), 1L)
+})
+
+test_that(".get_valid_rows returns NA when distinct count fails on invalid_records", {
+  test_data <- data.frame(subjid = c("001", "002", "003"), measure = 1:3)
+
+  # invalid_records has a *different* schema — missing 'subjid'
+  invalid_df <- data.frame(other_col = c("x", "y"))
+
+  mock_response <- list(success = TRUE, invalid_records = invalid_df)
+
+  expect_warning(
+    result <- .get_valid_rows(mock_response, test_data, list("subjid")),
+    "invalid records"
+  )
+  expect_identical(result, NA_integer_)
+})
