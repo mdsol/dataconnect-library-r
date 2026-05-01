@@ -264,10 +264,10 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
   
   # 3. Stub the internal functions so .publish doesn't do real work
   # Tell .publish that when it calls .do_put_command, it gets mock_put_result
-  stub(.publish, ".do_put_command", mock_put_result)
+  mockery::stub(.publish, ".do_put_command", mock_put_result)
   
   # Tell .publish that when it calculates .get_valid_rows, it just gets 100
-  stub(.publish, ".get_valid_rows", 100)
+  mockery::stub(.publish, ".get_valid_rows", 100)
   
   # 4. Execute the publish command
   result <- .publish(dummy_client, test_config, dummy_data)
