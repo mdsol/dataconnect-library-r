@@ -77,9 +77,10 @@ def count_distinct_rows_py(table, key_columns):
   distinct_row_result <- .count_distinct_rows(data, key_columns)
   valid_rows <- 0
   invalid_distinct_row_count <- 0
+  num_invalid_rows <- if (is.null(response$invalid_records)) 0 else nrow(response$invalid_records)
 
   if (!is.null(distinct_row_result) && !is.null(distinct_row_result$distinct_row_count)) {
-    if (!is.null(response$invalid_records) && nrow(response$invalid_records) > 0) {
+    if (num_invalid_rows > 0) {
       invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
       if (!is.null(invalid_result$distinct_row_count)) {
         invalid_distinct_row_count <- invalid_result$distinct_row_count
@@ -91,7 +92,7 @@ def count_distinct_rows_py(table, key_columns):
   duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
 
   # Duplicate rows among the invalid records (all invalid rows minus distinct invalid rows)
-  duplicate_invalid_rows <- nrow(response$invalid_records) - invalid_distinct_row_count
+  duplicate_invalid_rows <- num_invalid_rows - invalid_distinct_row_count
 
   # Net duplicates: remove the duplicates that are already counted as invalid
   # (so we don't double-count rows that are both invalid and duplicated)
@@ -101,7 +102,7 @@ def count_distinct_rows_py(table, key_columns):
   #   = all rows
   #   - invalid rows (as flagged by the server)
   #   - net duplicates (excluding those already counted as invalid)
-  valid_rows <- nrow(data) - nrow(response$invalid_records) - net_duplicate_rows
+  valid_rows <- nrow(data) - num_invalid_rows - net_duplicate_rows
     
   return(valid_rows)
 }
@@ -224,7 +225,7 @@ def count_distinct_rows_py(table, key_columns):
     result <- .do_put_command(client, config, arrow_data)
     if (result$success) {
       valid_rows = .get_valid_rows(result, data, config$key_columns)
-      result <- c(result, list(valid_rows = valid_rows))
+      result$valid_rows <- valid_rows
     }
     return(result)
     }, error = function(e) {
