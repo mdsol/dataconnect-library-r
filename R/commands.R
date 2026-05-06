@@ -170,7 +170,7 @@
         dataset_name = result$dataset_name,
         invalid_record_count = result$invalid_record_count,
         valid_rows = result$valid_rows,
-        duplicate_rows_based_on_keys = result$duplicate_rows_based_on_keys,
+        duplicate_rows_based_on_keys = result$duplicate_rows,
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns,
         invalid_records = NULL
@@ -185,7 +185,7 @@
         dataset_version = result$dataset_version,
         invalid_record_count = result$invalid_record_count,
         valid_rows = result$valid_rows,
-        duplicate_rows_based_on_keys = result$duplicate_rows_based_on_keys,
+        duplicate_rows_based_on_keys = result$duplicate_rows,
         invalid_records = NULL
       )
     }

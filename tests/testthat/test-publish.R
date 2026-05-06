@@ -281,7 +281,7 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
                
   # Expect the final valid_rows to be the calculated one (100), not the NULL
   expect_equal(result$valid_rows, 100)
-  expect_equal(result$duplicate_rows_based_on_keys, 0)
+  expect_equal(result$duplicate_rows, 0)
 })
 
 test_that(".get_valid_rows returns NA_integer_ with a warning when distinct count cannot be computed", {

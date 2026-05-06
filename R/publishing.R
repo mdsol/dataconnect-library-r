@@ -232,7 +232,7 @@ def count_distinct_rows_py(table, key_columns):
     if (result$success) {
       rows_calc <- .get_valid_rows(result, data, config$key_columns)
       result$valid_rows <- rows_calc$valid_rows
-      result$duplicate_rows_based_on_keys <- rows_calc$duplicate_rows_based_on_keys
+      result$duplicate_rows <- rows_calc$duplicate_rows_based_on_keys
     }
     return(result)
     }, error = function(e) {
