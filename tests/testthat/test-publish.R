@@ -183,7 +183,7 @@ test_that(".get_valid_rows calculates valid rows correctly using Venn logic", {
   result <- .get_valid_rows(mock_response, test_data, key_columns)
   
   # 4. Verify the exact mathematical output
-  expect_equal(result, 3)
+  expect_equal(result$valid_rows, 3)
 })
 
 test_that(".get_valid_rows perfectly handles the complex Venn diagram scenario", {
@@ -219,7 +219,7 @@ test_that(".get_valid_rows perfectly handles the complex Venn diagram scenario",
   result <- .get_valid_rows(mock_response, test_data, key_columns)
   
   # 4. Verify the exact diagram output
-  expect_equal(result, 85)
+  expect_equal(result$valid_rows, 85)
 })
 
 test_that(".get_valid_rows handles NULL invalid_records perfectly without crashing to numeric(0)", {
@@ -244,9 +244,9 @@ test_that(".get_valid_rows handles NULL invalid_records perfectly without crashi
   result <- .get_valid_rows(mock_response, test_data, key_columns)
   
   # 4. Verify the output is exactly a single number, not NULL or numeric(0)
-  expect_equal(result, 3)
-  expect_true(is.numeric(result))
-  expect_false(length(result) == 0, info = "Result evaluated to numeric(0) due to NULL math!")
+  expect_equal(result$valid_rows, 3)
+  expect_true(is.numeric(result$valid_rows))
+  expect_equal(length(result), 2L)
 })
 
 test_that(".publish correctly overwrites valid_rows without creating duplicate keys", {
@@ -266,8 +266,8 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
   # Tell .publish that when it calls .do_put_command, it gets mock_put_result
   mockery::stub(.publish, ".do_put_command", mock_put_result)
   
-  # Tell .publish that when it calculates .get_valid_rows, it just gets 100
-  mockery::stub(.publish, ".get_valid_rows", 100)
+  # Tell .publish that when it calculates .get_valid_rows, it gets the new list format
+  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = 100, duplicate_rows_based_on_keys = 0))
   
   # 4. Execute the publish command
   result <- .publish(dummy_client, test_config, dummy_data)
@@ -281,6 +281,7 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
                
   # Expect the final valid_rows to be the calculated one (100), not the NULL
   expect_equal(result$valid_rows, 100)
+  expect_equal(result$duplicate_rows_based_on_keys, 0)
 })
 
 test_that(".get_valid_rows returns NA_integer_ with a warning when distinct count cannot be computed", {
@@ -307,9 +308,10 @@ test_that(".get_valid_rows returns NA_integer_ with a warning when distinct coun
     "Unable to compute valid row count"
   )
 
-  expect_true(is.na(result))
-  expect_identical(result, NA_integer_)
-  expect_equal(length(result), 1L)
+  expect_true(all(is.na(result)))
+  expect_identical(result$valid_rows, NA_integer_)
+  expect_identical(result$duplicate_rows, NA_integer_)
+  expect_equal(length(result), 2L)
 })
 
 test_that(".get_valid_rows returns NA when distinct count fails on invalid_records", {
@@ -324,5 +326,26 @@ test_that(".get_valid_rows returns NA when distinct count fails on invalid_recor
     result <- .get_valid_rows(mock_response, test_data, list("subjid")),
     "invalid records"
   )
-  expect_identical(result, NA_integer_)
+  expect_identical(result$valid_rows, NA_integer_)
+  expect_identical(result$duplicate_rows, NA_integer_)
+})
+
+
+test_that("duplicate_rows_based_on_keys correctly pulls from SDK's internal duplicate_rows", {
+  # Mock data with 1 duplicate
+  test_data <- data.frame(id = c("A", "A", "B"))
+  mock_resp <- list(success = TRUE, invalid_records = NULL)
+  
+  # Run calculation
+  res <- .get_valid_rows(mock_resp, test_data, list("id"))
+  
+  # Simulate the result update in .publish
+  final_result <- list(success = TRUE)
+  final_result$duplicate_rows <- res$duplicate_rows
+  
+  # Simulate the mapping in commands.R
+  sdk_output_key <- final_result$duplicate_rows
+  
+  expect_equal(sdk_output_key, 1L)
+  expect_named(res, c("valid_rows", "duplicate_rows_based_on_keys"))
 })
