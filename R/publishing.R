@@ -78,7 +78,7 @@ def count_distinct_rows_py(table, key_columns):
   # If we couldn't compute distinct row count, we can't reliably calculate valid rows, so return NA
   if (is.null(distinct_row_result$distinct_row_count)) {
     warning("Unable to compute valid row count: ", distinct_row_result$error_message)
-    return(NA_integer_)
+    return(list(valid_rows = NA_integer_, duplicate_rows_based_on_keys = NA_integer_))
     }
 
   valid_rows <- 0
@@ -90,7 +90,7 @@ def count_distinct_rows_py(table, key_columns):
     if (is.null(invalid_result$distinct_row_count)) {
       warning("Unable to compute valid row count from invalid records: ",
               invalid_result$error_message)
-      return(NA_integer_)
+      return(list(valid_rows = NA_integer_, duplicate_rows_based_on_keys = NA_integer_))
     }
     invalid_distinct_row_count <- invalid_result$distinct_row_count
 }
@@ -110,8 +110,7 @@ def count_distinct_rows_py(table, key_columns):
   #   - invalid rows (as flagged by the server)
   #   - net duplicates (excluding those already counted as invalid)
   valid_rows <- nrow(data) - num_invalid_rows - net_duplicate_rows
-    
-  return(valid_rows)
+  return(list(valid_rows = valid_rows, duplicate_rows_based_on_keys = duplicate_rows_based_on_keys))
 }
 
 # Import required functions
@@ -231,8 +230,9 @@ def count_distinct_rows_py(table, key_columns):
   tryCatch({
     result <- .do_put_command(client, config, arrow_data)
     if (result$success) {
-      valid_rows = .get_valid_rows(result, data, config$key_columns)
-      result$valid_rows <- valid_rows
+      rows_calc <- .get_valid_rows(result, data, config$key_columns)
+      result$valid_rows <- rows_calc$valid_rows
+      result$duplicate_rows_based_on_keys <- rows_calc$duplicate_rows_based_on_keys
     }
     return(result)
     }, error = function(e) {
