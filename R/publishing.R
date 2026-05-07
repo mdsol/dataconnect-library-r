@@ -234,7 +234,10 @@ def count_distinct_rows_py(table, key_columns):
     if (result$success) {
       rows_calc <- .get_valid_rows(result, data, config$key_columns)
       result$valid_rows <- rows_calc$valid_rows
-      result$duplicate_rows <- rows_calc$duplicate_rows_based_on_keys
+      # defensive check in case .get_valid_rows couldn't compute distinct row count and returned NA
+      # Prioritize local calculation, fallback to server value if NA/NULL
+      computed_dups <- rows_calc$duplicate_rows_based_on_keys
+      result$duplicate_rows <- if (is.null(computed_dups) || is.na(computed_dups)) result$duplicate_rows_based_on_keys else computed_dups
     }
     return(result)
     }, error = function(e) {
