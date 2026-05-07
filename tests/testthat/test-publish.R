@@ -310,7 +310,7 @@ test_that(".get_valid_rows returns NA_integer_ with a warning when distinct coun
 
   expect_true(all(is.na(result)))
   expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows, NA_integer_)
+  expect_identical(result$duplicate_rows_based_on_keys, NA_integer_)
   expect_equal(length(result), 2L)
 })
 
@@ -327,7 +327,7 @@ test_that(".get_valid_rows returns NA when distinct count fails on invalid_recor
     "invalid records"
   )
   expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows, NA_integer_)
+  expect_identical(result$duplicate_rows_based_on_keys, NA_integer_)
 })
 
 
@@ -341,11 +341,36 @@ test_that("duplicate_rows_based_on_keys correctly pulls from SDK's internal dupl
   
   # Simulate the result update in .publish
   final_result <- list(success = TRUE)
-  final_result$duplicate_rows <- res$duplicate_rows
+  
+  # FIX: Extract using the new long key from .get_valid_rows(), 
+  # but assign it to the short key that commands.R expects
+  final_result$duplicate_rows <- res$duplicate_rows_based_on_keys
   
   # Simulate the mapping in commands.R
   sdk_output_key <- final_result$duplicate_rows
   
   expect_equal(sdk_output_key, 1L)
   expect_named(res, c("valid_rows", "duplicate_rows_based_on_keys"))
+})
+
+test_that(".publish falls back to server duplicate_rows_based_on_keys if calculation is NA", {
+  dummy_client <- list()
+  dummy_data <- data.frame(subjid = "001")
+  
+  # 1. The server provides a baseline value of 99 duplicates
+  mock_put_result <- list(
+    success = TRUE, 
+    dataset_name = "DS1TEST",
+    duplicate_rows_based_on_keys = 99
+  )
+  
+  # 2. We mock the Venn logic to simulate a failure (returning NA)
+  mockery::stub(.publish, ".do_put_command", mock_put_result)
+  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = NA_integer_, duplicate_rows_based_on_keys = NA_integer_))
+  
+  # 3. Execute
+  result <- .publish(dummy_client, list(key_columns = list("subjid")), dummy_data)
+  
+  # 4. Verify the fallback logic kept the server's 99!
+  expect_equal(result$duplicate_rows, 99)
 })
