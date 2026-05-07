@@ -95,7 +95,7 @@ def count_distinct_rows_py(table, key_columns):
       return(list(valid_rows = NA_integer_, duplicate_rows_based_on_keys = NA_integer_))
     }
     invalid_distinct_row_count <- invalid_result$distinct_row_count
-}
+  }
 
   # Total duplicate rows in the original data (all rows minus distinct rows by key)
   duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
@@ -234,11 +234,9 @@ def count_distinct_rows_py(table, key_columns):
     if (result$success) {
       rows_calc <- .get_valid_rows(result, data, config$key_columns)
       result$valid_rows <- rows_calc$valid_rows
-      # defensive check in case .get_valid_rows couldn't compute distinct row count and returned NA
-      # Prioritize local calculation, fallback to server value if NA/NULL
-      computed_dups <- rows_calc$duplicate_rows_based_on_keys
-      result$duplicate_rows <- if (is.null(computed_dups) || is.na(computed_dups)) result$duplicate_rows_based_on_keys else computed_dups
-    }
+      result$duplicate_rows <- rows_calc$duplicate_rows_based_on_keys
+      }    
+    
     return(result)
     }, error = function(e) {
       parsed_error <- .parse_dataconnect_error(conditionMessage(e))

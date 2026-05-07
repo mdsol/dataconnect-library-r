@@ -353,24 +353,3 @@ test_that("duplicate_rows_based_on_keys correctly pulls from SDK's internal dupl
   expect_named(res, c("valid_rows", "duplicate_rows_based_on_keys"))
 })
 
-test_that(".publish falls back to server duplicate_rows_based_on_keys if calculation is NA", {
-  dummy_client <- list()
-  dummy_data <- data.frame(subjid = "001")
-  
-  # 1. The server provides a baseline value of 99 duplicates
-  mock_put_result <- list(
-    success = TRUE, 
-    dataset_name = "DS1TEST",
-    duplicate_rows_based_on_keys = 99
-  )
-  
-  # 2. We mock the Venn logic to simulate a failure (returning NA)
-  mockery::stub(.publish, ".do_put_command", mock_put_result)
-  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = NA_integer_, duplicate_rows_based_on_keys = NA_integer_))
-  
-  # 3. Execute
-  result <- .publish(dummy_client, list(key_columns = list("subjid")), dummy_data)
-  
-  # 4. Verify the fallback logic kept the server's 99!
-  expect_equal(result$duplicate_rows, 99)
-})
