@@ -70,7 +70,9 @@ def count_distinct_rows_py(table, key_columns):
 #' @param response The result list from the server operation (expected to contain invalid_records)
 #' @param data Original data.frame
 #' @param key_columns Key columns for distinct calculations
-#' @return Integer representing the calculated number of valid rows
+#' @return A list containing:
+#'   * `valid_rows`: Integer representing the calculated number of valid rows.
+#'   * `duplicate_rows_based_on_keys`: Integer representing the total number of duplicate rows found locally.
 #' @keywords internal
 #' @noRd
 .get_valid_rows <- function(response, data, key_columns) {
