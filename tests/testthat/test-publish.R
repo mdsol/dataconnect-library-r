@@ -250,9 +250,10 @@ test_that(".get_valid_rows handles NULL invalid_records perfectly without crashi
 })
 
 test_that(".publish correctly overwrites valid_rows without creating duplicate keys", {
-  # 1. Setup dummy data and client (we won't actually use them due to stubs)
+  # 1. Setup dummy data, client, and missing config
   dummy_client <- list()
   dummy_data <- data.frame(subjid = "001", val = 1)
+  test_config <- list(key_columns = list("subjid"))
   
   # 2. Mock what .do_put_command returns natively (with a NULL valid_rows)
   mock_put_result <- list(
@@ -263,11 +264,10 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
   )
   
   # 3. Stub the internal functions so .publish doesn't do real work
-  # Tell .publish that when it calls .do_put_command, it gets mock_put_result
   mockery::stub(.publish, ".do_put_command", mock_put_result)
   
-  # Tell .publish that when it calculates .get_valid_rows, it gets the new list format
-  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = 100, duplicate_rows_based_on_keys = 0))
+  # FIX: Update the mock to match your new clean .get_valid_rows output!
+  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = 100, duplicate_rows = 0))
   
   # 4. Execute the publish command
   result <- .publish(dummy_client, test_config, dummy_data)
@@ -281,6 +281,8 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
                
   # Expect the final valid_rows to be the calculated one (100), not the NULL
   expect_equal(result$valid_rows, 100)
+  
+  # Expect the duplicate rows to map correctly
   expect_equal(result$duplicate_rows, 0)
 })
 
@@ -310,7 +312,7 @@ test_that(".get_valid_rows returns NA_integer_ with a warning when distinct coun
 
   expect_true(all(is.na(result)))
   expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows_based_on_keys, NA_integer_)
+  expect_identical(result$duplicate_rows, NA_integer_)
   expect_equal(length(result), 2L)
 })
 
@@ -327,11 +329,11 @@ test_that(".get_valid_rows returns NA when distinct count fails on invalid_recor
     "invalid records"
   )
   expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows_based_on_keys, NA_integer_)
+  expect_identical(result$duplicate_rows, NA_integer_)
 })
 
 
-test_that("duplicate_rows_based_on_keys correctly pulls from SDK's internal duplicate_rows", {
+test_that("duplicate_rows correctly pulls from SDK's internal calculation", {
   # Mock data with 1 duplicate
   test_data <- data.frame(id = c("A", "A", "B"))
   mock_resp <- list(success = TRUE, invalid_records = NULL)
@@ -341,15 +343,11 @@ test_that("duplicate_rows_based_on_keys correctly pulls from SDK's internal dupl
   
   # Simulate the result update in .publish
   final_result <- list(success = TRUE)
-  
-  # FIX: Extract using the new long key from .get_valid_rows(), 
-  # but assign it to the short key that commands.R expects
-  final_result$duplicate_rows <- res$duplicate_rows_based_on_keys
+  final_result$duplicate_rows <- res$duplicate_rows
   
   # Simulate the mapping in commands.R
   sdk_output_key <- final_result$duplicate_rows
   
   expect_equal(sdk_output_key, 1L)
-  expect_named(res, c("valid_rows", "duplicate_rows_based_on_keys"))
+  expect_named(res, c("valid_rows", "duplicate_rows"))
 })
-
