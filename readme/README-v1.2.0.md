@@ -355,7 +355,7 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 
 ### Output 
 
-Returns the result of publishing validations. After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in `dry_publish()`. 
+Returns the result of publishing validations, including valid_rows (always ≥ 0) and duplicate_rows (net duplicates). After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in `dry_publish()`. 
 
 ### Data Validations 
 
@@ -364,7 +364,7 @@ Returns the result of publishing validations. After successful validation testin
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
 | **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
 | **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
-| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect.                                                 |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. valid_rows is calculated as Total - Invalid - Net Duplicates, ensuring records with overlapping issues are not double-counted.                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
@@ -389,7 +389,7 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 |:---------------------| :---------- |
 | **project_token**    | You can generate this from the Data Connect > Transformations > Custom Code project type |
 | **dataset_name**     | This is the new name of the resulting dataset being created from R IDE. Data Connect expects the dataset name to be unique within the study |
-| **key_columns**      | List of columns that form the composite key that identifies each unique record in the data that is being published. Key columns must not contain null/missing values (for example, `NA`) in any row. |
+| **key_columns**      | List of columns that form the composite key that identifies each unique record. Rows with null/missing values (for example, NA) are flagged as invalid. If omitted, deduplication is skipped and duplicate_rows returns 0.|
 | **source_datasets**  | List of source dataset UUIDs within the study environment where the dataset is published and used to create the data that is being published |
 | **data**             | Data frame which needs to be published |
 | **datetime_formats** | Optional. The expected format for datetime fields in the data frame. This is used to validate that datetime fields in the data frame are in the correct format before publishing to Data Connect. This should be NULL when none of the fields in the data frame are expected to be in date or datetime type.|
@@ -397,7 +397,7 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 
 ### Output 
 
-Returns the status of publish. When the dataset is published successfully, you can access it in Medidata Data Connect for further use. Refer to the Errors section for a comprehensive list of potential exceptions.
+Returns the status of publish, including valid_rows (always ≥ 0) and duplicate_rows (net duplicates). When the dataset is published successfully, you can access it in Medidata Data Connect for further use. Refer to the Errors section for a comprehensive list of potential exceptions.
 
 ### Data Validations 
 
@@ -406,7 +406,7 @@ Returns the status of publish. When the dataset is published successfully, you c
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
 | **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
 | **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
-| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Duplicate rows based on key columns are invalidated and not published to Data Connect.                                                 |
+| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. valid_rows is calculated as Total - Invalid - Net Duplicates, ensuring records with overlapping issues are not double-counted                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
