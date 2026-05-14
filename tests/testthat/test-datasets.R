@@ -153,15 +153,11 @@ test_that(".get_studies sends correct criteria to .list_flights", {
 
   .get_studies(
     client = mock_client,
-    search_study_name = "demo",
-    page = 2,
-    page_size = 50
+    search_study_name = "demo"
   )
 
   expect_equal(captured_criteria$flight_type, "STUDIES")
   expect_equal(captured_criteria$search_study_name, "demo")
-  expect_equal(as.integer(captured_criteria$page), 2L)
-  expect_equal(as.integer(captured_criteria$page_size), 50L)
 })
 
 test_that(".get_studies extracts total_records from first item only", {
@@ -191,9 +187,7 @@ test_that(".get_studies extracts total_records from first item only", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
 
   # Should use total_records from first item only
@@ -219,9 +213,7 @@ test_that(".get_studies calls .extract_data with simplify_data_frame = FALSE", {
 
   .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
 
   expect_false(captured_simplify_param)
@@ -264,9 +256,7 @@ test_that(".get_studies returns correct structure with studies", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
 
   expect_type(result, "list")
@@ -296,9 +286,7 @@ test_that(".get_studies handles empty results", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "nonexistent",
-    page = 1,
-    page_size = 50
+    search_study_name = "nonexistent"
   )
 
   expect_type(result, "list")
@@ -324,9 +312,7 @@ test_that(".get_studies handles NULL data from .extract_data", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
 
   # Should still return total_records from first item
@@ -389,9 +375,7 @@ test_that(".get_studies maps realistic study/environment payload and prints outp
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "onc",
-    page = 1,
-    page_size = 25
+    search_study_name = "onc"
   )
 
   cat("COMPREHENSIVE_GET_STUDIES_PRINT_START\n", file = stderr())
@@ -408,42 +392,15 @@ test_that(".get_studies maps realistic study/environment payload and prints outp
   expect_equal(result$studies[[3]]$environments[[3]]$uuid, "")
 })
 
-test_that(".get_studies extracts pagination from app_metadata if present", {
-  mockery::stub(.get_studies, ".list_flights", function(client, criteria) list())
-
-  mockery::stub(.get_studies, ".extract_app_metadata", function(item) {
-    list(pagination = list(page = 3, page_size = 15, total_pages = 5))
-  })
-  call_count <- 0
-  mockery::stub(.get_studies, "reticulate::iterate", function(iter, fn) {
-    call_count <<- 1
-    fn(list(total_records = 77))
-  })
-  out <- .get_studies(
-    client = list(),
-    search_study_name = "demo",
-    page = 2,
-    page_size = 10
-  )
-  expect_equal(out$pagination$page, 3)
-  expect_equal(out$pagination$page_size, 15)
-  expect_equal(out$pagination$total_pages, 5)
-  expect_equal(out$total_records, 77L)
-})
-
-test_that(".get_studies returns total_records = 0L and correct pagination defaults for empty iterator", {
+test_that(".get_studies returns total_records = 0L for empty iterator", {
   mockery::stub(.get_studies, ".list_flights", function(client, criteria) list())
   mockery::stub(.get_studies, "reticulate::iterate", function(iter, fn) { })
   out <- .get_studies(
     client = list(),
-    search_study_name = "demo",
-    page = 2,
-    page_size = 50
+    search_study_name = "demo"
   )
   expect_type(out, "list")
   expect_equal(out$total_records, 0L)
-  expect_type(out$pagination, "list")
-  expect_equal(out$pagination$page, 2)
-  expect_equal(out$pagination$page_size, 50)
-  expect_equal(out$pagination$total_pages, 0L)
+  expect_type(out$studies, "list")
+  expect_equal(length(out$studies), 0)
 })

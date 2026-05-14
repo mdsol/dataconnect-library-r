@@ -339,55 +339,27 @@ StudyEnvironment <- setRefClass(
 #' List studies from a Flight server
 #' @param client A FlightClient object
 #' @param search_study_name full or part of the study name to search by
-#' @param page page number for paginated results
-#' @param page_size number of results per page
-#' @return A named list with `total_records`, `pagination`, and `studies`
+#' @return A named list with `total_records` and `studies`
 #' @keywords internal
 #' @noRd
 .get_studies <- function(
   client,
-  search_study_name = "",
-  page,
-  page_size
+  search_study_name = ""
 ) {
   criteria <- list(
     flight_type = "STUDIES",
-    search_study_name = search_study_name,
-    page = page,
-    page_size = page_size
+    search_study_name = search_study_name
   )
 
   py_iter <- .list_flights(client, criteria)
   studies <- list()
   total_records <- 0L
   is_first_item <- TRUE
-  pagination <- list(
-    page = page,
-    page_size = page_size,
-    total_pages = 0L
-  )
 
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
 
       if (is_first_item) {
-        app_metadata <- .extract_app_metadata(item)
-
-        if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
-
-          if (!is.null(app_metadata$pagination$total_pages)) {
-            pagination$total_pages <<- as.integer(app_metadata$pagination$total_pages)
-          }
-
-          if (!is.null(app_metadata$pagination$page)) {
-            pagination$page <<- as.integer(app_metadata$pagination$page)
-          }
-
-          if (!is.null(app_metadata$pagination$page_size)) {
-            pagination$page_size <<- as.integer(app_metadata$pagination$page_size)
-          }
-        }
-
         if (!is.null(item$total_records)) {
           total_records <<- as.integer(item$total_records)
         }
@@ -423,7 +395,6 @@ StudyEnvironment <- setRefClass(
 
   return(list(
     total_records = total_records,
-    pagination = pagination,
     studies = studies
   ))
 }
