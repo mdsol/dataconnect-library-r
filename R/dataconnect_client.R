@@ -15,12 +15,10 @@
 #'
 #' @section Methods:
 #' \describe{
-#'  \item{\code{studies(search_study_name, page, page_size)}}{
+#'  \item{\code{studies(search_study_name)}}{
 #'     Retrieve all available studies.
 #'     \itemize{
 #'       \item \code{search_study_name}: Filter for study names (optional, default: "")
-#'       \item \code{page}: Page number for paginated results (optional, default: 1)
-#'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
 #'     Returns a list with \code{total_records} (integer) and \code{studies} array.
 #'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
@@ -89,9 +87,7 @@
 #'
 #' # Get studies
 #' studies <- client$studies(
-#'   search_study_name = "my_study_name",
-#'   page = 1,
-#'   page_size = 10
+#'   search_study_name = "my_study_name"
 #' )
 #'
 #' # Get datasets for a study environment
@@ -148,16 +144,12 @@ DataConnectClient <- setRefClass(
     },
 
     studies = function(
-      search_study_name = "",
-      page = 1,
-      page_size = 50
+      search_study_name = ""
     ) {
       "Get all studies"
       studies_spec <- .get_studies(
         .self$.client,
-        search_study_name,
-        page,
-        page_size
+        search_study_name
       )
 
       return(studies_spec)

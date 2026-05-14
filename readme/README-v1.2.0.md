@@ -235,12 +235,12 @@ A data frame with two columns: **name** and **value**
 
 ### Description
 
-Retrieves a list of studies where the user has permission to manage custom code projects. To handle a high volume of studies, use the optional study name search or pagination parameters. 
+Retrieves a list of studies where the user has permission to manage custom code projects. Use the optional study name search parameter to filter results.
 
 ### Usage
 
 ```r
-studies(search_study_name = "", page = 1, page_size = 10)
+studies(search_study_name = "")
 ```
 
 ### Arguments
@@ -248,12 +248,10 @@ studies(search_study_name = "", page = 1, page_size = 10)
 | Argument               | Description                                              |
 | :--------------------- | :------------------------------------------------------- |
 | **search_study_name**  | Optional. The approximate name of the study.             |
-| **page**               | Optional. Page number for paginated results. Default: 1. |
-| **page_size**          | Optional. Number of results per page. Default: 50.       |
 
 ### Output 
 
-Returns a list containing `total_records` (total studies available across all pages) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` (total studies available) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
 
 ### datasets()
 

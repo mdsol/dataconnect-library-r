@@ -32,14 +32,10 @@ test_that(".get_studies preserves environments as named list entries", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
 
-  # Validate the raw result metadata before deep-inspecting environment objects.
-  raw_total <- if (!is.null(result$total_count)) result$total_count else result$total_records
-  expect_equal(raw_total, 1L)
+  expect_equal(result$total_records, 1L)
   expect_length(result$studies, 1)
 
   envs <- result$studies[[1]]$environments
@@ -78,9 +74,7 @@ test_that(".get_studies preserves environment entries with missing fields", {
 
   result <- .get_studies(
     client = list(),
-    search_study_name = "",
-    page = 1,
-    page_size = 50
+    search_study_name = ""
   )
   envs <- result$studies[[1]]$environments
 
