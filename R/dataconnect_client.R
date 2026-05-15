@@ -144,9 +144,16 @@ DataConnectClient <- setRefClass(
     },
 
     studies = function(
-      search_study_name = ""
+      search_study_name = "",
+      page = NULL,
+      page_size = NULL
     ) {
       "Get all studies"
+
+      if (!is.null(page) || !is.null(page_size)) {
+        warning("'page' and 'page_size' parameters are deprecated and have no effect. studies() now returns all results in a single response.")
+      }
+
       studies_spec <- .get_studies(
         .self$.client,
         search_study_name
