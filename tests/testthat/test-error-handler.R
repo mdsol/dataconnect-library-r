@@ -596,3 +596,13 @@ test_that(".normalize_enodia_error produces valid ISO 8601 timestamp", {
   ts <- as.POSIXct(parsed$timestamp, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   expect_false(is.na(ts))
 })
+
+test_that(".parse_dataconnect_error correctly parses streaming error details", {
+  msg <- "FlightServerError: STR_STREAMING_ERROR::{\"error_code\":\"STR_001\", \"message\":\"Failed after 10 rows.\"}"
+  
+  result <- .parse_dataconnect_error(msg)
+  
+  # Verificăm proprietățile reale ale obiectului DataConnectError
+  expect_equal(result$error_code, "STR_001")
+  expect_equal(result$message, "Failed after 10 rows.")
+})

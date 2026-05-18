@@ -351,3 +351,86 @@ test_that("duplicate_rows correctly pulls from SDK's internal calculation", {
   expect_equal(sdk_output_key, 1L)
   expect_named(res, c("valid_rows", "duplicate_rows"))
 })
+
+test_that(".do_put_command converts STR_STREAMING_ERROR to a soft failure when is_dry_publish is TRUE", {
+  # 1. Create minimal mock client that passes initial phases
+  read_call_count <- 0
+  
+  mock_writer <- list(
+    write_table = function(x) NULL,
+    done_writing = function() NULL,
+    close = function() NULL
+  )
+  
+  # Mock reader that returns different values on successive calls:
+  # First call: valid JSON status response
+  # Second call: should trigger stream error (but we'll inject error earlier)
+  mock_reader <- list(
+    read = function() {
+      read_call_count <<- read_call_count + 1
+      if (read_call_count == 1) {
+        # First read returns valid JSON status
+        charToRaw('{"status": true, "dataset_name": "test", "invalid_record_count": 5}')
+      } else {
+        # Second read would return error buffer, but we'll inject error in open_stream instead
+        charToRaw('')
+      }
+    }
+  )
+  
+  mock_client <- list(
+    do_put = function(descriptor, schema, options) {
+      list(mock_writer, mock_reader)
+    }
+  )
+  
+  # 2. THE KEY: Stub reticulate::import to return a mock pyarrow module
+  # When .do_put_command calls reticulate::import("pyarrow", convert = FALSE),
+  # we return a mock that throws STR_STREAMING_ERROR when open_stream is called
+  mock_pa <- list(
+    ipc = list(
+      open_stream = function(...) {
+        stop("FlightServerError: STR_STREAMING_ERROR::{\"error_code\":\"STR_001\", \"message\":\"Mid-stream failure\"}")
+      }
+    )
+  )
+  
+  mockery::stub(
+    .do_put_command,
+    "reticulate::import",
+    function(module, convert = TRUE) {
+      if (module == "pyarrow.flight") {
+        # Return mock for pa_flight import (used earlier in function)
+        list(
+          FlightDescriptor = list(
+            for_path = function(x) list(path = x)
+          )
+        )
+      } else if (module == "pyarrow") {
+        # Return our mock that will throw the streaming error
+        mock_pa
+      } else {
+        stop("Unexpected module import: ", module)
+      }
+    }
+  )
+  
+  # Also stub .get_flight_options to avoid side effects
+  mockery::stub(.do_put_command, ".get_flight_options", function() list())
+  
+  mock_config <- list(is_dry_publish = TRUE)
+  mock_data <- data.frame(a = 1)
+  
+  # 3. Execute and verify - for dry_publish, outer tryCatch converts error to soft failure
+  # The inner tryCatch detects STREAMING_ERROR, calls stop(), and outer tryCatch
+  # should preserve that classification because the original error text is included
+  result <- .do_put_command(mock_client, mock_config, mock_data)
+  
+  # Verify it's a soft failure (not an exception)
+  expect_type(result, "list")
+  expect_false(result$success)
+  
+  # Verify the soft failure retains the streaming classification and backend details
+  expect_equal(result$error_type, "STREAMING_ERROR")
+  expect_true(grepl("STR_001|Mid-stream failure", result$error_message))
+})

@@ -213,8 +213,16 @@
         dry_publish_or_publish_result$invalid_records <- do.call(rbind, lapply(chunks, as.data.frame))
       }
     }, error = function(e) {
-      # No error batches in the stream — nothing to read
-    })
+       if (grepl("STR_STREAMING_ERROR", conditionMessage(e))) {
+         if (isTRUE(config$is_dry_publish)) {
+           stop(conditionMessage(e))
+         } else {
+           stop("Flight stream terminated unexpectedly during publish: ", conditionMessage(e))
+         }
+       } else {
+         stop(e)
+       }
+     })
 
     dry_publish_or_publish_result
 
@@ -261,6 +269,11 @@
   } else if (grepl("AUTHORIZATION_ERROR: ", error_msg)) {
     list(
       type = "AUTHORIZATION",
+      message = error_msg
+    )
+  } else if (grepl("STR_STREAMING_ERROR", error_msg)) {
+    list(
+      type = "STREAMING_ERROR",
       message = error_msg
     )
   } else {
