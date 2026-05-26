@@ -165,6 +165,10 @@ DataConnectClient <- setRefClass(
     datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
       "Get all datasets for a study environment"
 
+      if(!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
+        warning("You only need to provide study_environment_uuid; the Study context is now resolved automatically.")
+      }
+
       return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, page, page_size))
     },
 
