@@ -1,120 +1,3 @@
-#' Count distinct rows based on key columns using Python/PyArrow
-#'
-#' @param data Data frame to analyze
-#' @param key_columns List or character vector of key column names
-#' @return List with distinct_row_count (integer or NULL) and error_message (character or NULL)
-#' @keywords internal
-#' @noRd
-.count_distinct_rows <- function(data, key_columns) {
-  
-  # Convert key_columns from list to character vector if needed
-  key_cols <- as.character(unlist(key_columns))
-  
-  # Convert column names to lowercase for case-insensitive comparison
-  key_cols_lower <- tolower(key_cols)
-  data_cols_lower <- tolower(names(data))
-  
-  # Validate key columns exist in data (case-insensitive)
-  missing_cols <- key_cols[!key_cols_lower %in% data_cols_lower]
-  if (length(missing_cols) > 0) {
-    error_msg <- paste("Key column(s) not found:", paste(missing_cols, collapse = ", "), ".")
-    return(list(distinct_row_count = NULL, error_message = error_msg))
-  }
-  
-  # Map key columns to actual data frame column names
-  actual_cols <- names(data)[match(key_cols_lower, data_cols_lower)]
-  
-  tryCatch({
-    # Convert data frame to Arrow table
-    arrow_table <- arrow::arrow_table(data)
-    
-    # Execute the Python implementation directly
-    reticulate::py_run_string("
-import pyarrow as pa
-import pyarrow.compute as pac
-import uuid
-
-def count_distinct_rows_py(table, key_columns):
-    key_values = []
-    
-    for key_column in key_columns:
-        if len(key_values) > 0:
-            key_values = pac.binary_join_element_wise(
-                key_values,
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-        else:
-            key_values = pac.binary_join_element_wise(
-                pac.cast(table[key_column], pa.string()),
-                pa.scalar('-'))
-    
-    result_array = pa.array([str(uuid.uuid3(uuid.NAMESPACE_DNS, str(key_value))) for key_value in key_values])
-    return len(pac.unique(result_array))
-", convert = FALSE)
-    
-    # Call the Python function
-    # Convert actual_cols to Python list explicitly
-    py_func <- reticulate::py_eval("count_distinct_rows_py", convert = FALSE)
-    py_cols <- reticulate::r_to_py(as.list(actual_cols))
-    distinct_count <- as.integer(reticulate::py_to_r(py_func(arrow_table, py_cols)))
-    
-    return(list(distinct_row_count = distinct_count, error_message = NULL))
-    
-  }, error = function(e) {
-    error_msg <- paste("Error counting distinct rows:", e$message)
-    return(list(distinct_row_count = NULL, error_message = error_msg))
-  })
-}
-#' Calculate valid rows using Venn logic
-#'
-#' @param response The result list from the server operation (expected to contain invalid_records)
-#' @param data Original data.frame
-#' @param key_columns Key columns for distinct calculations
-#' @return A list containing:
-#'   * `valid_rows`: Integer representing the calculated number of valid rows.
-#'   * `duplicate_rows`: Integer representing the total number of duplicate rows found locally.
-#' @keywords internal
-#' @noRd
-.get_valid_rows <- function(response, data, key_columns) {
-  distinct_row_result <- .count_distinct_rows(data, key_columns)
-  # If we couldn't compute distinct row count, we can't reliably calculate valid rows, so return NA
-  if (is.null(distinct_row_result$distinct_row_count)) {
-    warning("Unable to compute valid row count: ", distinct_row_result$error_message)
-    return(list(valid_rows = NA_integer_, duplicate_rows = NA_integer_))
-    }
-
-  valid_rows <- 0
-  invalid_distinct_row_count <- 0
-  num_invalid_rows <- if (is.null(response$invalid_records)) 0 else nrow(response$invalid_records)
-
-  if (num_invalid_rows > 0) {
-    invalid_result <- .count_distinct_rows(response$invalid_records, key_columns)
-    if (is.null(invalid_result$distinct_row_count)) {
-      warning("Unable to compute valid row count from invalid records: ",
-              invalid_result$error_message)
-      return(list(valid_rows = NA_integer_, duplicate_rows = NA_integer_))
-    }
-    invalid_distinct_row_count <- invalid_result$distinct_row_count
-  }
-
-  # Total duplicate rows in the original data (all rows minus distinct rows by key)
-  duplicate_rows_based_on_keys <- nrow(data) - distinct_row_result$distinct_row_count
-
-  # Duplicate rows among the invalid records (all invalid rows minus distinct invalid rows)
-  duplicate_invalid_rows <- num_invalid_rows - invalid_distinct_row_count
-
-  # Net duplicates: remove the duplicates that are already counted as invalid
-  # (so we don't double-count rows that are both invalid and duplicated)
-  net_duplicate_rows <- duplicate_rows_based_on_keys - duplicate_invalid_rows
-
-  # Final valid rows:
-  #   = all rows
-  #   - invalid rows (as flagged by the server)
-  #   - net duplicates (excluding those already counted as invalid)
-  valid_rows <- nrow(data) - num_invalid_rows - net_duplicate_rows
-  return(list(valid_rows = valid_rows, duplicate_rows = net_duplicate_rows))
-}
-
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
 # (client version, IP addresses, MAC address) to all Flight operations
@@ -229,17 +112,11 @@ def count_distinct_rows_py(table, key_columns):
     warning("Uploading empty dataset")
   }
 
-  tryCatch({
+tryCatch({
     result <- .do_put_command(client, config, arrow_data)
-    if (result$success) {
-      rows_calc <- .get_valid_rows(result, data, config$key_columns)
-      result$valid_rows <- rows_calc$valid_rows
-      result$duplicate_rows <- rows_calc$duplicate_rows
-      }    
-
     return(result)
-    }, error = function(e) {
-      parsed_error <- .parse_dataconnect_error(conditionMessage(e))
-      .throw_dataconnect_error(parsed_error)
+  }, error = function(e) {
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
   })
 }

@@ -155,119 +155,24 @@ test_that("dry_publish returns server-validated counts regardless of column casi
   expect_equal(result$duplicate_rows, 1)
 })
 
-test_that(".get_valid_rows calculates valid rows correctly using Venn logic", {
-  # 1. Setup test data: 5 total rows
-  # Distinct keys: "001", "002", "003", "004" (4 distinct rows total)
-  test_data <- data.frame(
-    subjid = c("001", "001", "002", "003", "004"),
-    measure = c(1.5, 2.3, 3.1, 4.2, 5.0)
-  )
-  
-  # 2. Setup invalid records returned by the server
-  # The server flagged both "001" records as invalid
-  # Distinct invalid keys: "001" (1 distinct invalid row)
-  invalid_df <- data.frame(
-    subjid = c("001", "001"),
-    measure = c(1.5, 2.3)
-  )
-  
-  mock_response <- list(
-    success = TRUE,
-    invalid_records = invalid_df
-  )
-  
-  key_columns <- list("subjid")
-  
-  # 3. Execute the function
-  # Math: 4 (Total Distinct) - 1 (Invalid Distinct) = 3 Valid Rows
-  result <- .get_valid_rows(mock_response, test_data, key_columns)
-  
-  # 4. Verify the exact mathematical output
-  expect_equal(result$valid_rows, 3)
-})
-
-test_that(".get_valid_rows perfectly handles the complex Venn diagram scenario", {
-  # 1. Setup the 100-row test data
-  # To get 12 duplicates, we create 13 rows with the exact same key ("overlap_key") 
-  # and 87 unique rows. Total: 100 rows, 88 distinct.
-  test_data <- data.frame(
-    id = c(rep("overlap_key", 13), paste0("unique_row_", 1:87)),
-    measure = 1:100
-  )
-  
-  # 2. Setup the 5 invalid rows returned by the server
-  # To get 2 invalid duplicates, we include the "overlap_key" 3 times.
-  # Plus 2 distinct invalid keys. Total: 5 rows, 3 distinct.
-  invalid_df <- data.frame(
-    id = c("overlap_key", "overlap_key", "overlap_key", "unique_row_1", "unique_row_2"),
-    measure = c(1, 2, 3, 14, 15)
-  )
-  
-  mock_response <- list(
-    success = TRUE,
-    invalid_records = invalid_df
-  )
-  
-  key_columns <- list("id")
-  
-  # 3. Execute the function
-  # The math it will do internally based on our discrete fix:
-  # total_duplicates = 100 - 88 = 12
-  # invalid_duplicates = 5 - 3 = 2
-  # net_duplicates = 12 - 2 = 10
-  # valid_rows = 100 - 5 - 10 = 85
-  result <- .get_valid_rows(mock_response, test_data, key_columns)
-  
-  # 4. Verify the exact diagram output
-  expect_equal(result$valid_rows, 85)
-})
-
-test_that(".get_valid_rows handles NULL invalid_records perfectly without crashing to numeric(0)", {
-  # 1. Setup test data: 4 rows total
-  # Distinct keys: "001", "002", "003" (3 distinct rows total, 1 duplicate for "001")
-  test_data <- data.frame(
-    subjid = c("001", "001", "002", "003"),
-    measure = c(1.5, 2.3, 3.1, 4.2)
-  )
-  
-  # 2. Setup response exactly as it comes when everything is valid
-  # No errors means invalid_records is NULL
-  mock_response <- list(
-    success = TRUE,
-    invalid_records = NULL
-  )
-  
-  key_columns <- list("subjid")
-  
-  # 3. Execute the function
-  # Math: 4 total rows - 0 invalid rows - 1 duplicate = 3 Valid Rows
-  result <- .get_valid_rows(mock_response, test_data, key_columns)
-  
-  # 4. Verify the output is exactly a single number, not NULL or numeric(0)
-  expect_equal(result$valid_rows, 3)
-  expect_true(is.numeric(result$valid_rows))
-  expect_equal(length(result), 2L)
-})
-
-test_that(".publish correctly overwrites valid_rows without creating duplicate keys", {
+test_that(".publish correctly returns server-side record metrics without key duplication", {
   # 1. Setup dummy data, client, and missing config
   dummy_client <- list()
   dummy_data <- data.frame(subjid = "001", val = 1)
   test_config <- list(key_columns = list("subjid"))
   
-  # 2. Mock what .do_put_command returns natively (with a NULL valid_rows)
+  # 2. Mock what .do_put_command returns natively using the new server-side contract
   mock_put_result <- list(
     success = TRUE, 
     dataset_name = "DS1TEST",
-    valid_rows = NULL,  # This comes naturally from the response
+    valid_record_count = 100,      
+    duplicate_record_count = 0,    
+    invalid_record_count = 0,
     invalid_records = NULL
   )
   
-  # 3. Stub the internal functions so .publish doesn't do real work
+  # 3. Stub the internal functions so .publish doesn't do real network actions
   mockery::stub(.publish, ".do_put_command", mock_put_result)
-  
-  # FIX: Update the mock to match your new clean .get_valid_rows output!
-  mockery::stub(.publish, ".get_valid_rows", list(valid_rows = 100, duplicate_rows = 0))
   
   # 4. Execute the publish command
   result <- .publish(dummy_client, test_config, dummy_data)
@@ -275,81 +180,14 @@ test_that(".publish correctly overwrites valid_rows without creating duplicate k
   # 5. Verifications
   keys <- names(result)
   
-  # Expect the length of unique keys to match the length of all keys
+  # Ensure the list properties are entirely unique (no duplicate keys in return payload map)
   expect_equal(length(keys), length(unique(keys)), 
-               info = "The resulting list contains duplicate names (like $valid_rows)!")
+               info = "The resulting list contains duplicate key allocations!")
                
-  # Expect the final valid_rows to be the calculated one (100), not the NULL
-  expect_equal(result$valid_rows, 100)
-  
-  # Expect the duplicate rows to map correctly
-  expect_equal(result$duplicate_rows, 0)
-})
-
-test_that(".get_valid_rows returns NA_integer_ with a warning when distinct count cannot be computed", {
-  # 1. Setup test data with NO column named "missing_key"
-  test_data <- data.frame(
-    subjid = c("001", "002", "003"),
-    measure = c(1.5, 2.3, 3.1)
-  )
-
-  mock_response <- list(
-    success = TRUE,
-    invalid_records = NULL
-  )
-
-  # 2. Use a key that does not exist in the data — this forces
-  # .count_distinct_rows to return distinct_row_count = NULL
-  # with an informative error_message.
-  key_columns <- list("missing_key")
-
-  # 3. Execute and verify it warns + returns NA_integer_ instead of
-  # silently propagating numeric(0) through the Venn arithmetic.
-  expect_warning(
-    result <- .get_valid_rows(mock_response, test_data, key_columns),
-    "Unable to compute valid row count"
-  )
-
-  expect_true(all(is.na(result)))
-  expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows, NA_integer_)
-  expect_equal(length(result), 2L)
-})
-
-test_that(".get_valid_rows returns NA when distinct count fails on invalid_records", {
-  test_data <- data.frame(subjid = c("001", "002", "003"), measure = 1:3)
-
-  # invalid_records has a *different* schema — missing 'subjid'
-  invalid_df <- data.frame(other_col = c("x", "y"))
-
-  mock_response <- list(success = TRUE, invalid_records = invalid_df)
-
-  expect_warning(
-    result <- .get_valid_rows(mock_response, test_data, list("subjid")),
-    "invalid records"
-  )
-  expect_identical(result$valid_rows, NA_integer_)
-  expect_identical(result$duplicate_rows, NA_integer_)
-})
-
-
-test_that("duplicate_rows correctly pulls from SDK's internal calculation", {
-  # Mock data with 1 duplicate
-  test_data <- data.frame(id = c("A", "A", "B"))
-  mock_resp <- list(success = TRUE, invalid_records = NULL)
-  
-  # Run calculation
-  res <- .get_valid_rows(mock_resp, test_data, list("id"))
-  
-  # Simulate the result update in .publish
-  final_result <- list(success = TRUE)
-  final_result$duplicate_rows <- res$duplicate_rows
-  
-  # Simulate the mapping in commands.R
-  sdk_output_key <- final_result$duplicate_rows
-  
-  expect_equal(sdk_output_key, 1L)
-  expect_named(res, c("valid_rows", "duplicate_rows"))
+  # Validate that the new server-side contract fields pass through natively
+  expect_equal(result$valid_record_count, 100)
+  expect_equal(result$duplicate_record_count, 0)
+  expect_equal(result$invalid_record_count, 0)
 })
 
 test_that(".do_put_command converts STR_STREAMING_ERROR to a soft failure when is_dry_publish is TRUE", {
