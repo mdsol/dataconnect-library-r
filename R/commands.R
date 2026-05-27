@@ -168,8 +168,9 @@
         is_date_formats_valid = date_formats_valid,
         errors = result$errors,
         dataset_name = result$dataset_name,
-        invalid_record_count = result$invalid_record_count,
-        valid_rows = result$valid_rows,
+        invalid_record_count = as.integer(result$invalid_record_count),
+        valid_rows = as.integer(result$valid_record_count),
+        duplicate_rows = as.integer(result$duplicate_record_count),
         dataset_version = result$dataset_version,
         no_of_columns = result$no_of_columns,
         invalid_records = NULL
@@ -182,8 +183,9 @@
         dataset_name = result$dataset_name,
         dataset_uuid = result$dataset_uuid,
         dataset_version = result$dataset_version,
-        invalid_record_count = result$invalid_record_count,
-        valid_rows = result$valid_rows,
+        invalid_record_count = as.integer(result$invalid_record_count),
+        valid_rows = as.integer(result$valid_record_count),
+        duplicate_rows = as.integer(result$duplicate_record_count),
         invalid_records = NULL
       )
     }

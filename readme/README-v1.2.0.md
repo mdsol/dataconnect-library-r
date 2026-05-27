@@ -353,7 +353,10 @@ dry_publish(project_token, dataset_name, key_columns, source_datasets, data, dat
 
 ### Output 
 
-Returns the result of publishing validations, including valid_rows (always ≥ 0) and duplicate_rows (net duplicates). After successful validation testing, you can expect a successful publication into Data Connect with the publish() function. Refer to the Validations section below for a list of validations performed in `dry_publish()`. 
+Returns the result of publishing validations as a list containing clean, server-side data-quality metrics:
+* **`valid_record_count`**: Number of clean records matching platform requirements (always ≥ 0).
+* **`duplicate_record_count`**: Gross duplicate records identified across the payload composite keys.
+* **`invalid_record_count`**: Number of records containing validation errors or missing required keys.
 
 ### Data Validations 
 
@@ -361,8 +364,8 @@ Returns the result of publishing validations, including valid_rows (always ≥ 0
 |:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Invalid Input**    | Required argument is missing                                                                                                                                                                                                                                                                                   |
 | **project_token**     | 1. Project Token is valid and generated from the Data Connect > Transformations > Custom Code project type. This is the new name of the resulting dataset created from R IDE <br>2. More than one dataset cannot be published into a project<br>3. Only the project owner can publish datasets into a project. |
-| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
-| **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Valid Rows = Total - (Invalid + Net Duplicates). This formula eliminates double-counting for records that are both invalid and duplicated.                                                 |
+| **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                           |
+| **key_columns** | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
@@ -395,7 +398,10 @@ publish(project_token, dataset_name, key_columns, source_datasets, data, datetim
 
 ### Output 
 
-Returns the status of publish including valid_rows (always ≥ 0, can be 0 when publish errors out) and duplicate_rows (net duplicates). When the dataset is published successfully, you can access it in Medidata Data Connect for further use. Refer to the Errors section for a comprehensive list of potential exceptions.
+Returns the status of publish as a list containing the final backend execution results:
+* **`valid_record_count`**: Total structural records written successfully to the destination table.
+* **`duplicate_record_count`**: Gross row duplication counters.
+* **`invalid_record_count`**: Total failure rows excluded during the network stream.
 
 ### Data Validations 
 
