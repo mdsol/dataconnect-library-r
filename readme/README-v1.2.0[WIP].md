@@ -1,9 +1,14 @@
+> [!WARNING]
+> **\[WIP\] — This document is under active development and has not been released.**
+> Content may be incomplete or subject to change. For the latest stable documentation, see [README-v1.1.0.md](README-v1.1.0.md).
+
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
 **Viewing version 1.2.0** — [View all versions](https://github.com/mdsol/dataconnect-library-r/tags)
 
 **To switch versions:**
-  * Click the *tag selector ▼* above → *Tags* tab → select your version.
+In the top-right corner of this page, below the file list header, select *Switch branches/tags* → open the *Tags* tab → choose your version.
+Files marked `[WIP]` are under active development and not yet released.
 
 - [Installation](#installation)
 - [What's New in v1.2.0](#whats-new-in-v120)
