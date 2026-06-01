@@ -272,3 +272,108 @@ test_that(".do_put_command converts STR_STREAMING_ERROR to a soft failure when i
   expect_equal(result$error_type, "STREAMING_ERROR")
   expect_true(grepl("STR_001|Mid-stream failure", result$error_message))
 })
+
+test_that(".do_put_command gracefully handles empty error stream (python.builtin.NoneType)", {
+  
+  read_call_count <- 0
+  
+  # Mock the reader to return a valid JSON first, and a Python None object second
+  mock_reader <- list(
+    read = function() {
+      read_call_count <<- read_call_count + 1
+      if (read_call_count == 1) {
+        # First read: Server returns successful metadata JSON
+        charToRaw('{"status": true, "dataset_name": "test", "invalid_record_count": 0, "valid_record_count": 2, "duplicate_record_count": 1}')
+      } else {
+        # Second read: Simulate the Python NoneType object returned by the optimized backend
+        structure(list(), class = c("python.builtin.NoneType", "python.builtin.object"))
+      }
+    }
+  )
+  
+  mock_writer <- list(write_table = function(x) NULL, done_writing = function() NULL, close = function() NULL)
+  mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
+  
+  # Stub reticulate and options so it runs in pure R
+  mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, ".get_flight_options", list())
+  
+  mock_config <- list(is_dry_publish = TRUE)
+  mock_data <- data.frame(subjid = c("001", "002"))
+  
+  # Execute the command
+  result <- .do_put_command(mock_client, mock_config, mock_data)
+  
+  # Verifications: It should NOT crash, and invalid_records should be NULL
+  expect_true(result$success)
+  expect_equal(result$valid_rows, 2)
+  expect_equal(result$duplicate_rows, 1)
+  expect_null(result$invalid_records)
+})
+
+# ==============================================================================
+# EDGE CASE 2: Chunking Aggregation (Handling massive invalid record streams)
+# ==============================================================================
+test_that(".do_put_command correctly aggregates multiple chunked batches of invalid records", {
+  
+  read_call_count <- 0
+  
+  mock_reader <- list(
+    read = function() {
+      read_call_count <<- read_call_count + 1
+      if (read_call_count == 1) {
+        # Server returns failure due to invalid records
+        charToRaw('{"status": false, "dataset_name": "test", "invalid_record_count": 4}')
+      } else {
+        # Return a dummy valid raw buffer to trigger stream opening
+        raw(10) 
+      }
+    }
+  )
+  
+  mock_writer <- list(write_table = function(x) NULL, done_writing = function() NULL, close = function() NULL)
+  mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
+  
+  # Create an IPC reader mock that emits 2 distinct batches, then stops
+  batch_count <- 0
+  mock_ipc_reader <- list(
+    read_next_batch = function() {
+      batch_count <<- batch_count + 1
+      if (batch_count == 1) {
+        data.frame(id = 1, error = "invalid format")
+      } else if (batch_count == 2) {
+        data.frame(id = 2, error = "missing key")
+      } else {
+        stop("StopIteration") # Simulates the end of the Python stream
+      }
+    }
+  )
+  
+  # Stub reticulate to return our mocked PyArrow IPC stream
+  mock_pa <- list(ipc = list(open_stream = function(...) mock_ipc_reader))
+  
+  mockery::stub(.do_put_command, "reticulate::import", function(module, ...) {
+    if (module == "pyarrow") return(mock_pa)
+    list(FlightDescriptor = list(for_path = function(x) list(path = x)))
+  })
+  
+  mockery::stub(.do_put_command, ".get_flight_options", list())
+  
+  # Pass through the Arrow conversion since our mock batches are already data frames
+  mockery::stub(.do_put_command, "arrow::as_arrow_table", function(x) x) 
+  
+  mock_config <- list(is_dry_publish = TRUE)
+  mock_data <- data.frame(a = 1)
+  
+  # Execute the command
+  result <- .do_put_command(mock_client, mock_config, mock_data)
+  
+  # Verifications: It should fail (success = FALSE), but successfully rbind both chunks!
+  expect_false(result$success)
+  expect_equal(result$invalid_record_count, 4)
+  
+  # The invalid records should be a single dataframe with 2 rows (combining both batches)
+  expect_true(is.data.frame(result$invalid_records))
+  expect_equal(nrow(result$invalid_records), 2)
+  expect_equal(result$invalid_records$id, c(1, 2))
+})
