@@ -197,23 +197,28 @@
     tryCatch({
       pa <- reticulate::import("pyarrow", convert = FALSE)
       error_buf <- reader$read()
-      ipc_reader <- pa$ipc$open_stream(error_buf)
+      
+      if (!is.null(error_buf) && !inherits(error_buf, "python.builtin.NoneType") && !inherits(error_buf, "pyarrow.lib.NoneType")) {
+        ipc_reader <- pa$ipc$open_stream(error_buf)
 
-      # Each batch is converted to an Arrow Table immediately so the Python batch
-      # can be GC'd before the next is read — safe for huge invalid-record counts.
-      # arrow::concat_tables() is O(n); a single as.data.frame() call at the end
-      chunks <- list()
-      repeat {
-        batch <- tryCatch(
-          ipc_reader$read_next_batch(),
-          error = function(e) NULL  # StopIteration signals end of stream
-        )
-        if (is.null(batch)) break
-        chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
+        # Each batch is converted to an Arrow Table immediately so the Python batch
+        # can be GC'd before the next is read — safe for huge invalid-record counts.
+        # arrow::concat_tables() is O(n); a single as.data.frame() call at the end
+        chunks <- list()
+        repeat {
+          batch <- tryCatch(
+            ipc_reader$read_next_batch(),
+            error = function(e) NULL  # StopIteration signals end of stream
+          )
+          if (is.null(batch)) break
+          chunks <- c(chunks, list(arrow::as_arrow_table(batch)))
+        }
+        
+        if (length(chunks) > 0) {
+          dry_publish_or_publish_result$invalid_records <- do.call(rbind, lapply(chunks, as.data.frame))
+        }
       }
-      if (length(chunks) > 0) {
-        dry_publish_or_publish_result$invalid_records <- do.call(rbind, lapply(chunks, as.data.frame))
-      }
+      
     }, error = function(e) {
        if (grepl("STR_STREAMING_ERROR", conditionMessage(e))) {
          if (isTRUE(config$is_dry_publish)) {
@@ -224,7 +229,7 @@
        } else {
          stop(e)
        }
-     })
+    })
 
     dry_publish_or_publish_result
 
