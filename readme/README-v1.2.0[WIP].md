@@ -7,7 +7,7 @@ To use this library, you must have a valid iMedidata account and access to requi
 **Viewing version 1.2.0** — [View all versions](https://github.com/mdsol/dataconnect-library-r/tags)
 
 **To switch versions:**
-In the top-left corner of this page, below the "Files" list header, select *Switch branches/tags* → open the *Tags* tab → choose your version.
+In the top-left corner of this page, below the "Files" list header, open drop-down list, select *Switch branches/tags* → open the *Tags* tab → choose your version.
 Files marked `[WIP]` are under active development and not yet released.
 
 - [Installation](#installation)
