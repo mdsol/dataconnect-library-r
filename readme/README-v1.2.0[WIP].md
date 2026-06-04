@@ -362,6 +362,14 @@ Returns the result of publishing validations as a list containing clean, server-
 * **`valid_record_count`**: Number of clean records matching platform requirements (always ≥ 0).
 * **`duplicate_record_count`**: Gross duplicate records identified across the payload composite keys.
 * **`invalid_record_count`**: Number of records containing validation errors or missing required keys.
+* **`invalid_records`**: A data frame containing the rows that failed validation. Each row is the original record with an additional `_invalid_reason` column describing the errors. The `_invalid_reason` column contains comma-separated entries in the format `column_name:error_code`.
+
+#### Error codes in `_invalid_reason`
+
+| Error Code          | Description                                                                                |
+|:--------------------|:-------------------------------------------------------------------------------------------|
+| **null_key_column** | A key column contains a null/missing value (`NA`) in this row.                             |
+| **invalid_value**   | A key column value is invalid. |
 
 ### Data Validations 
 
@@ -372,7 +380,7 @@ Returns the result of publishing validations as a list containing clean, server-
 | **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                           |
 | **key_columns** | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
-| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
 
 
@@ -407,6 +415,14 @@ Returns the status of publish as a list containing the final backend execution r
 * **`valid_record_count`**: Total structural records written successfully to the destination table.
 * **`duplicate_record_count`**: Gross row duplication counters.
 * **`invalid_record_count`**: Total failure rows excluded during the network stream.
+* **`invalid_records`**: A data frame containing the rows that failed validation. Each row is the original record with an additional `_invalid_reason` column describing the errors. The `_invalid_reason` column contains comma-separated entries in the format `column_name:error_code`.
+
+#### Error codes in `_invalid_reason`
+
+| Error Code          | Description                                                    |
+|:--------------------|:---------------------------------------------------------------|
+| **null_key_column** | A key column contains a null/missing value (`NA`) in this row. |
+| **invalid_value**   | A key column value is invalid.                                 |
 
 ### Data Validations 
 
@@ -417,7 +433,7 @@ Returns the status of publish as a list containing the final backend execution r
 | **dataset_name**     | Maximum length of 15 characters and must only contain alphanumeric characters and underscores                                                                                                                                                                                                                  |
 | **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
-| **data**             | Invalid column name ‘{column.name}’, it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
+| **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
 
 ### collect()
