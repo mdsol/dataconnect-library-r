@@ -48,6 +48,10 @@ dc <-init(
 
 ```
 
+*Note:* The `init()` example above assumes that we're working with iMedidata production. If you need to work with the `Innovate` (pre-production) stage for any reason, add an additional `url` parameter to the `init()` function as shown below:
+
+`dc <- init(token = userToken, url = "enodia-gateway-innovate.platform.imedidata.com")`
+
 ### Get all available studies
 
 Get all available studies or search for a study by name.

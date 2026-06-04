@@ -45,7 +45,20 @@ Follow the instructions in the aforementioned Installation Guide to install the 
 
 # What's New in v1.2.0
 
-* To be added as stories complete for v1.2.0 release.
+* Pagination removed from `studies()`. The function now returns all studies and their environments in a single response — no page looping required.
+  * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
+* Updated `valid_rows` calculation in `publish()` and `dry_publish()` to prevent double-counting records that are both invalid and duplicated:
+  * `valid_rows = total_rows − invalid_rows − net_duplicate_rows`.
+  * `valid_rows` is always ≥ 0. `duplicate_rows` now reflects net duplicates among valid records only. 
+* **key_columns** behavior updated in `publish()` and `dry_publish()`.
+  * Rows with null or missing values in key columns are now flagged as invalid.
+  * If `key_columns` are not provided, deduplication is skipped and
+  `duplicate_rows` returns 0
+* Validation Failure Diagnostics:
+  * When `publish()` or `dry_publish()` fails validation, a structured "**_invalid_records**" table is now returned alongside the error. 
+  * The table contains all original data frame columns plus `_invalid_reason`: a comma-separated string listing every validation error for that record, each prefixed with the column name (`column_name:reason`). 
+  * One row is returned per invalid record regardless of how many errors it has. Errors reported: `null_key_column` (null or empty value in a key column) and `invalid_value` (value not parseable as a valid datetime). 
+  * A column that is both a key column and a datetime column with an `NA` value will report both errors in `_invalid_reason`. 
 
 # Quick Start
 
@@ -256,7 +269,10 @@ studies(search_study_name = "")
 
 ### Output 
 
-Returns a list containing `total_records` (total studies available) and a `studies` array. Each study includes `name`, `uuid`, and an `environments` array. Each environment includes `name` and `uuid`.
+Returns a list containing `total_records` and a `studies` array. 
+* `total_records` reflects the count of all studies, which the user has access to, and matching ths search pattern (if provided). 
+* Each study includes `name`, `uuid`, and an `environments` array. 
+* Each environment includes `name` and `uuid`.
 
 ### datasets()
 
@@ -383,6 +399,12 @@ Returns the result of publishing validations as a list containing clean, server-
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
 
+### Data Validation Failures
+- When validation fails, the SDK returns the original data frame with an appended `error` column.
+- Each invalid record appears once per error type (a row with multiple errors produces multiple result rows).
+- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_DATETIME` (value not parseable as valid datetime).
+- A summary is printed to the console for immediate visibility.
+- The full invalid records table is accessible programmatically from the error object.
 
 ### publish()
 
@@ -435,6 +457,13 @@ Returns the status of publish as a list containing the final backend execution r
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
 | **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
+
+### Data Validation Failures
+- When validation fails, the SDK returns the original data frame with an appended `error` column.
+- Each invalid record appears once per error type (a row with multiple errors produces multiple result rows).
+- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_DATETIME` (value not parseable as valid datetime).
+- A summary is printed to the console for immediate visibility.
+- The full invalid records table is accessible programmatically from the error object.
 
 ### collect()
 
