@@ -402,7 +402,7 @@ Returns the result of publishing validations as a list containing clean, server-
 ### Data Validation Failures
 - When validation fails, the SDK returns the original data frame with an appended `error` column.
 - Each invalid record appears once per error type (a row with multiple errors produces multiple result rows).
-- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_DATETIME` (value not parseable as valid datetime).
+- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
 
@@ -461,7 +461,7 @@ Returns the status of publish as a list containing the final backend execution r
 ### Data Validation Failures
 - When validation fails, the SDK returns the original data frame with an appended `error` column.
 - Each invalid record appears once per error type (a row with multiple errors produces multiple result rows).
-- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_DATETIME` (value not parseable as valid datetime).
+- Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
 
