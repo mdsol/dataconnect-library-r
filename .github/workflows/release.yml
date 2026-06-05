@@ -63,14 +63,17 @@ jobs:
         PKG_VERSION=$(grep "Version:" DESCRIPTION | awk '{print $2}')
         PKG_NAME=$(grep "Package:" DESCRIPTION | awk '{print $2}')
         
-        # Append [WIP] to version if is_wip checkbox is selected
+        # Keep original version for artifact filename (built by task build-library)
+        ARTIFACT_VERSION="${PKG_VERSION}"
+        
+        # Append [WIP] to version if is_wip checkbox is selected (for tag/release only)
         if [ "${{ github.event.inputs.is_wip }}" = "true" ]; then
           PKG_VERSION="${PKG_VERSION}[WIP]"
         fi
         
         echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
         echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
-        echo "filename=target/${PKG_NAME}_${PKG_VERSION}.tar.gz" >> $GITHUB_OUTPUT
+        echo "filename=target/${PKG_NAME}_${ARTIFACT_VERSION}.tar.gz" >> $GITHUB_OUTPUT
 
     - name: Check existing tag
       id: check_tag
