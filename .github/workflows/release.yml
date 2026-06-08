@@ -65,25 +65,29 @@ jobs:
         
         # Keep original version for artifact filename (built by task build-library)
         ARTIFACT_VERSION="${PKG_VERSION}"
+        TAG_VERSION="${PKG_VERSION}"  # Git tag version (clean, no special chars)
+        RELEASE_VERSION="${PKG_VERSION}"  # Release name version
         
-        # Append [WIP] to version if is_wip checkbox is selected (for tag/release only)
+        # Append [WIP] to release version if is_wip checkbox is selected
+        # (Git tags cannot contain [ or ], so TAG_VERSION stays clean)
         if [ "${{ github.event.inputs.is_wip }}" = "true" ]; then
-          PKG_VERSION="${PKG_VERSION}[WIP]"
+          RELEASE_VERSION="${PKG_VERSION}[WIP]"
         fi
         
         echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
-        echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
+        echo "version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+        echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
         echo "filename=target/${PKG_NAME}_${ARTIFACT_VERSION}.tar.gz" >> $GITHUB_OUTPUT
 
     - name: Check existing tag
       id: check_tag
       run: |
-        if git rev-parse --verify "v${{ steps.pkg-info.outputs.version }}" >/dev/null 2>&1; then
+        if git show-ref --tags --verify --quiet "refs/tags/v${{ steps.pkg-info.outputs.tag_version }}"; then
           echo "tag_exists=true" >> $GITHUB_OUTPUT
-          echo "Tag v${{ steps.pkg-info.outputs.version }} already exists, will not create duplicate"
+          echo "Tag v${{ steps.pkg-info.outputs.tag_version }} already exists, will not create duplicate"
         else
           echo "tag_exists=false" >> $GITHUB_OUTPUT
-          echo "Tag v${{ steps.pkg-info.outputs.version }} does not exist yet"
+          echo "Tag v${{ steps.pkg-info.outputs.tag_version }} does not exist yet"
         fi
 
     - name: Find previous tag
@@ -217,7 +221,7 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         name: "Release ${{ steps.pkg-info.outputs.version }}"
-        tag: "v${{ steps.pkg-info.outputs.version }}"
+        tag: "v${{ steps.pkg-info.outputs.tag_version }}"
         commit: ${{ github.sha }}
         artifacts: "${{ steps.pkg-info.outputs.filename }}"
         bodyFile: .github/release-notes.md
