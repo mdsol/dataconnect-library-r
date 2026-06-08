@@ -78,7 +78,7 @@ jobs:
     - name: Check existing tag
       id: check_tag
       run: |
-        if git rev-parse "v${{ steps.pkg-info.outputs.version }}" >/dev/null 2>&1; then
+        if git rev-parse --verify "v${{ steps.pkg-info.outputs.version }}" >/dev/null 2>&1; then
           echo "tag_exists=true" >> $GITHUB_OUTPUT
           echo "Tag v${{ steps.pkg-info.outputs.version }} already exists, will not create duplicate"
         else
