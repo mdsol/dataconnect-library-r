@@ -270,7 +270,7 @@ studies(search_study_name = "")
 ### Output 
 
 Returns a list containing `total_records` and a `studies` array. 
-* `total_records` reflects the count of all studies, which the user has access to, and matching ths search pattern (if provided). 
+* `total_records` reflects the count of all studies, which the user has access to, and matching the search pattern (if provided). 
 * Each study includes `name`, `uuid`, and an `environments` array. 
 * Each environment includes `name` and `uuid`.
 

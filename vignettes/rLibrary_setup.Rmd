@@ -48,7 +48,7 @@ install_miniforge()
 
 ```
 
-### Windows users: If you are using Windows, please run the following command in R to set up the Python environment for the dataconnect library. This step is not required for Linux or MacOS users.
+### Windows users: If you are using Windows, please run the following command in R to set up the Python environment for the dataconnect library. This step is not required for Linux or macOS users.
 
 ```{r eval=FALSE}
 Sys.setenv(RETICULATE_PYTHON = "C:/Users/YOUR_USERNAME/miniforge3/envs/dataconnect-library-r/python.exe")
