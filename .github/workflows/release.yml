@@ -9,6 +9,11 @@ on:
         description: 'Version to release (leave empty for auto)'
         required: false
         default: ''
+      is_wip:
+        description: 'Mark as WIP release'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.event.pull_request.number || github.ref }}-ci
@@ -57,9 +62,18 @@ jobs:
       run: |
         PKG_VERSION=$(grep "Version:" DESCRIPTION | awk '{print $2}')
         PKG_NAME=$(grep "Package:" DESCRIPTION | awk '{print $2}')
+        
+        # Keep original version for artifact filename (built by task build-library)
+        ARTIFACT_VERSION="${PKG_VERSION}"
+        
+        # Append [WIP] to version if is_wip checkbox is selected (for tag/release only)
+        if [ "${{ github.event.inputs.is_wip }}" = "true" ]; then
+          PKG_VERSION="${PKG_VERSION}[WIP]"
+        fi
+        
         echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
         echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
-        echo "filename=target/${PKG_NAME}_${PKG_VERSION}.tar.gz" >> $GITHUB_OUTPUT
+        echo "filename=target/${PKG_NAME}_${ARTIFACT_VERSION}.tar.gz" >> $GITHUB_OUTPUT
 
     - name: Check existing tag
       id: check_tag
@@ -209,5 +223,5 @@ jobs:
         bodyFile: .github/release-notes.md
         token: ${{ secrets.GITHUB_TOKEN }}
         draft: false
-        prerelease: ${{ contains(steps.pkg-info.outputs.version, '-rc') || contains(steps.pkg-info.outputs.version, '-b') || contains(steps.pkg-info.outputs.version, '-a') }}
+        prerelease: ${{ contains(steps.pkg-info.outputs.version, '-rc') || contains(steps.pkg-info.outputs.version, '-b') || contains(steps.pkg-info.outputs.version, '-a') || contains(steps.pkg-info.outputs.version, '[WIP]') }}
         skipIfReleaseExists: true
