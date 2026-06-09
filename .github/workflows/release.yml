@@ -65,13 +65,13 @@ jobs:
         
         # Keep original version for artifact filename (built by task build-library)
         ARTIFACT_VERSION="${PKG_VERSION}"
-        TAG_VERSION="${PKG_VERSION}"  # Git tag version (clean, no special chars)
+        TAG_VERSION="${PKG_VERSION}"  # Git tag version
         RELEASE_VERSION="${PKG_VERSION}"  # Release name version
         
-        # Append [WIP] to release version if is_wip checkbox is selected
-        # (Git tags cannot contain [ or ], so TAG_VERSION stays clean)
+        # Append -WIP suffix if is_wip checkbox is selected
         if [ "${{ github.event.inputs.is_wip }}" = "true" ]; then
-          RELEASE_VERSION="${PKG_VERSION}[WIP]"
+          TAG_VERSION="${PKG_VERSION}-WIP"
+          RELEASE_VERSION="${PKG_VERSION}-WIP"
         fi
         
         echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
@@ -227,5 +227,5 @@ jobs:
         bodyFile: .github/release-notes.md
         token: ${{ secrets.GITHUB_TOKEN }}
         draft: false
-        prerelease: ${{ contains(steps.pkg-info.outputs.version, '-rc') || contains(steps.pkg-info.outputs.version, '-b') || contains(steps.pkg-info.outputs.version, '-a') || contains(steps.pkg-info.outputs.version, '[WIP]') }}
+        prerelease: ${{ contains(steps.pkg-info.outputs.version, '-rc') || contains(steps.pkg-info.outputs.version, '-b') || contains(steps.pkg-info.outputs.version, '-a') || contains(steps.pkg-info.outputs.version, '-WIP') }}
         skipIfReleaseExists: true
