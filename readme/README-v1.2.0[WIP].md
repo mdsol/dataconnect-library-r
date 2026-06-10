@@ -49,7 +49,8 @@ Follow the instructions in the aforementioned Installation Guide to install the 
   * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
 * Updated `valid_rows` calculation in `publish()` and `dry_publish()` to prevent double-counting records that are both invalid and duplicated:
   * `valid_rows = total_rows − invalid_rows − net_duplicate_rows`.
-  * `valid_rows` is always ≥ 0. `duplicate_rows` now reflects net duplicates among valid records only. 
+  * `valid_rows` is always ≥ 0. 
+  * `duplicate_rows`: number of rows sharing the same `key_columns` values as at least one other row in the dataset being published. Includes rows that were also counted in `invalid_record_count`.  
 * **key_columns** behavior updated in `publish()` and `dry_publish()`.
   * Rows with null or missing values in key columns are now flagged as invalid.
   * If `key_columns` are not provided, deduplication is skipped and
