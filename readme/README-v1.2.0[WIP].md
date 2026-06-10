@@ -378,14 +378,19 @@ Returns the result of publishing validations as a list containing clean, server-
 * **`valid_record_count`**: Number of records that will be successfully published to the dataset in Data Connect (always ≥ 0).
 * **`duplicate_record_count`**: Number of records that are duplicate based on the key fields configured.
 * **`invalid_record_count`**: Records erroring out data validations & will not be published to the dataset in Data Connect
-* **`invalid_records`**: A data frame containing the rows that failed validation. Each row is the original record with an additional `_invalid_reason` column describing the errors. The `_invalid_reason` column contains comma-separated entries in the format `column_name:error_code`.
+
+When SDK validation fails, the returned error also includes _invalid_records:
+* **`invalid_records`**: A table with all original input columns plus `_invalid_reason`.
+* **`_invalid_reason`**: Comma-separated validation reasons in the format `column_name:reason`.
+* One row is returned per invalid record, even when the record has multiple validation errors.
+* The full `_invalid_records` table is accessible programmatically from the error object. 
 
 #### Error codes in `_invalid_reason`
 
 | Error Code          | Description                                                                                |
 |:--------------------|:-------------------------------------------------------------------------------------------|
 | **null_key_column** | A key column contains a null/missing value (`NA`) in this row.                             |
-| **invalid_value**   | A key column value is invalid. |
+| **invalid_value**   | A column value is invalid. |
 
 ### Data Validations 
 
@@ -397,7 +402,9 @@ Returns the result of publishing validations as a list containing clean, server-
 | **key_columns** | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br>                |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
-| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. <br>3. Date/datetime invalid-value validation is enforced for all configured date/datetime columns, including key and non-key columns.      |
+| **validation failures** | Validation failures are returned in `_invalid_records` with one row per `invalid record` and merged `_invalid_reason` entries. Supported reasons include `null_key_column` and `invalid_value` (for non-parseable date/datetime values).
+|
 
 ### Data Validation Failures
 - When validation fails, the SDK returns the original data frame with an appended `error` column.
@@ -437,14 +444,17 @@ Returns the status of publish as a list containing the final backend execution r
 * **`valid_record_count`**: Number of records that will be successfully published to the dataset in Data Connect
 * **`duplicate_record_count`**: Number of records that are duplicate based on the key fields configured
 * **`invalid_record_count`**: Records erroring out data validations & will not be published to the dataset in Data Connect
-* **`invalid_records`**: A data frame containing the rows that failed validation. Each row is the original record with an additional `_invalid_reason` column describing the errors. The `_invalid_reason` column contains comma-separated entries in the format `column_name:error_code`.
+* **`invalid_records`**: A table with all original input columns plus `_invalid_reason`
+* **`_invalid_reason`**:  Comma-separated validation reasons in the format `column_name:reason`
+* One row is returned per invalid record, even when the record has multiple validation errors
+* The full `_invalid_records` table is accessible programmatically from the error object
 
 #### Error codes in `_invalid_reason`
 
 | Error Code          | Description                                                    |
 |:--------------------|:---------------------------------------------------------------|
 | **null_key_column** | A key column contains a null/missing value (`NA`) in this row. |
-| **invalid_value**   | A key column value is invalid.                                 |
+| **invalid_value**   | A column value is invalid.                                 |
 
 ### Data Validations 
 
@@ -456,7 +466,7 @@ Returns the status of publish as a list containing the final backend execution r
 | **key_columns**      | 1. Key columns are valid column names from the data frame being published <br>2. Key columns must not contain null/missing values (for example, `NA`) in any row<br> 3. Maps directly to the server-side metrics payload: `valid_record_count`, `duplicate_record_count`, and `invalid_record_count` without double-penalizing overlapping row states.                                                 |
 | **source_datasets**  | 1. Source Dataset is a valid dataset UUID <br>2. Source Dataset is from the same study environment.                                                                                                                                                                                                            |
 | **data**             | Invalid column name '{column.name}', it must only contain alphanumeric characters and underscores, with a maximum length of 20 characters.                                                                                                                                                                     |
-| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame.                                                                                                                  |
+| **datetime_formats** | 1. Date or Date time format is not from the acceptable list of formats <br> 2. Date/Datetime format cannot be provided for a field that is not parsed as a Date/DateTime field in data frame. <br> 3. Date/datetime invalid-value validation is enforced for all configured date/datetime columns, including key and non-key columns. |
 
 ### Data Validation Failures
 - When validation fails, the SDK returns the original data frame with an appended `error` column.
