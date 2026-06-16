@@ -67,3 +67,104 @@ test_that("arrow table to R data.frame type mapping is as expected", {
 	expect_type(df$timestamp_col2, "double") # Arrow date64 and timestamp returns numeric
 })
 
+# ── .cast_to_catalog_types tests ─────────────────────────────────────────────
+
+source("../../R/datasets.R")
+
+test_that(".cast_to_catalog_types casts double columns to int32 when catalog says int32", {
+  skip_if_not_installed("arrow")
+
+  # Simulate data from Snowflake where integer columns arrive as double
+  tbl <- arrow::arrow_table(
+    id = arrow::Array$create(c(1.0, 2.0, 3.0), type = arrow::float64()),
+    name = arrow::Array$create(c("a", "b", "c"), type = arrow::string()),
+    value = arrow::Array$create(c(10.0, 20.0, 30.0), type = arrow::float64())
+  )
+
+  # Catalog schema says id and value should be int32
+  catalog_schema <- arrow::schema(
+    id = arrow::int32(),
+    name = arrow::string(),
+    value = arrow::int32()
+  )
+
+  result <- .cast_to_catalog_types(tbl, catalog_schema)
+
+  expect_equal(result$schema$GetFieldByName("id")$type$ToString(), "int32")
+  expect_equal(result$schema$GetFieldByName("name")$type$ToString(), "string")
+  expect_equal(result$schema$GetFieldByName("value")$type$ToString(), "int32")
+
+  # Verify data values are preserved
+  df <- as.data.frame(result)
+  expect_equal(df$id, c(1L, 2L, 3L))
+  expect_equal(df$value, c(10L, 20L, 30L))
+})
+
+test_that(".cast_to_catalog_types casts double columns to int64 when catalog says int64", {
+  skip_if_not_installed("arrow")
+  skip_if_not_installed("bit64")
+
+  tbl <- arrow::arrow_table(
+    big_id = arrow::Array$create(c(1.0, 2.0, 3.0), type = arrow::float64())
+  )
+
+  catalog_schema <- arrow::schema(
+    big_id = arrow::int64()
+  )
+
+  result <- .cast_to_catalog_types(tbl, catalog_schema)
+
+  expect_equal(result$schema$GetFieldByName("big_id")$type$ToString(), "int64")
+})
+
+test_that(".cast_to_catalog_types does not cast double when catalog also says double", {
+  skip_if_not_installed("arrow")
+
+  tbl <- arrow::arrow_table(
+    measurement = arrow::Array$create(c(1.5, 2.7, 3.9), type = arrow::float64())
+  )
+
+  catalog_schema <- arrow::schema(
+    measurement = arrow::float64()
+  )
+
+  result <- .cast_to_catalog_types(tbl, catalog_schema)
+
+  expect_equal(result$schema$GetFieldByName("measurement")$type$ToString(), "double")
+  df <- as.data.frame(result)
+  expect_equal(df$measurement, c(1.5, 2.7, 3.9))
+})
+
+test_that(".cast_to_catalog_types handles NULL inputs gracefully", {
+  skip_if_not_installed("arrow")
+
+  tbl <- arrow::arrow_table(
+    x = arrow::Array$create(c(1.0, 2.0), type = arrow::float64())
+  )
+
+  # NULL catalog schema returns table unchanged
+  expect_identical(.cast_to_catalog_types(tbl, NULL), tbl)
+
+  # NULL table returns NULL
+  expect_null(.cast_to_catalog_types(NULL, arrow::schema(x = arrow::int32())))
+})
+
+test_that(".cast_to_catalog_types skips columns not in data", {
+  skip_if_not_installed("arrow")
+
+  tbl <- arrow::arrow_table(
+    id = arrow::Array$create(c(1.0, 2.0), type = arrow::float64())
+  )
+
+  # Catalog has extra column that doesn't exist in data
+  catalog_schema <- arrow::schema(
+    id = arrow::int32(),
+    extra_col = arrow::int32()
+  )
+
+  result <- .cast_to_catalog_types(tbl, catalog_schema)
+
+  expect_equal(result$schema$GetFieldByName("id")$type$ToString(), "int32")
+  expect_equal(result$num_columns, 1L)
+})
+

@@ -278,6 +278,84 @@ StudyEnvironment <- setRefClass(
   })
 }
 
+#' Get the catalog schema for a dataset via get_flight_info
+#'
+#' Retrieves the expected column types from the data catalog by calling
+#' get_flight_info on the Arrow Flight Server. The catalog schema represents
+#' the intended data types (e.g., Integer) which may differ from how Snowflake
+#' stores and returns them (e.g., as Double/float64).
+#'
+#' @param client A FlightClient object
+#' @param ticket_data A list containing the ticket data (dataset identifiers)
+#' @return An Arrow Schema from the data catalog, or NULL if unavailable
+#' @keywords internal
+#' @noRd
+.get_catalog_schema <- function(client, ticket_data) {
+  tryCatch({
+    pa_flight <- reticulate::import("pyarrow.flight")
+
+    # Build a FlightDescriptor from ticket_data (same format as ticket)
+    json_str <- jsonlite::toJSON(ticket_data, auto_unbox = TRUE)
+    descriptor <- pa_flight$FlightDescriptor$for_command(charToRaw(as.character(json_str)))
+
+    options <- .get_flight_options()
+
+    # Get flight info which contains the catalog schema
+    flight_info <- client$get_flight_info(descriptor, options = options)
+
+    # Extract and return the schema
+    if (!is.null(flight_info) && !is.null(flight_info$schema)) {
+      return(arrow::as_schema(flight_info$schema))
+    }
+
+    return(NULL)
+  }, error = function(e) {
+    # If get_flight_info fails, return NULL and proceed without type casting
+    return(NULL)
+  })
+}
+
+#' Cast double columns to integer based on catalog schema
+#'
+#' Compares the fetched data schema with the catalog schema and casts
+#' columns that are float64/double in the data but integer (int32/int64)
+#' in the catalog to their correct integer types.
+#'
+#' @param table An Arrow Table with the fetched data
+#' @param catalog_schema An Arrow Schema representing the expected catalog types
+#' @return An Arrow Table with corrected column types
+#' @keywords internal
+#' @noRd
+.cast_to_catalog_types <- function(table, catalog_schema) {
+  if (is.null(table) || is.null(catalog_schema)) {
+    return(table)
+  }
+
+  data_col_names <- names(table)
+
+  for (i in seq_len(catalog_schema$num_fields)) {
+    catalog_field <- catalog_schema$field(i - 1L)
+    col_name <- catalog_field$name
+
+    # Check if this column exists in the data
+    if (!(col_name %in% data_col_names)) next
+
+    data_type_str <- table[[col_name]]$type$ToString()
+    catalog_type_str <- catalog_field$type$ToString()
+
+    # Cast double/float64 columns to integer types if catalog says integer
+    if (data_type_str == "double" && catalog_type_str %in% c("int32", "int64")) {
+      target_type <- if (catalog_type_str == "int32") arrow::int32() else arrow::int64()
+      table[[col_name]] <- tryCatch(
+        table[[col_name]]$cast(target_type),
+        error = function(e) table[[col_name]]
+      )
+    }
+  }
+
+  return(table)
+}
+
 #' Get raw dataset data (internal function)
 #'
 #' @param client A FlightClient object
@@ -300,8 +378,18 @@ StudyEnvironment <- setRefClass(
   # Create a Flight Ticket object from the encoded JSON string
   ticket <- pa_flight$Ticket(charToRaw(as.character(json_str)))
 
+  # Get the catalog schema to determine expected column types
+  catalog_schema <- .get_catalog_schema(client, ticket_data)
+
   # Get the data
-  return(.get_data(client, ticket, chunked = chunked, chunk_callback = chunk_callback))
+  result <- .get_data(client, ticket, chunked = chunked, chunk_callback = chunk_callback)
+
+  # Apply catalog type corrections (e.g., cast double to integer where catalog expects integer)
+  if (!is.null(result) && !is.null(catalog_schema)) {
+    result <- .cast_to_catalog_types(result, catalog_schema)
+  }
+
+  return(result)
 }
 
 #' Get a specific dataset
