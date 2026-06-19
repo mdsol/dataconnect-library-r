@@ -32,6 +32,20 @@ test_that(".get_datetime_formats returns structured all formats with 128 entries
   expect_true(all(result$type %in% c("date", "datetime")))
 })
 
+test_that(".get_datetime_formats warns but still returns formats when count differs from 128", {
+  mockery::stub(.get_datetime_formats, ".do_command", function(...) {
+    list(c("yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss", "MM/dd/yy"))
+  })
+
+  result <- expect_warning(
+    .get_datetime_formats(client = list(), project_token = "project-token", type = "all"),
+    "Expected 128 datetime formats"
+  )
+
+  expect_s3_class(result, "data.frame")
+  expect_equal(nrow(result), 3)
+})
+
 test_that(".get_datetime_formats supports date filter", {
   captured_args <- NULL
 

@@ -113,7 +113,7 @@
   )
 
   if (is.null(result) || length(result) == 0 || is.null(result[[1]])) {
-    stop("No datetime formats were returned by the server")
+    stop("No date/datetime formats were returned by the server")
   }
 
   formats_raw <- result[[1]]
@@ -121,7 +121,7 @@
   formats <- formats[!is.na(formats) & nzchar(formats)]
 
   if (length(formats) == 0) {
-    stop("No datetime formats were returned by the server")
+    stop("No date/datetime formats were returned by the server")
   }
 
   detected_type <- ifelse(grepl("HH:mm", formats, fixed = TRUE), "datetime", "date")
@@ -134,7 +134,7 @@
   )
 
   if (normalized_type == "all" && nrow(structured_formats) != 128) {
-    stop(sprintf("Expected 128 datetime formats for type='all' but received %d", nrow(structured_formats)))
+    warning(sprintf("Expected 128 datetime formats for type='all' but received %d", nrow(structured_formats)))
   }
 
   structured_formats

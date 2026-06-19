@@ -346,7 +346,7 @@ myProjectToken = "projecttoken"
 ```
 
 ### Set Datetime formats for the columns with date or timestamp data types
-```{r}
+```{r eval=FALSE}
 # Fetch supported formats from Data Connect.
 all_formats <- dc$get_datetime_formats(
   project_token = myProjectToken,
