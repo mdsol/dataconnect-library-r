@@ -346,10 +346,30 @@ myProjectToken = "projecttoken"
 ```
 
 ### Set Datetime formats for the columns with date or timestamp data types
-```{r}
-# Set datetime formats for the columns with date or timestamp data types. The format should follow Java DateTimeFormatter patterns.
-# For example, if start_date column is in "MM/dd/yy" format, end_date column is in "yyyy-MM-dd" format, and update_date column is in "yyyy-MM-dd HH:mm:ss" format, the datetime_formats list should be set as below:
-datetime_formats_list <- list("start_date" = "MM/dd/yy", "end_date" = "yyyy-MM-dd", "update_date" = "yyyy-MM-dd HH:mm:ss")
+```{r eval=FALSE}
+# Fetch supported formats from Data Connect.
+all_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "all"
+)
+
+# Filter for date-only or datetime-only values when needed.
+date_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "date"
+)
+
+datetime_only_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "datetime"
+)
+
+# Example mapping used by dry_publish()/publish().
+datetime_formats_list <- list(
+  "start_date" = "MM/dd/yy",
+  "end_date" = "yyyy-MM-dd",
+  "update_date" = "yyyy-MM-dd HH:mm:ss"
+)
 ```
 
 #### Validate the dataset to be published

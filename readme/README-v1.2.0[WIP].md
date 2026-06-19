@@ -26,6 +26,7 @@ Files marked `[WIP]` are under active development and not yet released.
   - [datasets()](#datasets)
   - [dataset_versions()](#dataset_versions)
   - [fetch_data()](#fetch_data)
+  - [get_datetime_formats()](#get_datetime_formats)
   - [dry_publish()](#dry_publish)
   - [publish()](#publish)
   - [collect()](#collect)
@@ -349,6 +350,49 @@ fetch_data(dataset_uuid = dataset_uuid)
 
 Returns data from a specific dataset.
 
+### get_datetime_formats()
+
+### Description
+
+Returns supported date and datetime format strings for publish validation.
+
+### Usage
+
+```r
+dc$get_datetime_formats(project_token, type = "all")
+```
+
+### Arguments
+
+| Argument | Description |
+| :------- | :---------- |
+| **project_token** | Project token generated from Data Connect > Transformations > Custom Code project type. |
+| **type** | Optional filter for formats. Accepted values: **all**, **date**, **datetime**. Default: **all**. |
+
+### Output
+
+Returns a data frame with the following columns:
+
+* **index**: 1-based index of each format in the returned list.
+* **format**: Supported format string.
+* **type**: Either `date` or `datetime`.
+
+When `type = "all"`, this function returns all 128 supported formats.
+
+### Example
+
+```r
+# Get the full supported list
+all_formats <- dc$get_datetime_formats(project_token = my_project_token, type = "all")
+
+# Get only date formats and choose one for a specific column
+date_formats <- dc$get_datetime_formats(project_token = my_project_token, type = "date")
+
+datetime_formats <- list(
+  start_date = date_formats$format[date_formats$format == "MM/dd/yy"][1]
+)
+```
+
 ### dry_publish()
 
 ### Description
@@ -548,8 +592,8 @@ The below table provides the supported R column types of Data Connect R library 
 | **integer** | as.integer(c(1L, 2L)) | INTEGER                                                                                                                                                                                        |
 | **numeric**  | as.numeric(c(1.23, 2.2)) | FLOAT<br/> **Note**: R does not store decimal places, and as a result, the supported FLOAT numeric format will persist 5 decimal places in Medidata Data Connect regardless of the value.      |
 | **character** | c("str1", "str2") | STRING                                                                                                                                                                                         |
-| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for date columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)<br/>         |
-| **POSIX.ct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**: To successfully publish a dataset, you must specify a format for date-time columns using the [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md)     |
+| **Date** | as.Date(c("2020-01-01", "2020-01-02")) | DATE<br/> **Note**: To successfully publish a dataset, you must specify a format for date columns. Use `dc$get_datetime_formats(project_token, type = "date")` to retrieve valid values programmatically, or refer to [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md).<br/>         |
+| **POSIXct** | as.POSIXct(c("2020-01-01 12:00:00", "2020-01-02 13:00:00"), tz \= "UTC") | DATETIME<br/> **Note**: To successfully publish a dataset, you must specify a format for date-time columns. Use `dc$get_datetime_formats(project_token, type = "datetime")` to retrieve valid values programmatically, or refer to [Supported Date and Time Formats list](DATETIME_SUPPORTED_FORMATS.md).     |
 | **logical** | c(TRUE, FALSE) | BOOLEAN<br/> **Note**: This data type is not fully compatible with Medidata Data Surveillance numeric KRI capability. To ensure compatibility, convert to integer type.                        |
 | **integer** | bit64::as.integer64(c(1, 2)) | LONG                                                                                                                                                                                           |
 

@@ -78,6 +78,14 @@
 #'     }
 #'     Returns the result of the publishing operation.
 #'   }
+#'   \item{\code{get_datetime_formats(project_token, type = "all")}}{
+#'     Retrieve supported date and datetime format strings for publish validation.
+#'     \itemize{
+#'       \item \code{project_token}: Authentication token for the target project (required)
+#'       \item \code{type}: Optional filter. Accepted values: \code{"all"}, \code{"date"}, \code{"datetime"}
+#'     }
+#'     Returns a data.frame with columns \code{index}, \code{format}, and \code{type}.
+#'   }
 #' }
 #'
 #' @examples
@@ -117,6 +125,12 @@
 #'   source_datasets = list(),
 #'   data = my_data,
 #'   datetime_formats = list()
+#' )
+#'
+#' # Get supported datetime formats
+#' datetime_formats <- client$get_datetime_formats(
+#'   project_token = "token",
+#'   type = "all"
 #' )
 #' }
 #' 
@@ -251,6 +265,10 @@ DataConnectClient <- setRefClass(
 
       # Use normalized namespace access
       return(.self$.ns$.publish(.self$.client, config, data))
+    },
+
+    get_datetime_formats = function(project_token, type = "all") {
+      return(.self$.ns$.get_datetime_formats(.self$.client, project_token, type))
     }
   )
 )
