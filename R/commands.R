@@ -71,6 +71,75 @@
   })
 }
 
+#' Retrieve supported datetime formats from the Arrow Flight server
+#'
+#' Returns a structured data frame with the following columns:
+#' \itemize{
+#'   \item \code{index}: 1-based position in the returned format list.
+#'   \item \code{format}: Date or datetime format string.
+#'   \item \code{type}: Either \code{"date"} or \code{"datetime"}.
+#' }
+#'
+#' @param client A FlightClient object
+#' @param project_token Project token for authorization
+#' @param type Filter type: one of \code{"all"}, \code{"date"}, or \code{"datetime"}
+#' @return A data.frame with columns \code{index}, \code{format}, and \code{type}
+#' @keywords internal
+#' @noRd
+.get_datetime_formats <- function(client, project_token, type = "all") {
+  if (is.null(client)) {
+    stop("Client must be provided")
+  }
+
+  if (missing(project_token) || is.null(project_token) || !nzchar(trimws(as.character(project_token)))) {
+    stop("project_token must be provided")
+  }
+
+  if (missing(type) || is.null(type)) {
+    normalized_type <- "all"
+  } else {
+    normalized_type <- tolower(trimws(as.character(type)))
+  }
+  accepted_types <- c("all", "date", "datetime")
+
+  if (!(normalized_type %in% accepted_types)) {
+    stop("type must be one of: all, date, datetime")
+  }
+
+  result <- .do_command(
+    client = client,
+    command = "get_datetime_formats",
+    args = list(project_token = project_token, type = normalized_type)
+  )
+
+  if (is.null(result) || length(result) == 0 || is.null(result[[1]])) {
+    stop("No datetime formats were returned by the server")
+  }
+
+  formats_raw <- result[[1]]
+  formats <- as.character(unname(unlist(formats_raw, use.names = FALSE)))
+  formats <- formats[!is.na(formats) & nzchar(formats)]
+
+  if (length(formats) == 0) {
+    stop("No datetime formats were returned by the server")
+  }
+
+  detected_type <- ifelse(grepl("HH:mm", formats, fixed = TRUE), "datetime", "date")
+
+  structured_formats <- data.frame(
+    index = seq_along(formats),
+    format = formats,
+    type = detected_type,
+    stringsAsFactors = FALSE
+  )
+
+  if (normalized_type == "all" && nrow(structured_formats) != 128) {
+    stop(sprintf("Expected 128 datetime formats for type='all' but received %d", nrow(structured_formats)))
+  }
+
+  structured_formats
+}
+
 #' Execute a do_put command on the Arrow Flight server
 #'
 #' @param client A FlightClient object
