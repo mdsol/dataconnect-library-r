@@ -607,10 +607,15 @@ test_that(".parse_dataconnect_error correctly parses streaming error details", {
   expect_equal(result$message, "Failed after 10 rows.")
 })
 
-# Test: Authorization error (AUTHZ_002) raised as FlightUnauthorizedError on the server
+# Test: Authorization error (AUTHZ_002) with realistic gRPC metadata noise before PREFIX::JSON
 test_that(".parse_dataconnect_error parses AUTHZ_002 authorization error correctly", {
   error_json <- '{"error_code":"AUTHZ_002","message":"You are not allowed to publish to this project.","timestamp":"2026-06-23T11:40:04.721125+00:00","details":[{"field":"user_uuid","message":"User aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee is not the project owner for project ffffffff-1111-2222-3333-444444444444.","expected":"Make sure you are a project owner for project TestProject and try again."}]}'
-  error_message <- paste0("AUTHZ_002::", error_json)
+  # Real-world format: gRPC metadata wrapper with an earlier '::' and stray JSON before the payload
+  error_message <- paste0(
+    'Client context: some::debug {"foo":"bar"} grpc_message:"AUTHZ_002::',
+    error_json,
+    '". Detail: Permission denied'
+  )
 
   result <- .parse_dataconnect_error(error_message)
 
