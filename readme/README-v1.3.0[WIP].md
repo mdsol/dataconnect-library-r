@@ -1,17 +1,17 @@
 > [!WARNING]
 > **\[WIP\] — This document is under active development and has not been released.**
-> Content may be incomplete or subject to change. For the latest stable documentation, see [README-v1.1.0.md](README-v1.1.0.md).
+> Content may be incomplete or subject to change. For the latest stable documentation, see [README-v1.2.0.md](README-v1.2.0.md).
 
 To use this library, you must have a valid iMedidata account and access to required building blocks in the Medidata Platform. For details, see the Medidata [Knowledge Hub](https://learn.medidata.com/en-US/bundle/data-connect/page/developer_center.html).
 
-**Viewing version 1.2.0** — [View all versions](https://github.com/mdsol/dataconnect-library-r/tags)
+**Viewing version 1.3.0** — [View all versions](https://github.com/mdsol/dataconnect-library-r/tags)
 
 **To switch versions:**
 In the top-left corner of this page, below the "Files" list header, open drop-down list, select *Switch branches/tags* → open the *Tags* tab → choose your version.
 Files marked `[WIP]` are under active development and not yet released.
 
 - [Installation](#installation)
-- [What's New in v1.2.0](#whats-new-in-v120)
+- [What's New in v1.3.0](#whats-new-in-v130)
 - [Quick Start](#quick-start)
   - [Usage](#usage)
   - [Available vignettes in R Studio](#available-vignettes-in-r-studio)
@@ -41,10 +41,10 @@ Files marked `[WIP]` are under active development and not yet released.
 
 To install, follow the [Installation Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_setup.Rmd).
 
-**Note:** Please make sure that you are installing the latest package (v1.2.0) to have access to the latest features and updates. The older versions have been deprecated and may not function properly. 
+**Note:** Please make sure that you are installing the latest package (v1.3.0) to have access to the latest features and updates. The older versions have been deprecated and may not function properly. 
 Follow the instructions in the aforementioned Installation Guide to install the latest version. 
 
-# What's New in v1.2.0
+# What's New in v1.3.0
 
 * Pagination removed from `studies()`. The function now returns all studies and their environments in a single response — no page looping required.
   * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
@@ -621,10 +621,10 @@ For a list of historical versions of this library and their details, see the [Da
 **Important:** Always specify the version using the `ref` parameter to ensure you install a stable release:
 
 ```r
-# Install latest stable release (v1.2.0)
+# Install latest stable release (v1.3.0)
 devtools::install_github(
   repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.2.0",
+  ref = "v1.3.0",
   build_vignettes = TRUE, 
   upgrade = FALSE)
 ```
