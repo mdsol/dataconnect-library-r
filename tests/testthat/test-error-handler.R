@@ -606,3 +606,25 @@ test_that(".parse_dataconnect_error correctly parses streaming error details", {
   expect_equal(result$error_code, "STR_001")
   expect_equal(result$message, "Failed after 10 rows.")
 })
+
+# Test: Authorization error (AUTHZ_002) raised as FlightUnauthorizedError on the server
+test_that(".parse_dataconnect_error parses AUTHZ_002 authorization error correctly", {
+  error_json <- '{"error_code":"AUTHZ_002","message":"You are not allowed to publish to this project.","timestamp":"2026-06-23T11:40:04.721125+00:00","details":[{"field":"user_uuid","message":"User aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee is not the project owner for project ffffffff-1111-2222-3333-444444444444.","expected":"Make sure you are a project owner for project TestProject and try again."}]}'
+  error_message <- paste0("AUTHZ_002::", error_json)
+
+  result <- .parse_dataconnect_error(error_message)
+
+  expect_s3_class(result, "DataConnectError")
+  expect_equal(result$error_code, "AUTHZ_002")
+  expect_equal(result$message, "You are not allowed to publish to this project.")
+  expect_equal(result$timestamp, "2026-06-23T11:40:04.721125+00:00")
+  expect_type(result$details, "list")
+  expect_length(result$details, 1)
+  expect_s3_class(result$details[[1]], "ErrorDetail")
+  expect_equal(result$details[[1]]$field, "user_uuid")
+  expect_equal(result$details[[1]]$message, "User aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee is not the project owner for project ffffffff-1111-2222-3333-444444444444.")
+  expect_equal(
+    result$details[[1]]$expected,
+    "Make sure you are a project owner for project TestProject and try again."
+  )
+})

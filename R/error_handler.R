@@ -415,8 +415,8 @@ print.dataconnect_error <- function(x, ...) {
   # flow through the existing PREFIX::JSON parsing path below.
   error_message <- .normalize_enodia_error(error_message)
 
-  # Strip any leading noise before PREFIX:: pattern (e.g. gRPC metadata wrappers)
-  # Handles: grpc_message:"AUTHZ_002::{...}. Detail: ..." → AUTHZ_002::{...}
+  # Strip any leading noise before the PREFIX:: marker (e.g. gRPC metadata wrappers)
+  # Example: grpc_message:"AUTHZ_002::{...}. Detail: ..." → AUTHZ_002::{...}. Detail: ...
   prefix_match <- regexpr("[A-Z_]+_[0-9]{3}::", error_message)
   if (prefix_match > 0) {
     error_message <- substr(error_message, as.integer(prefix_match), nchar(error_message))
