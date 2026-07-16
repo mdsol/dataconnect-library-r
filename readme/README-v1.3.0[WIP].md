@@ -91,6 +91,15 @@ dc <-init(token = "<authentication_token>")
 
 * **Publish data:** You must have a project token to publish a dataset from R IDE to Medidata Data Connect. You can generate this token through Data Connect > Transformations, by creating a Custom Code project. For details, see [here](https://learn.medidata.com/en-US/bundle/data-connect/page/generate_custom_code_projects.html). 
 
+#### Project Collaborators & Shared Tokens
+  * **Shared Project Tokens:** Project tokens are project-scoped and can be used by multiple authorized collaborators working on that project. 
+  * **Collaborator Capabilities:** Once authorized on a project, any collaborator can use the shared project token to run both `dry_publish()` and `publish()`.
+  * **Owner-Only Permissions:** Only **Project Owners** (as designated in the UI) have permission to add or remove collaborators or project owners. Collaborators cannot manage project membership.
+
+  #### Publish Concurrency Locking
+  * **Publish Locking:** To ensure data integrity, publish execution is concurrency-locked. If you attempt to run `publish()` while another collaborator's publish operation is actively in progress, your operation will be blocked.
+  
+  Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the new dataset version to be reflected in the UI. This delay is expected and does not indicate an error.
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -564,11 +573,11 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 | VAL_005	| Validation- Study Environment Parameter	| Missing or invalid study environment uuid 
 | VAL_006	| Validation- Dataset Parameter	| Invalid dataset uuid
 | VAL_007	| Validation- Configuration Error	| Required input parameters are missing or invalid in configuration  
-| VAL_008	| Validation- Project Token	| Invalid project token 
+| VAL_008 | Validation- Project Token | Invalid project token. |
 | VAL_009	| Validation- Unsupported Data Type	| Unsupported data types.
 | VAL_010	| Validation- Unsupported Data Type	| Unsupported datetime formats.
 | VAL_011	| Validation- Pagination	| Pagination is out of range
-| VAL_012	| Validation- Concurrency	| Project actively being published
+| VAL_012 | Validation- Concurrency | Project actively being published. |
 | VAL_013	| Validation- Formatting Error	| Data validation failed. One or more records contain formatting errors.
 | RES_002	| Resource Exceptions- Study Environment  	| No authorized Study Environments found for the authenticated user
 | RES_003	| Resource Exceptions- Invalid parameter | Incorrect UUID combination. 
