@@ -207,8 +207,8 @@ test_that(".do_put_command converts STR_STREAMING_ERROR to a soft failure when i
     read = function() {
       read_call_count <<- read_call_count + 1
       if (read_call_count == 1) {
-        # First read returns valid JSON status
-        charToRaw('{"status": true, "dataset_name": "test", "invalid_record_count": 5}')
+        # First read returns the canonical publish envelope
+        charToRaw('{"success": true, "metadata": {"dataset_name": "test"}, "metrics": {"total_valid_rows": 0, "total_invalid_rows": 5, "total_duplicate_rows": 0}, "checks": {"schema_is_valid": true, "config_is_valid": true, "date_formats_are_valid": true, "dataset_is_valid": true, "invalid_datetime_formats": {}}, "errors": []}')
       } else {
         # Second read would return error buffer, but we'll inject error in open_stream instead
         charToRaw('')
@@ -282,8 +282,8 @@ test_that(".do_put_command gracefully handles empty error stream (python.builtin
     read = function() {
       read_call_count <<- read_call_count + 1
       if (read_call_count == 1) {
-        # First read: Server returns successful metadata JSON
-        charToRaw('{"status": true, "dataset_name": "test", "invalid_record_count": 0, "valid_record_count": 2, "duplicate_record_count": 1}')
+        # First read: Server returns the canonical publish envelope
+        charToRaw('{"success": true, "metadata": {"dataset_name": "test"}, "metrics": {"total_valid_rows": 2, "total_invalid_rows": 0, "total_duplicate_rows": 1}, "checks": {"schema_is_valid": true, "config_is_valid": true, "date_formats_are_valid": true, "dataset_is_valid": true, "invalid_datetime_formats": {}}, "errors": []}')
       } else {
         # Second read: Simulate the Python NoneType object returned by the optimized backend
         structure(list(), class = c("python.builtin.NoneType", "python.builtin.object"))
@@ -304,11 +304,88 @@ test_that(".do_put_command gracefully handles empty error stream (python.builtin
   # Execute the command
   result <- .do_put_command(mock_client, mock_config, mock_data)
   
-  # Verifications: It should NOT crash, and invalid_records should be NULL
+  # Verifications: It should NOT crash, and invalid_records should be an empty list
   expect_true(result$success)
-  expect_equal(result$valid_rows, 2)
-  expect_equal(result$duplicate_rows, 1)
-  expect_null(result$invalid_records)
+  expect_equal(result$metrics$total_valid_rows, 2)
+  expect_equal(result$metrics$total_duplicate_rows, 1)
+  expect_equal(result$invalid_records, list())
+})
+
+# ==============================================================================
+# Canonical envelope contract (shared shape with the Python SDK / Arrow server)
+# ==============================================================================
+test_that(".do_put_command surfaces the full checks section for a failing dry_publish", {
+  read_call_count <- 0
+  mock_reader <- list(
+    read = function() {
+      read_call_count <<- read_call_count + 1
+      if (read_call_count > 1) return(NULL)  # no invalid-records IPC stream to open
+      charToRaw(paste0(
+        '{"success": false, ',
+        '"metadata": {"dataset_name": "test", "dataset_version": null, "column_count": 3, ',
+        '"dataset_uuid": null, "dataset_batch_number": null}, ',
+        '"metrics": {"total_valid_rows": 1, "total_invalid_rows": 1, "total_duplicate_rows": 0}, ',
+        '"checks": {"schema_is_valid": false, "config_is_valid": true, "date_formats_are_valid": false, ',
+        '"dataset_is_valid": false, "invalid_datetime_formats": {"visit_date": "DD-MM-YYYY"}}, ',
+        '"errors": ["schema mismatch"]}'
+      ))
+    }
+  )
+
+  mock_writer <- list(write_table = function(x) NULL, done_writing = function() NULL, close = function() NULL)
+  mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
+
+  mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, ".get_flight_options", list())
+
+  mock_config <- list(is_dry_publish = TRUE)
+  mock_data <- data.frame(subjid = c("001", "002"))
+
+  result <- .do_put_command(mock_client, mock_config, mock_data)
+
+  expect_false(result$success)
+  expect_equal(result$metadata$column_count, 3)
+  expect_null(result$metadata$dataset_uuid)
+  expect_false(result$checks$schema_is_valid)
+  expect_false(result$checks$dataset_is_valid)
+  expect_equal(result$checks$invalid_datetime_formats, list(visit_date = "DD-MM-YYYY"))
+  expect_equal(result$errors, "schema mismatch")
+})
+
+test_that(".do_put_command surfaces dataset_uuid and dataset_batch_number for a real publish", {
+  read_call_count <- 0
+  mock_reader <- list(
+    read = function() {
+      read_call_count <<- read_call_count + 1
+      if (read_call_count > 1) return(NULL)  # no invalid-records IPC stream to open
+      charToRaw(paste0(
+        '{"success": true, ',
+        '"metadata": {"dataset_name": "test", "dataset_version": 2, "column_count": 4, ',
+        '"dataset_uuid": "abc-123", "dataset_batch_number": 7}, ',
+        '"metrics": {"total_valid_rows": 5, "total_invalid_rows": 0, "total_duplicate_rows": 0}, ',
+        '"checks": {"schema_is_valid": true, "config_is_valid": true, "date_formats_are_valid": true, ',
+        '"dataset_is_valid": true, "invalid_datetime_formats": {}}, ',
+        '"errors": []}'
+      ))
+    }
+  )
+
+  mock_writer <- list(write_table = function(x) NULL, done_writing = function() NULL, close = function() NULL)
+  mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
+
+  mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, ".get_flight_options", list())
+
+  mock_config <- list(is_dry_publish = FALSE)
+  mock_data <- data.frame(subjid = c("001", "002"))
+
+  result <- .do_put_command(mock_client, mock_config, mock_data)
+
+  expect_true(result$success)
+  expect_equal(result$metadata$dataset_uuid, "abc-123")
+  expect_equal(result$metadata$dataset_batch_number, 7)
+  expect_true(result$checks$dataset_is_valid)
+  expect_equal(result$checks$invalid_datetime_formats, list())
 })
 
 # ==============================================================================
@@ -322,8 +399,8 @@ test_that(".do_put_command correctly aggregates multiple chunked batches of inva
     read = function() {
       read_call_count <<- read_call_count + 1
       if (read_call_count == 1) {
-        # Server returns failure due to invalid records
-        charToRaw('{"status": false, "dataset_name": "test", "invalid_record_count": 4}')
+        # Server returns failure due to invalid records, using the canonical publish envelope
+        charToRaw('{"success": false, "metadata": {"dataset_name": "test"}, "metrics": {"total_valid_rows": 0, "total_invalid_rows": 4, "total_duplicate_rows": 0}, "checks": {"schema_is_valid": false, "config_is_valid": true, "date_formats_are_valid": true, "dataset_is_valid": false, "invalid_datetime_formats": {}}, "errors": []}')
       } else {
         # Return a dummy valid raw buffer to trigger stream opening
         raw(10) 
@@ -370,7 +447,7 @@ test_that(".do_put_command correctly aggregates multiple chunked batches of inva
   
   # Verifications: It should fail (success = FALSE), but successfully rbind both chunks!
   expect_false(result$success)
-  expect_equal(result$invalid_record_count, 4)
+  expect_equal(result$metrics$total_invalid_rows, 4)
   
   # The invalid records should be a single dataframe with 2 rows (combining both batches)
   expect_true(is.data.frame(result$invalid_records))
