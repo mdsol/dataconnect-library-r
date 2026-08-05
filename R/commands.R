@@ -149,15 +149,14 @@
 #'   returned by the Arrow Flight server:
 #'   \item{success}{Logical indicating if the operation was successful.}
 #'   \item{metadata}{List with \code{dataset_name}, \code{dataset_version},
-#'     \code{column_count}, \code{dataset_uuid}, and \code{dataset_batch_number}.
-#'     \code{dataset_uuid}/\code{dataset_batch_number} are only populated for a
-#'     real publish.}
+#'     \code{column_count}, and \code{dataset_uuid}. \code{dataset_uuid} is only
+#'     populated for a real publish.}
 #'   \item{metrics}{List with \code{total_valid_rows}, \code{total_invalid_rows}, and
 #'     \code{total_duplicate_rows}.}
 #'   \item{checks}{List with \code{schema_is_valid}, \code{config_is_valid},
-#'     \code{date_formats_are_valid}, \code{dataset_is_valid}, and
-#'     \code{invalid_datetime_formats}. Always \code{TRUE}/empty for a real
-#'     publish, since publish raises on any validation failure.}
+#'     \code{date_formats_are_valid}, and \code{dataset_is_valid}. Always
+#'     \code{TRUE} for a real publish, since publish raises on any validation
+#'     failure.}
 #'   \item{errors}{List of validation error messages, if any.}
 #'   \item{invalid_records}{A data.frame of invalid records, or an empty list if none.}
 #'
@@ -241,28 +240,25 @@
     result_metrics <- result$metrics
     result_checks <- result$checks
 
-    invalid_datetime_formats <- result_checks$invalid_datetime_formats
-    if (is.null(invalid_datetime_formats) || length(invalid_datetime_formats) == 0) {
-      invalid_datetime_formats <- list()
-    }
-
     result_errors <- result$errors
     if (is.null(result_errors)) {
       result_errors <- list()
     }
 
     # Same nested response shape for both dry_publish and publish. Fields that don't
-    # apply to a given operation (e.g. dataset_uuid/dataset_batch_number for a
-    # dry_publish) are simply NULL / empty.
+    # apply to a given operation (e.g. dataset_uuid for a dry_publish) are omitted.
+    metadata <- list(
+      dataset_name = result_metadata$dataset_name,
+      dataset_version = result_metadata$dataset_version,
+      column_count = result_metadata$column_count
+    )
+    if (!is.null(result_metadata$dataset_uuid)) {
+      metadata$dataset_uuid <- result_metadata$dataset_uuid
+    }
+
     dry_publish_or_publish_result <- list(
       success = isTRUE(result$success),
-      metadata = list(
-        dataset_name = result_metadata$dataset_name,
-        dataset_version = result_metadata$dataset_version,
-        column_count = result_metadata$column_count,
-        dataset_uuid = result_metadata$dataset_uuid,
-        dataset_batch_number = result_metadata$dataset_batch_number
-      ),
+      metadata = metadata,
       metrics = list(
         total_valid_rows = as.integer(result_metrics$total_valid_rows %||% 0L),
         total_invalid_rows = as.integer(result_metrics$total_invalid_rows %||% 0L),
@@ -272,8 +268,7 @@
         schema_is_valid = result_checks$schema_is_valid,
         config_is_valid = result_checks$config_is_valid,
         date_formats_are_valid = result_checks$date_formats_are_valid,
-        dataset_is_valid = result_checks$dataset_is_valid,
-        invalid_datetime_formats = invalid_datetime_formats
+        dataset_is_valid = result_checks$dataset_is_valid
       ),
       errors = result_errors,
       invalid_records = list()

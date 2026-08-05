@@ -348,7 +348,7 @@ test_that(".do_put_command surfaces the full checks section for a failing dry_pu
   expect_null(result$metadata$dataset_uuid)
   expect_false(result$checks$schema_is_valid)
   expect_false(result$checks$dataset_is_valid)
-  expect_equal(result$checks$invalid_datetime_formats, list(visit_date = "DD-MM-YYYY"))
+  expect_null(result$checks$invalid_datetime_formats)
   expect_equal(result$errors, "schema mismatch")
 })
 
@@ -383,9 +383,9 @@ test_that(".do_put_command surfaces dataset_uuid and dataset_batch_number for a 
 
   expect_true(result$success)
   expect_equal(result$metadata$dataset_uuid, "abc-123")
-  expect_equal(result$metadata$dataset_batch_number, 7)
+  expect_null(result$metadata$dataset_batch_number)
   expect_true(result$checks$dataset_is_valid)
-  expect_equal(result$checks$invalid_datetime_formats, list())
+  expect_null(result$checks$invalid_datetime_formats)
 })
 
 # ==============================================================================
