@@ -145,12 +145,25 @@
 #' @param client A FlightClient object
 #' @param config Configuration object for the dataset
 #' @param data Data to upload (data.frame, Arrow Table, or schema)
-#' @return A list containing:
+#' @return On success, a list containing the canonical publish envelope
+#'   returned by the Arrow Flight server:
 #'   \item{success}{Logical indicating if the operation was successful.}
-#'   \item{message}{A success message if the operation succeeded.}
-#'   \item{error_type}{(If failed) The type of error encountered.}
-#'   \item{error_message}{(If failed) A descriptive error message.}
-#'   \item{original_error}{(If failed) The full error details including traceback.}
+#'   \item{metadata}{List with \code{dataset_name}, \code{dataset_version},
+#'     \code{column_count}, and \code{dataset_uuid}. \code{dataset_uuid} is only
+#'     populated for a real publish.}
+#'   \item{metrics}{List with \code{total_valid_rows}, \code{total_invalid_rows}, and
+#'     \code{total_duplicate_rows}.}
+#'   \item{checks}{List with \code{schema_is_valid}, \code{config_is_valid},
+#'     \code{date_formats_are_valid}, and \code{dataset_is_valid}. Always
+#'     \code{TRUE} for a real publish, since publish raises on any validation
+#'     failure.}
+#'   \item{errors}{List of validation error messages, if any.}
+#'   \item{invalid_records}{A data.frame of invalid records, or an empty list if none.}
+#'
+#'   On failure (e.g. network/server error), a list containing:
+#'   \item{success}{\code{FALSE}}
+#'   \item{error_type}{The type of error encountered.}
+#'   \item{error_message}{A descriptive error message.}
 #' @keywords internal
 #' @noRd
 .do_put_command <- function(client, config, data) {
@@ -221,43 +234,45 @@
     }
     result <- jsonlite::fromJSON(result_str)
 
-    dry_publish_or_publish_result <- NULL
+    # The server emits the canonical envelope (success/metadata/metrics/checks/errors)
+    # for both dry_publish and publish.
+    result_metadata <- result$metadata
+    result_metrics <- result$metrics
+    result_checks <- result$checks
 
-    datetime_format_errors <- result$invalid_datetime_formats
-    date_formats_valid <- is.null(datetime_format_errors) || length(datetime_format_errors) == 0
-
-    if (isTRUE(config$is_dry_publish)) {
-
-      # If it's a dry publish, we expect validation results instead of dataset identifiers
-      dry_publish_or_publish_result <- list(
-        success = result$status,
-        is_schema_valid = result$is_schema_valid,
-        is_config_valid = result$is_config_valid,
-        dataset_valid = result$dataset_valid,
-        is_date_formats_valid = date_formats_valid,
-        errors = result$errors,
-        dataset_name = result$dataset_name,
-        invalid_record_count = as.integer(result$invalid_record_count),
-        valid_rows = as.integer(result$valid_record_count),
-        duplicate_rows = as.integer(result$duplicate_record_count),
-        dataset_version = result$dataset_version,
-        no_of_columns = result$no_of_columns,
-        invalid_records = NULL
-      )
-    } else {
-
-      # For a regular publish, we expect dataset identifiers in the response
-      dry_publish_or_publish_result <- list(
-        success = result$status,
-        dataset_name = result$dataset_name,
-        dataset_uuid = result$dataset_uuid,
-        dataset_version = result$dataset_version,
-        invalid_record_count = as.integer(result$invalid_record_count),
-        valid_rows = as.integer(result$valid_record_count),
-        duplicate_rows = as.integer(result$duplicate_record_count),
-        invalid_records = NULL
-      )
+    result_errors <- result$errors
+    if (is.null(result_errors)) {
+      result_errors <- list()
     }
+
+    # Same nested response shape for both dry_publish and publish. Fields that don't
+    # apply to a given operation (e.g. dataset_uuid for a dry_publish) are omitted.
+    metadata <- list(
+      dataset_name = result_metadata$dataset_name,
+      dataset_version = result_metadata$dataset_version,
+      column_count = result_metadata$column_count
+    )
+    if (!is.null(result_metadata$dataset_uuid)) {
+      metadata$dataset_uuid <- result_metadata$dataset_uuid
+    }
+
+    dry_publish_or_publish_result <- list(
+      success = isTRUE(result$success),
+      metadata = metadata,
+      metrics = list(
+        total_valid_rows = as.integer(result_metrics$total_valid_rows %||% 0L),
+        total_invalid_rows = as.integer(result_metrics$total_invalid_rows %||% 0L),
+        total_duplicate_rows = as.integer(result_metrics$total_duplicate_rows %||% 0L)
+      ),
+      checks = list(
+        schema_is_valid = result_checks$schema_is_valid,
+        config_is_valid = result_checks$config_is_valid,
+        date_formats_are_valid = result_checks$date_formats_are_valid,
+        dataset_is_valid = result_checks$dataset_is_valid
+      ),
+      errors = result_errors,
+      invalid_records = list()
+    )
 
     # Try to read invalid records table (IPC stream) from the server.
     # The server streams error batches after the JSON result only when there are invalid records.
