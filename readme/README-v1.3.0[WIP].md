@@ -631,11 +631,7 @@ For a list of historical versions of this library and their details, see the [Da
 
 ```r
 # Install latest stable release (v1.3.0)
-devtools::install_github(
-  repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.3.0",
-  build_vignettes = TRUE, 
-  upgrade = FALSE)
+pak::pak("mdsol/dataconnect-library-r@v1.3.0", upgrade = FALSE)
 ```
 
 ⚠️ **Note:** Installing without the `ref` parameter will install from the `main` branch, which may contain unreleased development code. Always use a version tag for production environments.

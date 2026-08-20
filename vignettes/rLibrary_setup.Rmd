@@ -9,11 +9,11 @@ vignette: >
 
 **Prerequisite: Install R & RStudio if you have not installed before.**
 
-#### Install devtools, if it was not already installed before.
+#### Install pak, if it was not already installed before.
 
 ```{r eval=FALSE}
 
-install.packages("devtools")
+install.packages("pak")
 
 ```
 
@@ -31,11 +31,7 @@ install.packages("reticulate")
 
 try({remove.packages("dataconnect")}, silent=TRUE)
 
-devtools::install_github(
-  repo = "mdsol/dataconnect-library-r", 
-  ref = "v1.1.0",
-  build_vignettes = TRUE, 
-  upgrade = FALSE)
+pak::pak("mdsol/dataconnect-library-r@v1.3.0", upgrade = FALSE)
 
 ```
 
