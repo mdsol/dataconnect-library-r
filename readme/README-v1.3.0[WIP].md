@@ -98,8 +98,6 @@ dc <-init(token = "<authentication_token>")
 
   #### Publish Concurrency Locking
   * **Publish Locking:** To ensure data integrity, publish execution is concurrency-locked. If you attempt to run `publish()` while another collaborator's publish operation is actively in progress, your operation will be blocked.
-  
-  Note: After a successful `publish()` call, it can take approximately 15-20 minutes for the new dataset version to be reflected in the UI. This delay is expected and does not indicate an error.
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -472,6 +470,8 @@ When SDK validation fails, the returned error also includes _invalid_records:
 ### Description
 
 Publish dataset to Data Connect.
+
+> **Note:** After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
 
 
 ### Usage
