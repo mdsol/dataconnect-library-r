@@ -20,10 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-      - uses: webiny/action-conventional-commits@v1.4.2
+      - uses: webiny/action-conventional-commits@7f91b1595ca1951cdb671ddc9f07a49081ec5b69 # v1.4.2
         name: Check Commit Messages
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,22 +33,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+      uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       with:
         install: true
 
     - name: Install Task
-      uses: arduino/setup-task@v2
+      uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
       with:
         version: 3.x
         repo-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Docker meta
       id: meta
-      uses: docker/metadata-action@v6
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
       with:
         images: ${{ github.repository_owner }}/dataconnect
         tags: |
@@ -70,7 +70,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: test-results
         path: target/junit-results.xml
@@ -78,7 +78,7 @@ jobs:
         if-no-files-found: error
 
     - name: Publish Test Results
-      uses: mikepenz/action-junit-report@v6
+      uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6.4.0
       if: always()
       with:
         report_paths: target/junit-results.xml
