@@ -395,26 +395,20 @@ StudyEnvironment <- setRefClass(
 #' Get a specific dataset
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study (optional)
-#' @param study_environment_uuid UUID of the study environment (optional)
 #' @param dataset_uuid UUID of the dataset
 #' @return A dataset object with metadata and frame property
 #' @keywords internal
 #' @noRd
-.get_dataset <- function(client, study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
+.get_dataset <- function(client, dataset_uuid) {
 
   # Build ticket_data from provided identifiers
   ticket_data <- list(
-    study_uuid = study_uuid,
-    study_env_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid,
     dataset_name = ""
   )
   
   # Build dataset object with metadata
   dataset_obj <- list(
-    study_uuid = study_uuid,
-    study_environment_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid
   )
   
@@ -490,7 +484,6 @@ StudyEnvironment <- setRefClass(
 #' List datasets from a Flight server
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study to filter by [Optional]
 #' @param study_environment_uuid UUID of the study environment to filter by
 #' @param search_dataset_name full or part of the dataset name to search by
 #' @param page Page number for paginated results
@@ -499,7 +492,7 @@ StudyEnvironment <- setRefClass(
 #' @keywords internal
 #' @noRd
 .get_datasets <- function(
-  client, study_uuid = NULL,
+  client,
   study_environment_uuid,
   search_dataset_name,
   page,
@@ -507,7 +500,6 @@ StudyEnvironment <- setRefClass(
 ) {
   criteria <- list(
     flight_type = "DATASETS",
-    study_uuid = study_uuid,
     study_environment_uuid = study_environment_uuid,
     search_dataset_name = search_dataset_name,
     page = page,
@@ -575,17 +567,13 @@ StudyEnvironment <- setRefClass(
 #' List versions of a dataset from a Flight server
 #'
 #' @param client A FlightClient object
-#' @param study_uuid UUID of the study to filter by (optional)
-#' @param study_environment_uuid UUID of the study environment to filter by (optional)
 #' @param dataset_uuid UUID of the dataset to filter by
 #' @keywords internal
 #' @noRd
-.get_dataset_versions <- function(client, study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
+.get_dataset_versions <- function(client, dataset_uuid) {
 
   criteria <- list(
     flight_type = "VERSIONS",
-    study_uuid= study_uuid,
-    study_environment_uuid = study_environment_uuid,
     dataset_uuid = dataset_uuid
   )
 
