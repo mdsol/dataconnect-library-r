@@ -24,34 +24,37 @@
 #'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
 #'     Each environment has \code{name} and \code{uuid}.
 #'   }
-#'   \item{\code{datasets(study_uuid, study_environment_uuid, search_dataset_name, page, page_size)}}{
+#'   \item{\code{datasets(study_environment_uuid, search_dataset_name, page, page_size)}}{
 #'     Get all datasets for a specific study environment.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
 #'       \item \code{study_environment_uuid}: UUID of the target study environment (required)
 #'       \item \code{search_dataset_name}: Optional dataset name filter (default: "")
 #'       \item \code{page}: Page number for paginated results (optional, default: 1)
 #'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
 #'     Returns a list with \code{total_records} (integer), \code{pagination} (list), and \code{datasets} (list).
+#'
+#'     Note: as of v1.3.0 the deprecated \code{study_uuid} parameter has been removed.
 #'   }
-#'   \item{\code{dataset_versions(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid)}}{
+#'   \item{\code{dataset_versions(dataset_uuid)}}{
 #'     Retrieve all versions of a specific dataset.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
-#'       \item \code{study_environment_uuid}: UUID of the target study environment (deprecated, optional)
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
 #'     Returns version information for the specified dataset.
+#'
+#'     Note: as of v1.3.0 the deprecated \code{study_uuid} and \code{study_environment_uuid}
+#'     parameters have been removed.
 #'   }
-#'   \item{\code{fetch_data(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid)}}{
+#'   \item{\code{fetch_data(dataset_uuid)}}{
 #'     Retrieve data from a single dataset.
 #'     \itemize{
-#'       \item \code{study_uuid}: UUID of the target study (deprecated, optional)
-#'       \item \code{study_environment_uuid}: UUID of the target study environment (deprecated, optional)
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
 #'     Returns the actual dataset data.
+#'
+#'     Note: as of v1.3.0 the deprecated \code{study_uuid} and \code{study_environment_uuid}
+#'     parameters have been removed.
 #'   }
 #'   \item{\code{dry_publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)}}{
 #'     Validate publishing parameters without actually publishing data to DataConnect.
@@ -176,64 +179,28 @@ DataConnectClient <- setRefClass(
       return(studies_spec)
     },
 
-    datasets = function(study_uuid = NULL, study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
+    datasets = function(study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
       "Get all datasets for a study environment"
 
-      if(!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
-        warning("You only need to provide study_environment_uuid; the Study context is now resolved automatically.")
-      }
-
-      return(.get_datasets(.self$.client, study_uuid, study_environment_uuid, search_dataset_name, page, page_size))
+      return(.get_datasets(client = .self$.client,
+                           study_environment_uuid = study_environment_uuid,
+                           search_dataset_name = search_dataset_name,
+                           page = page,
+                           page_size = page_size))
     },
 
-    dataset_versions = function (study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
+    dataset_versions = function (dataset_uuid) {
       "Get versions of a dataset"
 
-      if (!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
-        warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
-      }
-
-      if (!missing(study_environment_uuid) && !is.null(study_environment_uuid) && !is.na(study_environment_uuid) && nzchar(trimws(as.character(study_environment_uuid)))) {
-        warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
-      }
-
-      if (missing(study_uuid) || is.null(study_uuid) || is.na(study_uuid) || trimws(as.character(study_uuid)) == "") {
-        study_uuid <- NULL
-      }
-
-      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
-        study_environment_uuid <- NULL
-      }
-
       return(.get_dataset_versions(client = .self$.client,
-                                   study_uuid = study_uuid,
-                                   study_environment_uuid = study_environment_uuid,
                                    dataset_uuid = dataset_uuid))
     },
 
-    fetch_data = function(study_uuid = NULL, study_environment_uuid = NULL, dataset_uuid) {
+    fetch_data = function(dataset_uuid) {
       "Fetch data of a dataset"
-
-      if (!missing(study_uuid) && !is.null(study_uuid) && !is.na(study_uuid) && nzchar(trimws(as.character(study_uuid)))) {
-        warning("You only need to provide dataset_uuid; the Study context is now resolved automatically.")
-      }
-
-      if (!missing(study_environment_uuid) && !is.null(study_environment_uuid) && !is.na(study_environment_uuid) && nzchar(trimws(as.character(study_environment_uuid)))) {
-        warning("You only need to provide dataset_uuid; the Study Environment context is now optional, and will be resolved automatically.")
-      }
-
-      if (missing(study_uuid) || is.null(study_uuid) || is.na(study_uuid) || trimws(as.character(study_uuid)) == "") {
-        study_uuid <- NULL
-      }
-
-      if (missing(study_environment_uuid) || is.null(study_environment_uuid) || is.na(study_environment_uuid) || trimws(as.character(study_environment_uuid)) == "") {
-        study_environment_uuid <- NULL
-      }
 
       # Use existing function to get single dataset
       return(.get_dataset(client = .self$.client,
-                          study_uuid =  study_uuid,
-                          study_environment_uuid =  study_environment_uuid,
                           dataset_uuid = dataset_uuid))
     },
 

@@ -46,6 +46,13 @@ Follow the instructions in the aforementioned Installation Guide to install the 
 
 # What's New in v1.3.0
 
+* **Breaking change:** the deprecated UUID parameters have been removed. Each function now accepts only its required UUID input:
+  * `datasets(study_environment_uuid, ...)` — `study_uuid` removed.
+  * `dataset_versions(dataset_uuid)` — `study_uuid` and `study_environment_uuid` removed.
+  * `fetch_data(dataset_uuid)` — `study_uuid` and `study_environment_uuid` removed.
+  * Passing any removed parameter now raises an `unused argument` error instead of a deprecation warning. Update your calls to pass only the required UUID.
+  * Because the removed parameters used to come first, **positional calls change meaning**. For example, `client$fetch_data(x)` previously bound `x` to `study_uuid`; it now binds `x` to `dataset_uuid`. Use named arguments to be explicit.
+  * `fetch_data()` no longer returns the `study_uuid` and `study_environment_uuid` fields on the returned dataset object.
 * Pagination removed from `studies()`. The function now returns all studies and their environments in a single response — no page looping required.
   * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
 * Updated `valid_rows` calculation in `publish()` and `dry_publish()` to prevent double-counting records that are both invalid and duplicated:
@@ -299,7 +306,6 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 
 | Argument                   | Description                                                                                             |
 | :------------------------- | :------------------------------------------------------------------------------------------------------ |
-| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _study_environment_uuid_ and _dataset_uuid_ provided. |
 | **study_environment_uuid** | Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. |
 | **search_dataset_name**    | Optional. The approximate name of the dataset.                                                          |
 | **page**                   | Optional. Page number for paginated results. Default: 1.                                                |
@@ -325,8 +331,6 @@ dataset_versions(dataset_uuid = dataset_uuid)
 
 | Argument         | Description                                                                                 |
 | :-------         | :------------------------------------------------------------------------------------------ |
-| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
-| **study_environment_uuid** | Optional. Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() function |
 
 ### Output 
@@ -349,8 +353,6 @@ fetch_data(dataset_uuid = dataset_uuid)
 
 | Argument | Description |
 | :------- | :---------- |
-| **study_uuid**             | Optional. Unique iMedidata study identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
-| **study_environment_uuid** | Optional. Unique iMedidata study environment identifier. You can find this in iMedidata’s Developer Info details. If provided, it is cross-checked against the _dataset_uuid_ provided. |
 | **dataset_uuid** | Unique iMedidata dataset identifier. This is available in the output of datasets() and dataset_versions() functions |
 
 ### Output 

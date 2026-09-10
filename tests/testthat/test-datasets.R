@@ -26,7 +26,6 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
 
   out <- .get_datasets(
     client = mock_client,
-    study_uuid = "study-1",
     study_environment_uuid = "env-1",
     search_dataset_name = "abc",
     page = 3,
@@ -46,21 +45,12 @@ test_that(".get_datasets forwards server-side pagination (page + page_size) in c
   expect_equal(as.integer(captured_criteria$page_size), 200L)
 
   # Search criteria forwarded
-  if (!is.null(captured_criteria$study_uuid)) {
-    expect_equal(captured_criteria$study_uuid, "study-1")
-  }
-  if (!is.null(captured_criteria$search_dataset_name)) {
-    expect_equal(captured_criteria$search_dataset_name, "abc")
-  }
+  expect_equal(captured_criteria$search_dataset_name, "abc")
 
-  # Env key name varies in your codebase; accept either but require the value
-  if (!is.null(captured_criteria$study_env_uuid)) {
-    expect_equal(captured_criteria$study_env_uuid, "env-1")
-  } else if (!is.null(captured_criteria$study_environment_uuid)) {
-    expect_equal(captured_criteria$study_environment_uuid, "env-1")
-  } else {
-    fail("Expected criteria to contain study_env_uuid or study_environment_uuid")
-  }
+  # Deprecated study_uuid is no longer sent to the server
+  expect_false("study_uuid" %in% names(captured_criteria))
+
+  expect_equal(captured_criteria$study_environment_uuid, "env-1")
 })
 
 test_that(".get_datasets returns total_records = 0L and correct pagination defaults for empty iterator", {
@@ -70,7 +60,6 @@ test_that(".get_datasets returns total_records = 0L and correct pagination defau
 
   out <- .get_datasets(
     client = list(),
-    study_uuid = "study-1",
     study_environment_uuid = "env-1",
     search_dataset_name = "abc",
     page = 2,
@@ -96,7 +85,6 @@ test_that(".get_datasets uses total_records from first item only", {
   })
   out <- .get_datasets(
     client = list(),
-    study_uuid = "study-1",
     study_environment_uuid = "env-1",
     search_dataset_name = "abc",
     page = 1,
@@ -120,7 +108,6 @@ test_that(".get_datasets extracts pagination from app_metadata if present, other
   })
   out <- .get_datasets(
     client = list(),
-    study_uuid = "study-1",
     study_environment_uuid = "env-1",
     search_dataset_name = "abc",
     page = 2,
@@ -130,6 +117,97 @@ test_that(".get_datasets extracts pagination from app_metadata if present, other
   expect_equal(out$pagination$page_size, 25)
   expect_equal(out$pagination$total_pages, 7)
   expect_equal(out$total_records, 123L)
+})
+
+# ── .get_dataset_versions tests ─────────────────────────────────────────────
+test_that(".get_dataset_versions succeeds with dataset_uuid alone and sends a minimal criteria", {
+  captured_criteria <- NULL
+
+  mockery::stub(.get_dataset_versions, ".get_flights", function(client, criteria) {
+    captured_criteria <<- criteria
+    list(list(version = 1L))
+  })
+
+  out <- .get_dataset_versions(client = list(), dataset_uuid = "ds-1")
+
+  expect_type(out, "list")
+  expect_equal(length(out), 1L)
+  expect_equal(captured_criteria$flight_type, "VERSIONS")
+  expect_equal(captured_criteria$dataset_uuid, "ds-1")
+
+  # Deprecated UUIDs are no longer part of the payload
+  expect_false("study_uuid" %in% names(captured_criteria))
+  expect_false("study_environment_uuid" %in% names(captured_criteria))
+  expect_setequal(names(captured_criteria), c("flight_type", "dataset_uuid"))
+})
+
+test_that(".get_dataset_versions rejects removed UUID parameters", {
+  mockery::stub(.get_dataset_versions, ".get_flights", function(client, criteria) list())
+
+  expect_error(
+    .get_dataset_versions(client = list(), study_uuid = "study-1", dataset_uuid = "ds-1"),
+    "study_uuid"
+  )
+  expect_error(
+    .get_dataset_versions(client = list(), study_environment_uuid = "env-1", dataset_uuid = "ds-1"),
+    "study_environment_uuid"
+  )
+})
+
+# ── .get_dataset tests ──────────────────────────────────────────────────────
+test_that(".get_dataset succeeds with dataset_uuid alone and builds a minimal ticket", {
+  captured_ticket <- NULL
+
+  mockery::stub(.get_dataset, "dataconnect_tbl", function(client, ticket_data) {
+    captured_ticket <<- ticket_data
+    "frame-stub"
+  })
+
+  out <- .get_dataset(client = list(), dataset_uuid = "ds-1")
+
+  expect_type(out, "list")
+  expect_equal(out$dataset_uuid, "ds-1")
+  expect_equal(out$frame, "frame-stub")
+
+  expect_equal(captured_ticket$dataset_uuid, "ds-1")
+  expect_equal(captured_ticket$dataset_name, "")
+  expect_setequal(names(captured_ticket), c("dataset_uuid", "dataset_name"))
+
+  # Deprecated UUIDs are no longer returned or sent
+  expect_false("study_uuid" %in% names(captured_ticket))
+  expect_false("study_env_uuid" %in% names(captured_ticket))
+  expect_false("study_uuid" %in% names(out))
+  expect_false("study_environment_uuid" %in% names(out))
+})
+
+test_that(".get_dataset rejects removed UUID parameters", {
+  mockery::stub(.get_dataset, "dataconnect_tbl", function(client, ticket_data) "frame-stub")
+
+  expect_error(
+    .get_dataset(client = list(), study_uuid = "study-1", dataset_uuid = "ds-1"),
+    "study_uuid"
+  )
+  expect_error(
+    .get_dataset(client = list(), study_environment_uuid = "env-1", dataset_uuid = "ds-1"),
+    "study_environment_uuid"
+  )
+})
+
+test_that(".get_datasets rejects the removed study_uuid parameter", {
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) { })
+
+  expect_error(
+    .get_datasets(
+      client = list(),
+      study_uuid = "study-1",
+      study_environment_uuid = "env-1",
+      search_dataset_name = "",
+      page = 1,
+      page_size = 50
+    ),
+    "study_uuid"
+  )
 })
 
 # ── .get_studies tests ──────────────────────────────────────────────────────
