@@ -150,7 +150,6 @@ test_that(".get_flight_options returns NULL with warning when reticulate and arr
   )
   expect_null(result)
 })
-
 test_that(".get_flight_options warns and returns NULL when py_run_string fails and arrow is unavailable", {
   # Allow requireNamespace("reticulate") to pass but fail py_run_string
   mockery::stub(.get_flight_options, "reticulate::py_run_string", function(...) stop("python error"))
@@ -164,7 +163,6 @@ test_that(".get_flight_options warns and returns NULL when py_run_string fails a
   )
   expect_null(result)
 })
-
 # ── .connect ───────────────────────────────────────────────────────────────
 
 test_that(".connect builds a grpc+tcp URI when use_tls is FALSE", {
