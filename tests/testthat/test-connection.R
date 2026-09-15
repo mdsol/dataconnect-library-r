@@ -150,7 +150,6 @@ test_that(".get_flight_options returns NULL with warning when reticulate and arr
   )
   expect_null(result)
 })
-
 test_that(".get_flight_options warns and returns NULL when py_run_string fails and arrow is unavailable", {
   # Allow requireNamespace("reticulate") to pass but fail py_run_string
   mockery::stub(.get_flight_options, "reticulate::py_run_string", function(...) stop("python error"))
@@ -165,6 +164,37 @@ test_that(".get_flight_options warns and returns NULL when py_run_string fails a
   expect_null(result)
 })
 
+test_that(".get_flight_options omits the public IP header and preserves other headers on success", {
+  mock_options <- list(
+    headers = list(
+      c("x-client-dataconnect", "R_SDK;1.0.0;"),
+      c("x-client-local-ip", "192.168.1.5"),
+      c("x-client-mac", "aa:bb:cc:dd:ee:ff")
+    )
+  )
+  mockery::stub(.get_flight_options, "requireNamespace", function(pkg, ...) TRUE)
+  # Assert the generated Python source drops the public-IP header while still building local IP/MAC headers.
+  mockery::stub(.get_flight_options, "reticulate::py_run_string", function(code, ...) {
+    expect_false(grepl("x-client-public-ip", code, fixed = TRUE))
+    if (grepl("create_flight_options_with_network_info", code, fixed = TRUE)) {
+      expect_true(grepl("x-client-local-ip", code, fixed = TRUE))
+      expect_true(grepl("x-client-mac", code, fixed = TRUE))
+    }
+    invisible(NULL)
+  })
+  mockery::stub(
+    .get_flight_options,
+    "reticulate::py$create_flight_options_with_network_info",
+    function() mock_options
+  )
+
+  result <- .get_flight_options()
+
+  header_names <- vapply(result$headers, function(h) h[[1]], character(1))
+  expect_true("x-client-dataconnect" %in% header_names)
+  expect_true("x-client-local-ip" %in% header_names)
+  expect_false("x-client-public-ip" %in% header_names)
+})
 # ── .connect ───────────────────────────────────────────────────────────────
 
 test_that(".connect builds a grpc+tcp URI when use_tls is FALSE", {

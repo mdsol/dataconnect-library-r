@@ -1,6 +1,6 @@
 # Import required functions
 # Note: All functions internally use .get_flight_options() to add tracking headers
-# (client version, IP addresses, MAC address) to all Flight operations
+# (client version, local IP address, MAC address) to all Flight operations
 
 #' Dry publish configuration and schema to the server
 #'

@@ -58,9 +58,9 @@
   invisible(TRUE)
 }
 
-#' Get local and public network information and create flight options
+#' Get client information and create flight options
 #'
-#' Returns network information with properly formatted headers for PyArrow Flight
+#' Returns client information with properly formatted headers for PyArrow Flight
 #' using Python's cross-platform libraries via reticulate. Automatically includes
 #' authentication token from DATACONNECT_TOKEN environment variable if set.
 #' 
@@ -69,7 +69,6 @@
 #' \itemize{
 #'   \item Client information
 #'   \item Local IP address (x-client-local-ip)
-#'   \item Public IP address (x-client-public-ip) 
 #'   \item MAC address (x-client-mac) if available
 #'   \item Authorization header with Bearer token if DATACONNECT_TOKEN env var is set
 #' }
@@ -113,17 +112,13 @@
   # Define Python function to get network info and create flight options in one step
   py_code <- sprintf('
 import socket
-import uuid
-from urllib.request import urlopen
-from urllib.error import URLError
 import pyarrow.flight as flight
-import os
+import uuid
 
 def create_flight_options_with_network_info():
     """Get network information and create flight options with headers."""
     # Initialize network info with fallbacks
     ip = "NA"
-    public_ip = "NA"
     mac = "00:00:00:00:00:00"
 
     # Get local IP - works on all platforms
@@ -154,27 +149,6 @@ def create_flight_options_with_network_info():
     except Exception:
         pass
 
-    # Always try to get public IP
-    try:
-        # Try multiple services with a short timeout
-        services = [
-            "https://api.ipify.org",
-            "https://ifconfig.me",
-            "https://icanhazip.com"
-        ]
-
-        for service in services:
-            try:
-                # Response with a short timeout
-                response = urlopen(service, timeout=3)
-                public_ip = response.read().decode("utf-8").strip()
-                if public_ip:
-                    break
-            except (URLError, socket.timeout):
-                continue
-    except Exception:
-        pass
-
     # Create flight options with headers
     headers = []
 
@@ -183,9 +157,6 @@ def create_flight_options_with_network_info():
 
     # Always include local IP (will be "NA" if not found)
     headers.append((b"x-client-local-ip", ip.encode("utf-8")))
-
-    # Always include public IP (will be "NA" if not found)
-    headers.append((b"x-client-public-ip", public_ip.encode("utf-8")))
 
     # Add MAC header only if it\'s not the fallback
     if mac != "00:00:00:00:00:00":
