@@ -100,11 +100,6 @@
   } else {
     normalized_type <- tolower(trimws(as.character(type)))
   }
-  accepted_types <- c("all", "date", "datetime")
-
-  if (!(normalized_type %in% accepted_types)) {
-    stop("type must be one of: all, date, datetime")
-  }
 
   result <- .do_command(
     client = client,

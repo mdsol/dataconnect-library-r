@@ -84,11 +84,17 @@ test_that(".get_datetime_formats supports datetime filter", {
   expect_equal(nrow(result), 2)
 })
 
-test_that(".get_datetime_formats validates type input", {
-  expect_error(
-    .get_datetime_formats(client = list(), project_token = "project-token", type = "invalid"),
-    "type must be one of: all, date, datetime"
-  )
+test_that(".get_datetime_formats sends unsupported types to the server", {
+  captured_args <- NULL
+
+  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
+    captured_args <<- args
+    list(c("yyyy-MM-dd"))
+  })
+
+  result <- .get_datetime_formats(client = list(), project_token = "project-token", type = "INVALID")
+  expect_equal(captured_args$type, "invalid")
+  expect_equal(result$format, "yyyy-MM-dd")
 })
 
 test_that(".get_datetime_formats result maps cleanly to publish datetime_formats payload", {
