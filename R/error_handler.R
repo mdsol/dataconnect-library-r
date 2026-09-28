@@ -126,21 +126,16 @@ print.DataConnectError <- function(x, ...) {
 
 #' Print Method for dataconnect_error condition
 #'
-#' S3 dispatch resolves on the first (most specific) class of an object.
-#' When a dataconnect_error condition is caught in tryCatch and printed,
-#' R looks for print.dataconnect_error first and then continues down the
-#' class vector (e.g. to DataConnectError) if no method is found. 
-#' Defining this method ensures the most-specific condition class has an
-#' explicit print method and delegates to print.DataConnectError so the
-#' formatted output remains consistent regardless of class ordering.
+#' Prints the formatted condition message without repeating its details.
 #'
 #' @param x A dataconnect_error condition object
-#' @param ... Additional arguments passed to print.DataConnectError
+#' @param ... Additional arguments (unused)
 #'
 #' @export
 #' @keywords internal
 print.dataconnect_error <- function(x, ...) {
-  print.DataConnectError(x, ...)
+  cat(x$message, "\n", sep = "")
+  invisible(x)
 }
 
 #' Throw DataConnect Error
@@ -158,6 +153,21 @@ print.dataconnect_error <- function(x, ...) {
 #' @keywords internal
 .throw_dataconnect_error <- function(dataconnect_error, call = sys.call(-1)) {
 
+  message <- dataconnect_error$message
+  if (length(dataconnect_error$details) > 0) {
+    detail_text <- vapply(dataconnect_error$details, function(detail) {
+      parts <- unlist(detail[c("field", "message", "expected")], use.names = FALSE)
+      paste(parts[!is.na(parts) & nzchar(parts)], collapse = ": ")
+    }, character(1))
+    detail_text <- detail_text[nzchar(detail_text)]
+    if (length(detail_text) > 0) {
+      message <- paste(message, paste(detail_text, collapse = "; "))
+    }
+  }
+  formatted_error <- dataconnect_error
+  formatted_error$message <- message
+  message <- paste(capture.output(print.DataConnectError(formatted_error)), collapse = "\n")
+
   # Create a condition that is a DataConnectError with all fields directly
   # accessible. Users can catch this and access error_code, timestamp,
   # details, etc.
@@ -165,7 +175,7 @@ print.dataconnect_error <- function(x, ...) {
     list(
       call = call,
       error_code = dataconnect_error$error_code,
-      message = dataconnect_error$message,
+      message = message,
       timestamp = dataconnect_error$timestamp,
       details = dataconnect_error$details
     ),

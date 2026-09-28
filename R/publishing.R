@@ -58,19 +58,13 @@
 
   # Use do_command with pre-formatted body
   result <- .do_command(client, "dry_publish", body = combined_body)
-  
-  # Extract and parse the response content
-  response <- NULL
-  if (length(result) > 0) {
-    # If do_command processed it successfully, return the first item
-    response <- result[[1]]
-  } else {
-    # If do_command didn't process it, try to extract manually
+
+  if (length(result) == 0 || is.null(result[[1]])) {
     warning("No processed result from do_command, returning raw result")
-    response <- result
+    return(result)
   }
-    
-  return(response)
+
+  return(result[[1]])
 }
 
 #' Publish configuration, schema and data to the server
