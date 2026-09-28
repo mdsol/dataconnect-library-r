@@ -385,11 +385,38 @@ test_that(".throw_dataconnect_error throws a dataconnect_error condition with al
     .throw_dataconnect_error(dataconnect_err),
     dataconnect_error = function(e) {
       expect_equal(e$error_code, "ERR_THROW")
-      expect_equal(e$message,    "Thrown error")
+      expect_match(e$message, "^Error Code: \\[ERR_THROW\\]\\nMessage: Thrown error x: bad value: integer\\nTimestamp: 2026-01-01T00:00:00Z")
       expect_equal(e$timestamp,  "2026-01-01T00:00:00Z")
       expect_length(e$details, 1)
       expect_s3_class(e$details[[1]], "ErrorDetail")
       expect_equal(e$details[[1]]$field, "x")
+      expect_equal(paste(capture.output(print(e)), collapse = "\n"), e$message)
+    }
+  )
+})
+
+test_that("server validation details appear in the thrown message", {
+  raw_error <- paste0(
+    'VAL_007::{"error_code":"VAL_007","message":"Required input parameters are missing or invalid.",',
+    '"timestamp":"2026-09-28T10:47:12.696128+00:00",',
+    '"details":[{"field":"type","expected":"Accepted values: all, date, datetime."}]}'
+  )
+
+  tryCatch(
+    .throw_dataconnect_error(.parse_dataconnect_error(raw_error)),
+    dataconnect_error = function(e) {
+      expect_equal(e$message, paste(c(
+        "Error Code: [VAL_007]",
+        "Message: Required input parameters are missing or invalid. type: Accepted values: all, date, datetime.",
+        "Timestamp: 2026-09-28T10:47:12.696128+00:00",
+        "Details:",
+        "",
+        "  Error Detail: ",
+        "    Field: type",
+        "    Expected: Accepted values: all, date, datetime."
+      ), collapse = "\n"))
+      expect_equal(e$error_code, "VAL_007")
+      expect_equal(e$details[[1]]$field, "type")
     }
   )
 })

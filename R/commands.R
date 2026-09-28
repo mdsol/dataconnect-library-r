@@ -66,8 +66,8 @@
 
     return(response)
   }, error = function(e) {
-    warning("Error executing command: ", e$message)
-    NULL
+    parsed_error <- .parse_dataconnect_error(conditionMessage(e))
+    .throw_dataconnect_error(parsed_error)
   })
 }
 

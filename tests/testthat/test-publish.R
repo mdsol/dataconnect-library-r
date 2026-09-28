@@ -13,6 +13,13 @@ mock_flight_options <- function() {
   list(headers = list(c("x-client-dataconnect", "1.2.0")))
 }
 
+.mock_r_to_py <- function(x) {
+  if (inherits(x, "json")) {
+    return(list(encode = function(...) charToRaw(as.character(x))))
+  }
+  x
+}
+
 # Create sample data and schema that will be used across tests
 sample_data <- data.frame(
   subjid = c("001", "002", "003", "004", "005"),
@@ -94,6 +101,16 @@ test_that("dry_publish parses server response correctly and drops batch number",
   
   # This will now be NULL because it's not in our mock_mapped_result
   expect_null(result$dataset_batch_number)
+})
+
+test_that("dry_publish returns an empty result when the server returns no response", {
+  mockery::stub(.dry_publish, ".do_command", function(...) list())
+
+  result <- expect_warning(
+    .dry_publish(list(), list(dataset_name = "sample"), data.frame(id = 1L)),
+    "No processed result from do_command"
+  )
+  expect_equal(result, list())
 })
 
 test_that("dry_publish handles all unique rows via server response", {
@@ -255,6 +272,7 @@ test_that(".do_put_command converts STR_STREAMING_ERROR to a soft failure when i
   
   # Also stub .get_flight_options to avoid side effects
   mockery::stub(.do_put_command, ".get_flight_options", function() list())
+  mockery::stub(.do_put_command, "reticulate::r_to_py", .mock_r_to_py)
   
   mock_config <- list(is_dry_publish = TRUE)
   mock_data <- data.frame(a = 1)
@@ -296,6 +314,7 @@ test_that(".do_put_command gracefully handles empty error stream (python.builtin
   
   # Stub reticulate and options so it runs in pure R
   mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, "reticulate::r_to_py", .mock_r_to_py)
   mockery::stub(.do_put_command, ".get_flight_options", list())
   
   mock_config <- list(is_dry_publish = TRUE)
@@ -336,6 +355,7 @@ test_that(".do_put_command surfaces the full checks section for a failing dry_pu
   mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
 
   mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, "reticulate::r_to_py", .mock_r_to_py)
   mockery::stub(.do_put_command, ".get_flight_options", list())
 
   mock_config <- list(is_dry_publish = TRUE)
@@ -374,6 +394,7 @@ test_that(".do_put_command surfaces dataset_uuid and dataset_batch_number for a 
   mock_client <- list(do_put = function(descriptor, schema, options) list(mock_writer, mock_reader))
 
   mockery::stub(.do_put_command, "reticulate::import", function(...) list(FlightDescriptor = list(for_path = function(x) list(path = x))))
+  mockery::stub(.do_put_command, "reticulate::r_to_py", .mock_r_to_py)
   mockery::stub(.do_put_command, ".get_flight_options", list())
 
   mock_config <- list(is_dry_publish = FALSE)
@@ -435,6 +456,7 @@ test_that(".do_put_command correctly aggregates multiple chunked batches of inva
   })
   
   mockery::stub(.do_put_command, ".get_flight_options", list())
+  mockery::stub(.do_put_command, "reticulate::r_to_py", .mock_r_to_py)
   
   # Pass through the Arrow conversion since our mock batches are already data frames
   mockery::stub(.do_put_command, "arrow::as_arrow_table", function(x) x) 
