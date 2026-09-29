@@ -19,16 +19,18 @@ dataconnect_tbl <- function(client, ticket_data) {
 #' @param x A DataConnectRef object
 #' @param n The number of rows to return. Default is 6.
 #' @param ... Additional arguments (ignored, for S3 generic consistency)
-#' @return A data frame with the first n rows
+#' @return A list with \code{data} (a data frame with the first n rows) and
+#'   \code{trace_id} (the server's trace id for this call, or NULL)
 #' @method head DataConnectRef
 #' 
 #' @examples
 #' \dontrun{
 #' data <- dc$fetch_data(....)
-#' data$frame %>% head() # returns first 6 rows
+#' data$frame %>% head() # returns first 6 rows, plus trace_id
 #' 
 #' # head need not be chained with collect(), head internally calls collect()
-#' data$frame %>% head(10) # returns first 10 rows
+#' result <- data$frame %>% head(10) # returns first 10 rows
+#' df <- result$data
 #' }
 #' 
 #' @importFrom utils head
@@ -44,13 +46,16 @@ head.DataConnectRef <- function(x, n = 6L, ...) {
 #'
 #' @param x A DataConnectRef object
 #' @param ... Additional arguments (ignored, for S3 generic consistency)
-#' @return A data frame containing the collected data
+#' @return A list with \code{data} (a data frame containing the collected data)
+#'   and \code{trace_id} (the server's trace id for this call, or NULL)
 #' @method collect DataConnectRef
 #' 
 #' @examples
 #' \dontrun{
 #' data <- dc$fetch_data(....)
-#' df <- data$frame %>% collect()
+#' result <- data$frame %>% collect()
+#' df <- result$data
+#' trace_id <- result$trace_id
 #' }
 #' 
 #' @export
@@ -131,7 +136,7 @@ DataConnectRef <- setRefClass(
     },
 
     collect = function(ignore_limit = FALSE) {
-      "Execute the query and return results as a data frame"
+      "Execute the query and return a list with 'data' (a data frame) and 'trace_id'"
 
       # Build enhanced ticket data with all query specifications
       enhanced_ticket <- .self$.ticket_data
@@ -143,10 +148,10 @@ DataConnectRef <- setRefClass(
 
       # Get the data using enhanced ticket
       result <- .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE)
-      
+
       # Convert to data frame by default for data scientists
-      if (!is.null(result)) {
-        result <- as.data.frame(result)
+      if (!is.null(result$data)) {
+        result$data <- as.data.frame(result$data)
       }
 
       return(result)

@@ -20,7 +20,8 @@
 #'     \itemize{
 #'       \item \code{search_study_name}: Filter for study names (optional, default: "")
 #'     }
-#'     Returns a list with \code{total_records} (integer) and \code{studies} array.
+#'     Returns a list with \code{total_records} (integer), \code{studies} array, and
+#'     \code{trace_id} (the server's trace id for this call, or NULL if unavailable).
 #'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
 #'     Each environment has \code{name} and \code{uuid}.
 #'   }
@@ -32,7 +33,9 @@
 #'       \item \code{page}: Page number for paginated results (optional, default: 1)
 #'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
-#'     Returns a list with \code{total_records} (integer), \code{pagination} (list), and \code{datasets} (list).
+#'     Returns a list with \code{total_records} (integer), \code{pagination} (list),
+#'     \code{datasets} (list), and \code{trace_id} (the server's trace id for this
+#'     call, or NULL if unavailable).
 #'
 #'     Note: as of v1.3.0 the deprecated \code{study_uuid} parameter has been removed.
 #'   }
@@ -41,7 +44,8 @@
 #'     \itemize{
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
-#'     Returns version information for the specified dataset.
+#'     Returns a list with \code{items} (the version records) and \code{trace_id}
+#'     (the server's trace id for this call, or NULL if unavailable).
 #'
 #'     Note: as of v1.3.0 the deprecated \code{study_uuid} and \code{study_environment_uuid}
 #'     parameters have been removed.
@@ -67,7 +71,8 @@
 #'       \item \code{data}: The data to be validated for publishing (required)
 #'       \item \code{datetime_formats}: The datetime formats to be validated for publishing (optional)
 #'     }
-#'     Returns validation results and any potential issues.
+#'     Returns validation results and any potential issues, plus \code{trace_id}
+#'     (the server's trace id for this call, or NULL if unavailable).
 #'   }
 #'   \item{\code{publish(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL)}}{
 #'     Publish a dataset to DataConnect service.
@@ -79,7 +84,8 @@
 #'       \item \code{data}: The data to be published (required, cannot be null)
 #'       \item \code{datetime_formats}: The datetime formats to be applied for publishing (optional)
 #'     }
-#'     Returns the result of the publishing operation.
+#'     Returns the result of the publishing operation, plus \code{trace_id} (the
+#'     server's trace id for this call, or NULL if unavailable).
 #'   }
 #'   \item{\code{get_datetime_formats(project_token, type = "all")}}{
 #'     Retrieve supported date and datetime format strings for publish validation.
@@ -87,7 +93,9 @@
 #'       \item \code{project_token}: Authentication token for the target project (required)
 #'       \item \code{type}: Optional filter. Accepted values: \code{"all"}, \code{"date"}, \code{"datetime"}
 #'     }
-#'     Returns a data.frame with columns \code{index}, \code{format}, and \code{type}.
+#'     Returns a list with \code{formats} (a data.frame with columns \code{index},
+#'     \code{format}, and \code{type}) and \code{trace_id} (the server's trace id
+#'     for this call, or NULL if unavailable).
 #'   }
 #' }
 #'

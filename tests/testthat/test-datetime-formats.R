@@ -16,7 +16,7 @@ test_that(".get_datetime_formats returns structured all formats with 128 entries
   mock_formats <- .build_mock_formats()
 
   mockery::stub(.get_datetime_formats, ".do_command", function(...) {
-    list(mock_formats)
+    list(response = list(list(formats = mock_formats)), trace_id = NULL)
   })
 
   result <- .get_datetime_formats(
@@ -25,16 +25,17 @@ test_that(".get_datetime_formats returns structured all formats with 128 entries
     type = "all"
   )
 
-  expect_s3_class(result, "data.frame")
-  expect_named(result, c("index", "format", "type"))
-  expect_equal(nrow(result), 128)
-  expect_equal(result$index, seq_len(128))
-  expect_true(all(result$type %in% c("date", "datetime")))
+  expect_type(result, "list")
+  expect_s3_class(result$formats, "data.frame")
+  expect_named(result$formats, c("index", "format", "type"))
+  expect_equal(nrow(result$formats), 128)
+  expect_equal(result$formats$index, seq_len(128))
+  expect_true(all(result$formats$type %in% c("date", "datetime")))
 })
 
 test_that(".get_datetime_formats warns but still returns formats when count differs from 128", {
   mockery::stub(.get_datetime_formats, ".do_command", function(...) {
-    list(c("yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss", "MM/dd/yy"))
+    list(response = list(list(formats = c("yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss", "MM/dd/yy"))), trace_id = NULL)
   })
 
   result <- expect_warning(
@@ -42,8 +43,8 @@ test_that(".get_datetime_formats warns but still returns formats when count diff
     "Expected 128 datetime formats"
   )
 
-  expect_s3_class(result, "data.frame")
-  expect_equal(nrow(result), 3)
+  expect_s3_class(result$formats, "data.frame")
+  expect_equal(nrow(result$formats), 3)
 })
 
 test_that(".get_datetime_formats supports date filter", {
@@ -51,7 +52,7 @@ test_that(".get_datetime_formats supports date filter", {
 
   mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
     captured_args <<- args
-    list(c("yyyy-MM-dd", "MM/dd/yy"))
+    list(response = list(list(formats = c("yyyy-MM-dd", "MM/dd/yy"))), trace_id = NULL)
   })
 
   result <- .get_datetime_formats(
@@ -61,8 +62,8 @@ test_that(".get_datetime_formats supports date filter", {
   )
 
   expect_equal(captured_args$type, "date")
-  expect_true(all(result$type == "date"))
-  expect_equal(nrow(result), 2)
+  expect_true(all(result$formats$type == "date"))
+  expect_equal(nrow(result$formats), 2)
 })
 
 test_that(".get_datetime_formats supports datetime filter", {
@@ -70,7 +71,7 @@ test_that(".get_datetime_formats supports datetime filter", {
 
   mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
     captured_args <<- args
-    list(c("yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss"))
+    list(response = list(list(formats = c("yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss"))), trace_id = NULL)
   })
 
   result <- .get_datetime_formats(
@@ -80,8 +81,8 @@ test_that(".get_datetime_formats supports datetime filter", {
   )
 
   expect_equal(captured_args$type, "datetime")
-  expect_true(all(result$type == "datetime"))
-  expect_equal(nrow(result), 2)
+  expect_true(all(result$formats$type == "datetime"))
+  expect_equal(nrow(result$formats), 2)
 })
 
 test_that(".get_datetime_formats sends unsupported types to the server", {
@@ -89,17 +90,17 @@ test_that(".get_datetime_formats sends unsupported types to the server", {
 
   mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
     captured_args <<- args
-    list(c("yyyy-MM-dd"))
+    list(response = list(list(formats = c("yyyy-MM-dd"))), trace_id = NULL)
   })
 
   result <- .get_datetime_formats(client = list(), project_token = "project-token", type = "INVALID")
   expect_equal(captured_args$type, "invalid")
-  expect_equal(result$format, "yyyy-MM-dd")
+  expect_equal(result$formats$format, "yyyy-MM-dd")
 })
 
 test_that(".get_datetime_formats result maps cleanly to publish datetime_formats payload", {
   mockery::stub(.get_datetime_formats, ".do_command", function(...) {
-    list(c("yyyy-MM-dd", "MM/dd/yy"))
+    list(response = list(list(formats = c("yyyy-MM-dd", "MM/dd/yy"))), trace_id = NULL)
   })
 
   formats_df <- .get_datetime_formats(
@@ -109,7 +110,7 @@ test_that(".get_datetime_formats result maps cleanly to publish datetime_formats
   )
 
   datetime_formats <- as.list(stats::setNames(
-    formats_df$format[1],
+    formats_df$formats$format[1],
     "start_date"
   ))
 
@@ -127,3 +128,18 @@ test_that(".get_datetime_formats result maps cleanly to publish datetime_formats
 
   expect_equal(decoded$datetime_formats$start_date, "yyyy-MM-dd")
 })
+
+test_that(".get_datetime_formats includes a trace_id field alongside formats", {
+  mockery::stub(.get_datetime_formats, ".do_command", function(...) {
+    list(response = list(list(formats = c("yyyy-MM-dd", "MM/dd/yy"))), trace_id = "trace-abc")
+  })
+
+  result <- .get_datetime_formats(
+    client = list(),
+    project_token = "project-token",
+    type = "date"
+  )
+
+  expect_true("trace_id" %in% names(result))
+})
+# End of datetime format tests.
