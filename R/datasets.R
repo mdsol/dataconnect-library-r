@@ -105,37 +105,6 @@ StudyEnvironment <- setRefClass(
   return(meta_list)
 }
 
-#' Extract trace_id from a pyarrow Table's schema metadata
-#'
-#' The Arrow Flight server attaches trace_id as schema-level key/value metadata
-#' (one value for the whole do_get call, not per record batch). Defensive:
-#' returns NULL rather than raising if the metadata is missing or in an
-#' unexpected shape.
-#'
-#' @param table A pyarrow Table object (not yet converted to an R Arrow table)
-#' @return The trace_id string, or NULL if unavailable
-#' @keywords internal
-#' @noRd
-.trace_id_extractor <- local({
-  fn <- NULL
-  function() {
-    if (is.null(fn)) {
-      # Bytes-keyed dict lookup done in Python: reticulate's R-side conversion
-      # of dict(bytes -> bytes) is ambiguous, but a plain str/None return is not.
-      fn <<- reticulate::py_run_string(
-        "def _dc_extract_trace_id(table):\n    md = table.schema.metadata\n    if not md:\n        return None\n    val = md.get(b'trace_id')\n    return val.decode('utf-8') if val is not None else None\n"
-      )$`_dc_extract_trace_id`
-    }
-    fn
-  }
-})
-
-.extract_schema_trace_id <- function(table) {
-  tryCatch({
-    reticulate::py_to_r(.trace_id_extractor()(table))
-  }, error = function(e) NULL)
-}
-
 #' Attach frame property to a dataset object
 #'
 #' Helper function to attach a dataconnect_tbl frame to a dataset item.
@@ -167,24 +136,15 @@ StudyEnvironment <- setRefClass(
 #'
 #' @param py_iter A Python iterator of FlightInfo objects
 #' @param client Optional FlightClient object to add frame property to datasets
-#' @return A list with \code{results} (the extracted data items) and
-#'   \code{trace_id} (read from the first item's app_metadata, or NULL if unavailable)
+#' @return A list of extracted data items
 #' @keywords internal
 #' @noRd
 .process_iterator <- function(py_iter, client = NULL) {
   results <- list()
-  trace_id <- NULL
 
   tryCatch({
     # Process each FlightInfo object
     reticulate::iterate(py_iter, function(item) {
-
-      if (is.null(trace_id)) {
-        app_metadata <- .extract_app_metadata(item)
-        if (!is.null(app_metadata) && !is.null(app_metadata$trace_id)) {
-          trace_id <<- app_metadata$trace_id
-        }
-      }
 
       data <- .extract_data(item)
 
@@ -213,16 +173,14 @@ StudyEnvironment <- setRefClass(
     .throw_dataconnect_error(parsed_error)
   })
 
-  return(list(results = results, trace_id = trace_id))
+  return(results)
 }
 
 #' Get all flights
 #'
 #' @param client A FlightClient object
 #' @param criteria Base criteria for the query
-#' @return A list with \code{items} (all flights matching the criteria, with
-#'   frame properties added for datasets) and \code{trace_id} (the server's
-#'   trace id for this call, or NULL if unavailable)
+#' @return A list of flights matching the criteria, with frame properties added for datasets
 #' @keywords internal
 #' @noRd
 .get_flights <- function(client, criteria) {
@@ -236,15 +194,11 @@ StudyEnvironment <- setRefClass(
   # Process the iterator, passing client for frame creation
   processed <- .process_iterator(py_iter, client)
 
-  if(length(processed$results) > 0) {
-    
-    # Add results to our collection
-    all_results <- c(all_results, processed$results)
+  if (length(processed) > 0) {
+    all_results <- c(all_results, processed)
   }
 
-  trace_id <- processed$trace_id
-
-  return(list(items = all_results, trace_id = trace_id))
+  return(all_results)
 }
 
 #' Retrieve data for a flight
@@ -253,8 +207,7 @@ StudyEnvironment <- setRefClass(
 #' @param ticket The ticket from a FlightInfo object
 #' @param chunked Whether to read data in chunks (default: FALSE)
 #' @param chunk_callback Optional callback function to process each chunk
-#' @return A list with \code{data} (an Arrow Table) and \code{trace_id} (the
-#'   server's trace id for this call, or NULL if unavailable)
+#' @return An Arrow Table, or NULL if no data is returned
 #' @keywords internal
 #' @noRd
 .get_data <- function(client, ticket, chunked = FALSE, chunk_callback = NULL) {
@@ -292,8 +245,6 @@ StudyEnvironment <- setRefClass(
       if (length(py_chunks) > 0) {
         pa <- reticulate::import("pyarrow")
         combined_py_table <- pa$Table$from_batches(py_chunks)
-        trace_id <- .extract_schema_trace_id(combined_py_table)
-        
         # Convert to R Arrow table
         result <- arrow::as_arrow_table(combined_py_table)
         
@@ -302,22 +253,20 @@ StudyEnvironment <- setRefClass(
           result <- chunk_callback(result)
         }
         
-        return(list(data = result, trace_id = trace_id))
+        return(result)
       }
       
-      return(list(data = NULL, trace_id = NULL))
+      return(NULL)
     } else {
       # Read all data at once
       table <- reader$read_all()
-      trace_id <- .extract_schema_trace_id(table)
-
       # Convert to R Arrow table
       if(requireNamespace("arrow", quietly = TRUE)) {
         result <- arrow::as_arrow_table(table)
-        return(list(data = result, trace_id = trace_id))
+        return(result)
       } else {
         # Try to convert to R object
-        return(list(data = reticulate::py_to_r(table), trace_id = trace_id))
+        return(reticulate::py_to_r(table))
       }
     }
   }, error = function(e) {
@@ -410,8 +359,7 @@ StudyEnvironment <- setRefClass(
 #' @param ticket_data A list containing the ticket data
 #' @param chunked Whether to read data in chunks (default: FALSE)
 #' @param chunk_callback Optional callback function to process each chunk
-#' @return A list with \code{data} (an Arrow Table with the raw dataset data)
-#'   and \code{trace_id} (the server's trace id for this call, or NULL)
+#' @return An Arrow Table with the raw dataset data, or NULL if no data is returned
 #' @keywords internal
 #' @noRd
 .get_dataset_raw <- function(client, ticket_data, chunked = FALSE, chunk_callback = NULL) {
@@ -434,8 +382,8 @@ StudyEnvironment <- setRefClass(
   result <- .get_data(client, ticket, chunked = chunked, chunk_callback = chunk_callback)
 
   # Apply catalog type corrections (e.g., cast double to integer where catalog expects integer)
-  if (!is.null(result$data) && !is.null(catalog_schema)) {
-    result$data <- .cast_to_catalog_types(result$data, catalog_schema)
+  if (!is.null(result) && !is.null(catalog_schema)) {
+    result <- .cast_to_catalog_types(result, catalog_schema)
   }
 
   return(result)
@@ -448,7 +396,7 @@ StudyEnvironment <- setRefClass(
 #' @return A dataset object with metadata and frame property
 #' @keywords internal
 #' @noRd
-.get_dataset <- function(client, dataset_uuid) {
+.get_dataset <- function(client, dataset_uuid, trace_state = NULL) {
 
   # Build ticket_data from provided identifiers
   ticket_data <- list(
@@ -462,7 +410,11 @@ StudyEnvironment <- setRefClass(
   )
   
   # Attach a lazy frame for data retrieval
-  dataset_obj$frame <- dataconnect_tbl(client, ticket_data)
+  dataset_obj$frame <- if (is.null(trace_state)) {
+    dataconnect_tbl(client, ticket_data)
+  } else {
+    dataconnect_tbl(client, ticket_data, trace_state)
+  }
   
   return(dataset_obj)
 }
@@ -470,8 +422,7 @@ StudyEnvironment <- setRefClass(
 #' List studies from a Flight server
 #' @param client A FlightClient object
 #' @param search_study_name full or part of the study name to search by
-#' @return A named list with `total_records`, `studies`, and `trace_id` (the
-#'   server's trace id for this call, or NULL if unavailable)
+#' @return A named list with `total_records` and `studies`
 #' @keywords internal
 #' @noRd
 .get_studies <- function(
@@ -488,7 +439,6 @@ StudyEnvironment <- setRefClass(
   studies <- list()
   total_records <- 0L
   is_first_item <- TRUE
-  trace_id <- NULL
 
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
@@ -496,11 +446,6 @@ StudyEnvironment <- setRefClass(
       if (is_first_item) {
         if (!is.null(item$total_records)) {
           total_records <<- as.integer(item$total_records)
-        }
-
-        app_metadata <- .extract_app_metadata(item)
-        if (!is.null(app_metadata) && !is.null(app_metadata$trace_id)) {
-          trace_id <<- app_metadata$trace_id
         }
 
         is_first_item <<- FALSE
@@ -534,8 +479,7 @@ StudyEnvironment <- setRefClass(
 
   return(list(
     total_records = total_records,
-    studies = studies,
-    trace_id = trace_id
+    studies = studies
   ))
 }
 
@@ -546,8 +490,7 @@ StudyEnvironment <- setRefClass(
 #' @param search_dataset_name full or part of the dataset name to search by
 #' @param page Page number for paginated results
 #' @param page_size Number of results per page
-#' @return A named list with `total_records`, `pagination`, `datasets`, and
-#'   `trace_id` (the server's trace id for this call, or NULL if unavailable)
+#' @return A named list with `total_records`, `pagination`, and `datasets`
 #' @keywords internal
 #' @noRd
 .get_datasets <- function(
@@ -571,7 +514,6 @@ StudyEnvironment <- setRefClass(
   first_item <- TRUE
   total_records <- 0L
   datasets <- list()
-  trace_id <- NULL
   pagination <- list(
     page = page,
     page_size = page_size,
@@ -582,10 +524,6 @@ StudyEnvironment <- setRefClass(
     reticulate::iterate(py_iter, function(item) {
       if (first_item) {
         app_metadata <- .extract_app_metadata(item)
-
-        if (!is.null(app_metadata) && !is.null(app_metadata$trace_id)) {
-          trace_id <<- app_metadata$trace_id
-        }
 
         if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
 
@@ -625,8 +563,7 @@ StudyEnvironment <- setRefClass(
   return(list(
     total_records = total_records,
     pagination = pagination,
-    datasets = datasets,
-    trace_id = trace_id
+    datasets = datasets
   ))
 }
 
@@ -634,8 +571,7 @@ StudyEnvironment <- setRefClass(
 #'
 #' @param client A FlightClient object
 #' @param dataset_uuid UUID of the dataset to filter by
-#' @return A list with \code{items} (the dataset version records) and
-#'   \code{trace_id} (the server's trace id for this call, or NULL if unavailable)
+#' @return A list of dataset version records
 #' @keywords internal
 #' @noRd
 .get_dataset_versions <- function(client, dataset_uuid) {

@@ -8,8 +8,23 @@ NULL
 #' @return A DataConnectRef object that supports dplyr operations
 #' @keywords internal
 #' @noRd
-dataconnect_tbl <- function(client, ticket_data) {
-  DataConnectRef$new(client, ticket_data)
+dataconnect_tbl <- function(client, ticket_data, trace_state = NULL) {
+  DataConnectRef$new(client, ticket_data, trace_state)
+}
+
+# Attach the current client's trace ID to an error without changing its class.
+.with_trace_id <- function(client, expr) {
+  tryCatch(
+    force(expr),
+    error = function(e) {
+      trace_id <- client$trace_id
+      if (!is.null(trace_id) && length(trace_id) == 1L &&
+          !is.na(trace_id) && nzchar(trace_id)) {
+        e$trace_id <- trace_id
+      }
+      stop(e)
+    }
+  )
 }
 
 #' Fetch the first few rows of a DataConnectRef Object
@@ -19,18 +34,17 @@ dataconnect_tbl <- function(client, ticket_data) {
 #' @param x A DataConnectRef object
 #' @param n The number of rows to return. Default is 6.
 #' @param ... Additional arguments (ignored, for S3 generic consistency)
-#' @return A list with \code{data} (a data frame with the first n rows) and
-#'   \code{trace_id} (the server's trace id for this call, or NULL)
+#' @return A data frame with the first n rows
 #' @method head DataConnectRef
 #' 
 #' @examples
 #' \dontrun{
 #' data <- dc$fetch_data(....)
-#' data$frame %>% head() # returns first 6 rows, plus trace_id
+#' data$frame %>% head() # returns first 6 rows
 #' 
 #' # head need not be chained with collect(), head internally calls collect()
 #' result <- data$frame %>% head(10) # returns first 10 rows
-#' df <- result$data
+#' df <- result
 #' }
 #' 
 #' @importFrom utils head
@@ -46,16 +60,14 @@ head.DataConnectRef <- function(x, n = 6L, ...) {
 #'
 #' @param x A DataConnectRef object
 #' @param ... Additional arguments (ignored, for S3 generic consistency)
-#' @return A list with \code{data} (a data frame containing the collected data)
-#'   and \code{trace_id} (the server's trace id for this call, or NULL)
+#' @return A data frame containing the collected data
 #' @method collect DataConnectRef
 #' 
 #' @examples
 #' \dontrun{
 #' data <- dc$fetch_data(....)
 #' result <- data$frame %>% collect()
-#' df <- result$data
-#' trace_id <- result$trace_id
+#' df <- result
 #' }
 #' 
 #' @export
@@ -119,13 +131,15 @@ DataConnectRef <- setRefClass(
   fields = list(
     .client = "ANY",
     .ticket_data = "list",
-    .limit_n = "ANY"
+    .limit_n = "ANY",
+    .trace_state = "ANY"
   ),
   methods = list(
-    initialize = function(client, ticket_data) {
+    initialize = function(client, ticket_data, trace_state = NULL) {
       .self$.client <- client
       .self$.ticket_data <- ticket_data
       .self$.limit_n <- NULL
+      .self$.trace_state <- trace_state
     },
 
     head = function(n = 6L) {
@@ -136,7 +150,7 @@ DataConnectRef <- setRefClass(
     },
 
     collect = function(ignore_limit = FALSE) {
-      "Execute the query and return a list with 'data' (a data frame) and 'trace_id'"
+      "Execute the query and return a data frame"
 
       # Build enhanced ticket data with all query specifications
       enhanced_ticket <- .self$.ticket_data
@@ -147,11 +161,14 @@ DataConnectRef <- setRefClass(
       }
 
       # Get the data using enhanced ticket
-      result <- .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE)
+      result <- .with_trace_id(
+        .self$.trace_state,
+        .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE)
+      )
 
       # Convert to data frame by default for data scientists
-      if (!is.null(result$data)) {
-        result$data <- as.data.frame(result$data)
+      if (!is.null(result)) {
+        result <- as.data.frame(result)
       }
 
       return(result)

@@ -245,3 +245,27 @@ test_that(".get_client stops when PyArrow is not available", {
     "PyArrow module is not available"
   )
 })
+
+test_that("trace middleware captures response headers and structured errors", {
+  skip_if_not_installed("reticulate")
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  client_bundle <- .get_client("grpc+tcp://127.0.0.1:0", FALSE)
+  trace_state <- client_bundle[["trace_state"]]
+  factory <- reticulate::py_get_attr(reticulate::py, "_DataConnectTraceMiddlewareFactory")(trace_state)
+
+  middleware <- reticulate::py_get_attr(factory, "start_call")(NULL)
+  reticulate::py_get_attr(middleware, "received_headers")(
+    list("x-dataconnect-trace-id" = list("header-trace"))
+  )
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "header-trace")
+
+  middleware <- reticulate::py_get_attr(factory, "start_call")(NULL)
+  error_message <- paste0(
+    "AUTH_001::",
+    jsonlite::toJSON(list(error_code = "AUTH_001", trace_id = "structured-trace"), auto_unbox = TRUE),
+    ". Detail: Unauthenticated"
+  )
+  reticulate::py_get_attr(middleware, "call_completed")(error_message)
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "structured-trace")
+})

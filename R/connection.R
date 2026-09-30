@@ -223,8 +223,62 @@ def create_flight_options_with_network_info():
 
   is_windows <- (Sys.info()["sysname"] == "Windows")
 
-  # Import PyArrow
-  pa <- reticulate::import("pyarrow")
+  reticulate::py_run_string('
+import json as _dc_json
+import pyarrow.flight as _dc_flight
+
+class _DataConnectTraceState:
+    def __init__(self):
+      self.trace_id = None
+
+class _DataConnectTraceMiddleware(_dc_flight.ClientMiddleware):
+    def __init__(self, state):
+      self._state = state
+
+    def received_headers(self, headers):
+      values = headers.get("x-dataconnect-trace-id")
+      if values:
+        value = values[0]
+        if isinstance(value, bytes):
+          value = value.decode("utf-8", errors="replace")
+        if value:
+          self._state.trace_id = value
+
+    def call_completed(self, exception):
+      if exception is None:
+        return
+      message = str(exception)
+      separator = message.find("::")
+      if separator < 0:
+        return
+      payload_text = message[separator + 2:]
+      payload_start = payload_text.find("{")
+      if payload_start < 0:
+        return
+      try:
+        payload, _ = _dc_json.JSONDecoder().raw_decode(payload_text[payload_start:])
+      except _dc_json.JSONDecodeError:
+        return
+      if isinstance(payload, dict):
+        trace_id = payload.get("trace_id")
+        if self._state.trace_id is None and trace_id:
+          self._state.trace_id = trace_id
+
+class _DataConnectTraceMiddlewareFactory(_dc_flight.ClientMiddlewareFactory):
+    def __init__(self, state):
+      self._state = state
+
+    def start_call(self, _info):
+      self._state.trace_id = None
+      return _DataConnectTraceMiddleware(self._state)
+
+def _dc_create_flight_client(uri, tls_root_certs=None):
+    state = _DataConnectTraceState()
+    options = {"middleware": [_DataConnectTraceMiddlewareFactory(state)]}
+    if tls_root_certs is not None:
+      options["tls_root_certs"] = tls_root_certs
+    return (_dc_flight.FlightClient(uri, **options), state)
+  ')
 
   if (use_tls && is_windows) {
 
@@ -252,12 +306,12 @@ def create_flight_options_with_network_info():
 
     pem_certs <- paste0(unlist(lapply(root_certs_raw, to_pem)), collapse="\n")
 
-    client <- pa$flight$FlightClient(uri, tls_root_certs = pem_certs)
+    client <- reticulate::py$`_dc_create_flight_client`(uri, tls_root_certs = pem_certs)
   } else {
-    client <- pa$flight$FlightClient(uri)
+    client <- reticulate::py$`_dc_create_flight_client`(uri)
   }
 
-  return(client)
+  return(list(client = client[[1]], trace_state = client[[2]]))
 }
 
 #' Connect to an Arrow Flight server

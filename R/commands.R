@@ -65,13 +65,7 @@
       }
     })
 
-    # trace_id is carried in the parsed JSON body of the first result, merged in server-side
-    trace_id <- NULL
-    if (length(response) > 0 && is.list(response[[1]]) && !is.null(response[[1]]$trace_id)) {
-      trace_id <- response[[1]]$trace_id
-    }
-
-    return(list(response = response, trace_id = trace_id))
+    return(response)
   }, error = function(e) {
     parsed_error <- .parse_dataconnect_error(conditionMessage(e))
     .throw_dataconnect_error(parsed_error)
@@ -80,8 +74,7 @@
 
 #' Retrieve supported datetime formats from the Arrow Flight server
 #'
-#' Returns a list with a structured data frame of formats plus the server's
-#' trace id for the call. The data frame has the following columns:
+#' Returns a structured data frame of formats with the following columns:
 #' \itemize{
 #'   \item \code{index}: 1-based position in the returned format list.
 #'   \item \code{format}: Date or datetime format string.
@@ -91,9 +84,7 @@
 #' @param client A FlightClient object
 #' @param project_token Project token for authorization
 #' @param type Filter type: one of \code{"all"}, \code{"date"}, or \code{"datetime"}
-#' @return A named list with \code{formats} (a data.frame with columns
-#'   \code{index}, \code{format}, and \code{type}) and \code{trace_id} (the
-#'   server's trace id for this call, or NULL if unavailable)
+#' @return A data.frame with columns \code{index}, \code{format}, and \code{type}
 #' @keywords internal
 #' @noRd
 .get_datetime_formats <- function(client, project_token, type = "all") {
@@ -117,11 +108,11 @@
     args = list(project_token = project_token, type = normalized_type)
   )
 
-  if (is.null(result) || is.null(result$response) || length(result$response) == 0 || is.null(result$response[[1]])) {
+  if (is.null(result) || length(result) == 0 || is.null(result[[1]])) {
     stop("No date/datetime formats were returned by the server")
   }
 
-  formats_raw <- result$response[[1]]$formats
+  formats_raw <- result[[1]]
   formats <- as.character(unname(unlist(formats_raw, use.names = FALSE)))
   formats <- formats[!is.na(formats) & nzchar(formats)]
 
@@ -142,7 +133,7 @@
     warning(sprintf("Expected 128 datetime formats for type='all' but received %d", nrow(structured_formats)))
   }
 
-  list(formats = structured_formats, trace_id = result$trace_id)
+  structured_formats
 }
 
 #' Execute a do_put command on the Arrow Flight server
@@ -164,7 +155,6 @@
 #'     failure.}
 #'   \item{errors}{List of validation error messages, if any.}
 #'   \item{invalid_records}{A data.frame of invalid records, or an empty list if none.}
-#'   \item{trace_id}{The server's trace id for this call, or NULL if unavailable.}
 #'
 #'   On failure (e.g. network/server error), a list containing:
 #'   \item{success}{\code{FALSE}}
@@ -277,8 +267,7 @@
         dataset_is_valid = result_checks$dataset_is_valid
       ),
       errors = result_errors,
-      invalid_records = list(),
-      trace_id = result$trace_id
+      invalid_records = list()
     )
 
     # Try to read invalid records table (IPC stream) from the server.

@@ -52,6 +52,27 @@ test_that(".parse_dataconnect_error parses basic error messages correctly", {
   expect_null(result$details)
 })
 
+test_that("structured error trace IDs are retained and printed", {
+  raw_error <- paste0(
+    'RES_002::{"error_code":"RES_002","message":"Request failed",',
+    '"details":[{"field":"dataset_uuid",',
+    '"expected":"Review and provide the correct dataset_uuid."}],',
+    '"trace_id":"trace-server-456"}'
+  )
+
+  error <- tryCatch(
+    .throw_dataconnect_error(.parse_dataconnect_error(raw_error)),
+    dataconnect_error = identity
+  )
+
+  expect_equal(error$trace_id, "trace-server-456")
+  printed <- capture.output(print(error))
+  expect_equal(tail(printed, 2), c(
+    "    Expected: Review and provide the correct dataset_uuid.",
+    "    Trace ID: trace-server-456"
+  ))
+})
+
 # Test: Error message without :: delimiter
 test_that(".parse_dataconnect_error handles messages without delimiter", {
   error_message <- "Simple error message without delimiter"
@@ -393,6 +414,36 @@ test_that(".throw_dataconnect_error throws a dataconnect_error condition with al
       expect_equal(paste(capture.output(print(e)), collapse = "\n"), e$message)
     }
   )
+})
+
+test_that("client trace IDs are attached to errors and printed", {
+  client <- list(trace_id = "trace-rpc-123")
+  error <- tryCatch(
+    .with_trace_id(client, stop(structure(
+      list(message = "request failed"),
+      class = c("dataconnect_error", "DataConnectError", "error", "condition")
+    ))),
+    error = identity
+  )
+
+  expect_s3_class(error, "dataconnect_error")
+  expect_equal(error$trace_id, "trace-rpc-123")
+  printed <- capture.output(print(error))
+  expect_equal(tail(printed, 1), "Trace ID: trace-rpc-123")
+})
+
+test_that("client errors without a trace ID retain their original class", {
+  client <- list(trace_id = NULL)
+  error <- tryCatch(
+    .with_trace_id(client, stop(structure(
+      list(message = "request failed"),
+      class = c("dataconnect_error", "DataConnectError", "error", "condition")
+    ))),
+    error = identity
+  )
+
+  expect_s3_class(error, "dataconnect_error")
+  expect_null(error$trace_id)
 })
 
 test_that("server validation details appear in the thrown message", {
