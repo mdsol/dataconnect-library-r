@@ -5,6 +5,7 @@ library(mockery)
 
 # Source the implementation under test (same pattern as other tests in this repo)
 source("../../R/datasets.R")
+source("../../R/table.R")
 
 # ── .get_datasets tests ──────────────────────────────────────────────────────
 test_that(".get_datasets forwards server-side pagination (page + page_size) in criteria", {
@@ -98,7 +99,7 @@ test_that(".get_datasets extracts pagination from app_metadata if present, other
   mockery::stub(.get_datasets, ".get_flights", function(client, criteria) list())
   mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
   # Simulate app_metadata with pagination
-  mockery::stub(.get_datasets, ".extract_app_metadata", function(item) {
+  mockery::stub(.get_datasets, ".extract_app_metadata", function(item, trace_state = NULL) {
     list(pagination = list(page = 5, page_size = 25, total_pages = 7))
   })
   call_count <- 0
@@ -123,7 +124,7 @@ test_that(".get_datasets extracts pagination from app_metadata if present, other
 test_that(".get_dataset_versions succeeds with dataset_uuid alone and sends a minimal criteria", {
   captured_criteria <- NULL
 
-  mockery::stub(.get_dataset_versions, ".get_flights", function(client, criteria) {
+  mockery::stub(.get_dataset_versions, ".get_flights", function(client, criteria, trace_state = NULL) {
     captured_criteria <<- criteria
     list(list(version = 1L))
   })
@@ -481,4 +482,120 @@ test_that(".get_studies returns total_records = 0L for empty iterator", {
   expect_equal(out$total_records, 0L)
   expect_type(out$studies, "list")
   expect_equal(length(out$studies), 0)
+})
+
+test_that(".get_studies preserves its total_records/studies result shape", {
+  mockery::stub(.get_studies, ".list_flights", function(client, criteria) list())
+  mockery::stub(.get_studies, "reticulate::iterate", function(iter, fn) { })
+
+  out <- .get_studies(client = list(), search_study_name = "demo")
+
+  expect_named(out, c("total_records", "studies"))
+})
+
+test_that(".get_datasets preserves its total_records/pagination/datasets result shape", {
+  mockery::stub(.get_datasets, ".list_flights", function(client, criteria) list())
+  mockery::stub(.get_datasets, "reticulate::iterate", function(iter, fn) { })
+
+  out <- .get_datasets(
+    client = list(),
+    study_environment_uuid = "env-1",
+    search_dataset_name = "",
+    page = 1,
+    page_size = 50
+  )
+
+  expect_named(out, c("total_records", "pagination", "datasets"))
+})
+
+test_that(".get_dataset_versions returns the version list directly", {
+  mockery::stub(.get_dataset_versions, ".get_flights", function(client, criteria, trace_state = NULL) {
+    list()
+  })
+
+  out <- .get_dataset_versions(client = list(), dataset_uuid = "ds-1")
+
+  expect_equal(out, list())
+})
+
+test_that(".extract_app_metadata reads the trace id from FlightInfo metadata", {
+  metadata <- reticulate::r_to_py('{"trace_id":"trace-flight-1"}')$encode("utf-8")
+  trace_state <- new.env(parent = emptyenv())
+  trace_state$trace_id <- NULL
+
+  out <- .extract_app_metadata(list(app_metadata = metadata), trace_state)
+
+  expect_equal(out$trace_id, "trace-flight-1")
+  expect_equal(trace_state$trace_id, "trace-flight-1")
+})
+
+test_that("dataset frames created while listing retain the client's trace state", {
+  trace_state <- new.env(parent = emptyenv())
+  captured_trace_state <- NULL
+  mockery::stub(.attach_dataset_frame, "dataconnect_tbl", function(client, ticket_data, trace_state = NULL) {
+    captured_trace_state <<- trace_state
+    "frame-stub"
+  })
+
+  result <- .attach_dataset_frame(
+    list(
+      dataset_uuid = "dataset-1",
+      study_uuid = "study-1",
+      study_env_uuid = "environment-1",
+      dataset_name = "Dataset"
+    ),
+    client = list(),
+    trace_state = trace_state
+  )
+
+  expect_equal(result$frame, "frame-stub")
+  expect_identical(captured_trace_state, trace_state)
+})
+
+test_that("DataConnectRef collect and head return data frames directly", {
+  captured_ticket <- NULL
+  original_get_dataset_raw <- .get_dataset_raw
+  on.exit(assign(".get_dataset_raw", original_get_dataset_raw, envir = .GlobalEnv), add = TRUE)
+  assign(".get_dataset_raw", function(client, ticket_data, chunked, trace_state = NULL) {
+    captured_ticket <<- ticket_data
+    data.frame(value = 1L)
+  }, envir = .GlobalEnv)
+
+  ref <- dataconnect_tbl(client = list(), ticket_data = list(dataset_uuid = "dataset-1"))
+
+  collected <- collect.DataConnectRef(ref)
+  expect_equal(collected, data.frame(value = 1L))
+  expect_null(captured_ticket$limit)
+
+  headed <- head.DataConnectRef(ref, n = 2L)
+  expect_equal(headed, data.frame(value = 1L))
+  expect_equal(captured_ticket$limit, 2L)
+})
+
+test_that("DataConnectRef collection errors include the latest trace ID", {
+  original_get_dataset_raw <- .get_dataset_raw
+  on.exit(assign(".get_dataset_raw", original_get_dataset_raw, envir = .GlobalEnv), add = TRUE)
+  fetch_error <- structure(
+    list(
+      call = NULL,
+      error_code = "FETCH_001",
+      message = "fetch failed",
+      timestamp = NULL,
+      details = list()
+    ),
+    class = c("dataconnect_error", "DataConnectError", "error", "condition")
+  )
+  assign(".get_dataset_raw", function(client, ticket_data, chunked, trace_state = NULL) {
+    stop(fetch_error)
+  }, envir = .GlobalEnv)
+
+  ref <- dataconnect_tbl(
+    client = list(),
+    ticket_data = list(dataset_uuid = "dataset-1"),
+    trace_state = list(trace_id = "trace-fetch-123")
+  )
+  error <- tryCatch(collect.DataConnectRef(ref), error = identity)
+
+  expect_s3_class(error, "dataconnect_error")
+  expect_equal(error$trace_id, "trace-fetch-123")
 })

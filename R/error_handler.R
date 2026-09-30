@@ -79,13 +79,14 @@ print.ErrorDetail <- function(x, ...) {
 #'
 #' @noRd
 #' @keywords internal
-DataConnectError <- function(error_code, message, timestamp = NULL, details = NULL) {
+DataConnectError <- function(error_code, message, timestamp = NULL, details = NULL, trace_id = NULL) {
   structure(
     list(
       error_code = error_code,
       message = message,
       timestamp = timestamp,
-      details = details  # List of ErrorDetail objects
+      details = details,  # List of ErrorDetail objects
+      trace_id = trace_id
     ),
     class = "DataConnectError"
   )
@@ -120,6 +121,11 @@ print.DataConnectError <- function(x, ...) {
       }
     }
   }
+
+  if (!is.null(x$trace_id) && length(x$trace_id) == 1L &&
+      !is.na(x$trace_id) && nzchar(x$trace_id)) {
+    cat("    Trace ID: ", x$trace_id, "\n", sep = "")
+  }
   
   invisible(x)
 }
@@ -135,6 +141,13 @@ print.DataConnectError <- function(x, ...) {
 #' @keywords internal
 print.dataconnect_error <- function(x, ...) {
   cat(x$message, "\n", sep = "")
+  trace_indent <- if (!is.null(x$details) && length(x$details) > 0) "    " else ""
+  trace_line <- paste0("Trace ID: ", x$trace_id)
+  if (!is.null(x$trace_id) && length(x$trace_id) == 1L &&
+      !is.na(x$trace_id) && nzchar(x$trace_id) &&
+      !endsWith(x$message, trace_line)) {
+    cat(trace_indent, trace_line, "\n", sep = "")
+  }
   invisible(x)
 }
 
@@ -177,7 +190,8 @@ print.dataconnect_error <- function(x, ...) {
       error_code = dataconnect_error$error_code,
       message = message,
       timestamp = dataconnect_error$timestamp,
-      details = dataconnect_error$details
+      details = dataconnect_error$details,
+      trace_id = dataconnect_error$trace_id
     ),
     class = c("dataconnect_error", "DataConnectError", "error", "condition")
   )
@@ -477,7 +491,8 @@ print.dataconnect_error <- function(x, ...) {
           error_code = if (!is.null(error_data$error_code)) error_data$error_code else "UNKNOWN",
           message = if (!is.null(error_data$message)) error_data$message else unknown_error,
           timestamp = error_data$timestamp,  # NULL if not present
-          details = parsed_details          # List of ErrorDetail objects or NULL
+          details = parsed_details,          # List of ErrorDetail objects or NULL
+          trace_id = error_data$trace_id
         ))
       }, error = function(e) {
         # If JSON parsing fails, return a DataConnectError with the original message

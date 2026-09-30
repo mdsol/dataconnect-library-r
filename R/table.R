@@ -8,8 +8,49 @@ NULL
 #' @return A DataConnectRef object that supports dplyr operations
 #' @keywords internal
 #' @noRd
-dataconnect_tbl <- function(client, ticket_data) {
-  DataConnectRef$new(client, ticket_data)
+dataconnect_tbl <- function(client, ticket_data, trace_state = NULL) {
+  DataConnectRef$new(client, ticket_data, trace_state)
+}
+
+# Keep the response header authoritative and use payload metadata as a fallback.
+.record_trace_id <- function(trace_state, trace_id) {
+  if (is.null(trace_state) || is.null(trace_id) || length(trace_id) != 1L ||
+      is.na(trace_id) || !nzchar(as.character(trace_id))) {
+    return(invisible(NULL))
+  }
+
+  current_trace_id <- tryCatch({
+    if (inherits(trace_state, "python.builtin.object")) {
+      reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id"))
+    } else {
+      trace_state$trace_id
+    }
+  }, error = function(e) NULL)
+
+  if (is.null(current_trace_id) || !length(current_trace_id) || is.na(current_trace_id)) {
+    if (inherits(trace_state, "python.builtin.object")) {
+      reticulate::py_set_attr(trace_state, "trace_id", as.character(trace_id))
+    } else if (is.environment(trace_state)) {
+      trace_state$trace_id <- as.character(trace_id)
+    }
+  }
+
+  invisible(NULL)
+}
+
+# Attach the current client's trace ID to an error without changing its class.
+.with_trace_id <- function(client, expr) {
+  tryCatch(
+    force(expr),
+    error = function(e) {
+      trace_id <- client$trace_id
+      if (!is.null(trace_id) && length(trace_id) == 1L &&
+          !is.na(trace_id) && nzchar(trace_id)) {
+        e$trace_id <- trace_id
+      }
+      stop(e)
+    }
+  )
 }
 
 #' Fetch the first few rows of a DataConnectRef Object
@@ -28,7 +69,8 @@ dataconnect_tbl <- function(client, ticket_data) {
 #' data$frame %>% head() # returns first 6 rows
 #' 
 #' # head need not be chained with collect(), head internally calls collect()
-#' data$frame %>% head(10) # returns first 10 rows
+#' result <- data$frame %>% head(10) # returns first 10 rows
+#' df <- result
 #' }
 #' 
 #' @importFrom utils head
@@ -50,7 +92,8 @@ head.DataConnectRef <- function(x, n = 6L, ...) {
 #' @examples
 #' \dontrun{
 #' data <- dc$fetch_data(....)
-#' df <- data$frame %>% collect()
+#' result <- data$frame %>% collect()
+#' df <- result
 #' }
 #' 
 #' @export
@@ -114,13 +157,15 @@ DataConnectRef <- setRefClass(
   fields = list(
     .client = "ANY",
     .ticket_data = "list",
-    .limit_n = "ANY"
+    .limit_n = "ANY",
+    .trace_state = "ANY"
   ),
   methods = list(
-    initialize = function(client, ticket_data) {
+    initialize = function(client, ticket_data, trace_state = NULL) {
       .self$.client <- client
       .self$.ticket_data <- ticket_data
       .self$.limit_n <- NULL
+      .self$.trace_state <- trace_state
     },
 
     head = function(n = 6L) {
@@ -131,7 +176,7 @@ DataConnectRef <- setRefClass(
     },
 
     collect = function(ignore_limit = FALSE) {
-      "Execute the query and return results as a data frame"
+      "Execute the query and return a data frame"
 
       # Build enhanced ticket data with all query specifications
       enhanced_ticket <- .self$.ticket_data
@@ -142,8 +187,11 @@ DataConnectRef <- setRefClass(
       }
 
       # Get the data using enhanced ticket
-      result <- .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE)
-      
+      result <- .with_trace_id(
+        .self$.trace_state,
+        .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE, trace_state = .self$.trace_state)
+      )
+
       # Convert to data frame by default for data scientists
       if (!is.null(result)) {
         result <- as.data.frame(result)

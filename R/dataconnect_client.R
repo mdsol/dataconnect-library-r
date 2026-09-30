@@ -11,6 +11,7 @@
 #' \describe{
 #'   \item{.client}{Internal client connection object}
 #'   \item{.ns}{Package namespace reference for consistent function access}
+#'   \item{trace_id}{Trace ID from the most recent sequential request, or NULL}
 #' }
 #'
 #' @section Methods:
@@ -32,7 +33,8 @@
 #'       \item \code{page}: Page number for paginated results (optional, default: 1)
 #'       \item \code{page_size}: Number of results per page (optional, default: 50)
 #'     }
-#'     Returns a list with \code{total_records} (integer), \code{pagination} (list), and \code{datasets} (list).
+#'     Returns a list with \code{total_records} (integer), \code{pagination} (list),
+#'     and \code{datasets} (list).
 #'
 #'     Note: as of v1.3.0 the deprecated \code{study_uuid} parameter has been removed.
 #'   }
@@ -41,7 +43,7 @@
 #'     \itemize{
 #'       \item \code{dataset_uuid}: UUID of the target dataset (required)
 #'     }
-#'     Returns version information for the specified dataset.
+#'     Returns a list of version records.
 #'
 #'     Note: as of v1.3.0 the deprecated \code{study_uuid} and \code{study_environment_uuid}
 #'     parameters have been removed.
@@ -143,7 +145,8 @@ DataConnectClient <- setRefClass(
   "DataConnectClient",
   fields = list(
     .client = "ANY",
-    .ns = "ANY"
+    .ns = "ANY",
+    .trace_state = "ANY"
   ),
   methods = list(
 
@@ -157,7 +160,16 @@ DataConnectClient <- setRefClass(
       .self$.ns$.set_dataconnect_token(token, permanent)
 
       # Create internal client using existing connect function
-      .self$.client <- .connect(url, port, use_tls)
+      connection <- .connect(url, port, use_tls)
+      .self$.client <- connection$client
+      .self$.trace_state <- connection$trace_state
+
+      makeActiveBinding("trace_id", function(value) {
+        if (!missing(value)) {
+          stop("trace_id is read-only")
+        }
+        reticulate::py_to_r(.self$.trace_state$trace_id)
+      }, .self)
     },
 
     studies = function(
@@ -171,9 +183,9 @@ DataConnectClient <- setRefClass(
         warning("'page' and 'page_size' parameters are deprecated and have no effect. studies() now returns all results in a single response.")
       }
 
-      studies_spec <- .get_studies(
-        .self$.client,
-        search_study_name
+      studies_spec <- .self$.ns$.with_trace_id(
+        .self,
+        .get_studies(.self$.client, search_study_name, .self$.trace_state)
       )
 
       return(studies_spec)
@@ -182,26 +194,40 @@ DataConnectClient <- setRefClass(
     datasets = function(study_environment_uuid, search_dataset_name = "", page = 1, page_size = 50) {
       "Get all datasets for a study environment"
 
-      return(.get_datasets(client = .self$.client,
-                           study_environment_uuid = study_environment_uuid,
-                           search_dataset_name = search_dataset_name,
-                           page = page,
-                           page_size = page_size))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .get_datasets(
+          client = .self$.client,
+          study_environment_uuid = study_environment_uuid,
+          search_dataset_name = search_dataset_name,
+          page = page,
+          page_size = page_size,
+          trace_state = .self$.trace_state
+        )
+      ))
     },
 
     dataset_versions = function (dataset_uuid) {
       "Get versions of a dataset"
 
-      return(.get_dataset_versions(client = .self$.client,
-                                   dataset_uuid = dataset_uuid))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .get_dataset_versions(client = .self$.client, dataset_uuid = dataset_uuid, trace_state = .self$.trace_state)
+      ))
     },
 
     fetch_data = function(dataset_uuid) {
       "Fetch data of a dataset"
 
       # Use existing function to get single dataset
-      return(.get_dataset(client = .self$.client,
-                          dataset_uuid = dataset_uuid))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .get_dataset(
+          client = .self$.client,
+          dataset_uuid = dataset_uuid,
+          trace_state = .self$.trace_state
+        )
+      ))
     },
 
     dry_publish = function(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL) {
@@ -216,7 +242,10 @@ DataConnectClient <- setRefClass(
       )
 
       # Use normalized namespace access
-      return(.self$.ns$.publish(.self$.client, config, data))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .self$.ns$.publish(.self$.client, config, data, trace_state = .self$.trace_state)
+      ))
     },
 
     publish = function(project_token, dataset_name, key_columns, source_datasets, data, datetime_formats = NULL) {
@@ -231,11 +260,17 @@ DataConnectClient <- setRefClass(
       )
 
       # Use normalized namespace access
-      return(.self$.ns$.publish(.self$.client, config, data))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .self$.ns$.publish(.self$.client, config, data, trace_state = .self$.trace_state)
+      ))
     },
 
     get_datetime_formats = function(project_token, type = "all") {
-      return(.self$.ns$.get_datetime_formats(.self$.client, project_token, type))
+      return(.self$.ns$.with_trace_id(
+        .self,
+        .self$.ns$.get_datetime_formats(.self$.client, project_token, type, trace_state = .self$.trace_state)
+      ))
     }
   )
 )
