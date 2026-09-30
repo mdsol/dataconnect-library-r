@@ -237,12 +237,16 @@ class _DataConnectTraceMiddleware(_dc_flight.ClientMiddleware):
 
     def received_headers(self, headers):
       values = headers.get("x-dataconnect-trace-id")
-      if values:
-        value = values[0]
-        if isinstance(value, bytes):
-          value = value.decode("utf-8", errors="replace")
-        if value:
-          self._state.trace_id = value
+      if values is None:
+        values = headers.get(b"x-dataconnect-trace-id")
+      if isinstance(values, (list, tuple)):
+        value = values[0] if values else None
+      else:
+        value = values
+      if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+      if value:
+        self._state.trace_id = value
 
     def call_completed(self, exception):
       if exception is None:
@@ -278,6 +282,12 @@ def _dc_create_flight_client(uri, tls_root_certs=None):
     if tls_root_certs is not None:
       options["tls_root_certs"] = tls_root_certs
     return (_dc_flight.FlightClient(uri, **options), state)
+
+def _dc_extract_schema_trace_id(schema):
+    value = schema.metadata.get(b"trace_id")
+    if isinstance(value, bytes):
+      return value.decode("utf-8", errors="replace")
+    return value
   ')
 
   if (use_tls && is_windows) {

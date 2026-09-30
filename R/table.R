@@ -12,6 +12,32 @@ dataconnect_tbl <- function(client, ticket_data, trace_state = NULL) {
   DataConnectRef$new(client, ticket_data, trace_state)
 }
 
+# Keep the response header authoritative and use payload metadata as a fallback.
+.record_trace_id <- function(trace_state, trace_id) {
+  if (is.null(trace_state) || is.null(trace_id) || length(trace_id) != 1L ||
+      is.na(trace_id) || !nzchar(as.character(trace_id))) {
+    return(invisible(NULL))
+  }
+
+  current_trace_id <- tryCatch({
+    if (inherits(trace_state, "python.builtin.object")) {
+      reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id"))
+    } else {
+      trace_state$trace_id
+    }
+  }, error = function(e) NULL)
+
+  if (is.null(current_trace_id) || !length(current_trace_id) || is.na(current_trace_id)) {
+    if (inherits(trace_state, "python.builtin.object")) {
+      reticulate::py_set_attr(trace_state, "trace_id", as.character(trace_id))
+    } else if (is.environment(trace_state)) {
+      trace_state$trace_id <- as.character(trace_id)
+    }
+  }
+
+  invisible(NULL)
+}
+
 # Attach the current client's trace ID to an error without changing its class.
 .with_trace_id <- function(client, expr) {
   tryCatch(
@@ -163,7 +189,7 @@ DataConnectRef <- setRefClass(
       # Get the data using enhanced ticket
       result <- .with_trace_id(
         .self$.trace_state,
-        .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE)
+        .get_dataset_raw(.self$.client, enhanced_ticket, chunked = TRUE, trace_state = .self$.trace_state)
       )
 
       # Convert to data frame by default for data scientists

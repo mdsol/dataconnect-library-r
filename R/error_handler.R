@@ -142,11 +142,11 @@ print.DataConnectError <- function(x, ...) {
 print.dataconnect_error <- function(x, ...) {
   cat(x$message, "\n", sep = "")
   trace_indent <- if (!is.null(x$details) && length(x$details) > 0) "    " else ""
-  trace_line <- paste0(trace_indent, "Trace ID: ", x$trace_id)
+  trace_line <- paste0("Trace ID: ", x$trace_id)
   if (!is.null(x$trace_id) && length(x$trace_id) == 1L &&
       !is.na(x$trace_id) && nzchar(x$trace_id) &&
       !endsWith(x$message, trace_line)) {
-    cat(trace_line, "\n", sep = "")
+    cat(trace_indent, trace_line, "\n", sep = "")
   }
   invisible(x)
 }

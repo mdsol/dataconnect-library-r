@@ -185,7 +185,7 @@ DataConnectClient <- setRefClass(
 
       studies_spec <- .self$.ns$.with_trace_id(
         .self,
-        .get_studies(.self$.client, search_study_name)
+        .get_studies(.self$.client, search_study_name, .self$.trace_state)
       )
 
       return(studies_spec)
@@ -201,7 +201,8 @@ DataConnectClient <- setRefClass(
           study_environment_uuid = study_environment_uuid,
           search_dataset_name = search_dataset_name,
           page = page,
-          page_size = page_size
+          page_size = page_size,
+          trace_state = .self$.trace_state
         )
       ))
     },
@@ -211,7 +212,7 @@ DataConnectClient <- setRefClass(
 
       return(.self$.ns$.with_trace_id(
         .self,
-        .get_dataset_versions(client = .self$.client, dataset_uuid = dataset_uuid)
+        .get_dataset_versions(client = .self$.client, dataset_uuid = dataset_uuid, trace_state = .self$.trace_state)
       ))
     },
 
@@ -243,7 +244,7 @@ DataConnectClient <- setRefClass(
       # Use normalized namespace access
       return(.self$.ns$.with_trace_id(
         .self,
-        .self$.ns$.publish(.self$.client, config, data)
+        .self$.ns$.publish(.self$.client, config, data, trace_state = .self$.trace_state)
       ))
     },
 
@@ -261,14 +262,14 @@ DataConnectClient <- setRefClass(
       # Use normalized namespace access
       return(.self$.ns$.with_trace_id(
         .self,
-        .self$.ns$.publish(.self$.client, config, data)
+        .self$.ns$.publish(.self$.client, config, data, trace_state = .self$.trace_state)
       ))
     },
 
     get_datetime_formats = function(project_token, type = "all") {
       return(.self$.ns$.with_trace_id(
         .self,
-        .self$.ns$.get_datetime_formats(.self$.client, project_token, type)
+        .self$.ns$.get_datetime_formats(.self$.client, project_token, type, trace_state = .self$.trace_state)
       ))
     }
   )

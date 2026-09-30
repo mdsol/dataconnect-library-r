@@ -261,6 +261,14 @@ test_that("trace middleware captures response headers and structured errors", {
   expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "header-trace")
 
   middleware <- reticulate::py_get_attr(factory, "start_call")(NULL)
+  byte_headers <- reticulate::py_eval(
+    "{b'x-dataconnect-trace-id': b'byte-trace'}",
+    convert = FALSE
+  )
+  reticulate::py_get_attr(middleware, "received_headers")(byte_headers)
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "byte-trace")
+
+  middleware <- reticulate::py_get_attr(factory, "start_call")(NULL)
   error_message <- paste0(
     "AUTH_001::",
     jsonlite::toJSON(list(error_code = "AUTH_001", trace_id = "structured-trace"), auto_unbox = TRUE),

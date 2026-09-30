@@ -446,6 +446,21 @@ test_that("client errors without a trace ID retain their original class", {
   expect_null(error$trace_id)
 })
 
+test_that("print.dataconnect_error does not repeat a trace ID already in the message", {
+  error <- structure(
+    list(
+      message = "Request failed\n    Trace ID: trace-print-123",
+      trace_id = "trace-print-123",
+      details = list()
+    ),
+    class = c("dataconnect_error", "DataConnectError", "error", "condition")
+  )
+
+  printed <- capture.output(print(error))
+
+  expect_equal(sum(grepl("Trace ID: trace-print-123", printed, fixed = TRUE)), 1L)
+})
+
 test_that("server validation details appear in the thrown message", {
   raw_error <- paste0(
     'VAL_007::{"error_code":"VAL_007","message":"Required input parameters are missing or invalid.",',

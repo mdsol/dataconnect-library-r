@@ -10,7 +10,7 @@
 #' Returns NULL if an error occurs during execution.
 #' @keywords internal
 #' @noRd
-.do_command <- function(client, command, args = list(), body = NULL) {
+.do_command <- function(client, command, args = list(), body = NULL, trace_state = NULL) {
   if(is.null(command) || command == "") {
     stop("Command must be provided")
   }
@@ -47,6 +47,10 @@
 
           # Parse JSON
           result_data <- jsonlite::fromJSON(body_str)
+          if (is.list(result_data) && !is.null(result_data$trace_id)) {
+            .record_trace_id(trace_state, result_data$trace_id)
+            result_data$trace_id <- NULL
+          }
           response <<- c(response, list(result_data))
         }, error = function(e) {
           # If not JSON or can't decode, add as raw
@@ -87,7 +91,7 @@
 #' @return A data.frame with columns \code{index}, \code{format}, and \code{type}
 #' @keywords internal
 #' @noRd
-.get_datetime_formats <- function(client, project_token, type = "all") {
+.get_datetime_formats <- function(client, project_token, type = "all", trace_state = NULL) {
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -105,7 +109,8 @@
   result <- .do_command(
     client = client,
     command = "get_datetime_formats",
-    args = list(project_token = project_token, type = normalized_type)
+    args = list(project_token = project_token, type = normalized_type),
+    trace_state = trace_state
   )
 
   if (is.null(result) || length(result) == 0 || is.null(result[[1]])) {
@@ -162,7 +167,7 @@
 #'   \item{error_message}{A descriptive error message.}
 #' @keywords internal
 #' @noRd
-.do_put_command <- function(client, config, data) {
+.do_put_command <- function(client, config, data, trace_state = NULL) {
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -229,6 +234,10 @@
       stop("No response received from server after do_put")
     }
     result <- jsonlite::fromJSON(result_str)
+    if (is.list(result) && !is.null(result$trace_id)) {
+      .record_trace_id(trace_state, result$trace_id)
+      result$trace_id <- NULL
+    }
 
     # The server emits the canonical envelope (success/metadata/metrics/checks/errors)
     # for both dry_publish and publish.

@@ -50,7 +50,7 @@ test_that(".get_datetime_formats warns but still returns formats when count diff
 test_that(".get_datetime_formats supports date filter", {
   captured_args <- NULL
 
-  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
+  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL, trace_state = NULL) {
     captured_args <<- args
     list(c("yyyy-MM-dd", "MM/dd/yy"))
   })
@@ -69,7 +69,7 @@ test_that(".get_datetime_formats supports date filter", {
 test_that(".get_datetime_formats supports datetime filter", {
   captured_args <- NULL
 
-  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
+  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL, trace_state = NULL) {
     captured_args <<- args
     list(c("yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss"))
   })
@@ -88,7 +88,7 @@ test_that(".get_datetime_formats supports datetime filter", {
 test_that(".get_datetime_formats sends unsupported types to the server", {
   captured_args <- NULL
 
-  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL) {
+  mockery::stub(.get_datetime_formats, ".do_command", function(client, command, args = list(), body = NULL, trace_state = NULL) {
     captured_args <<- args
     list("yyyy-MM-dd")
   })
@@ -96,6 +96,34 @@ test_that(".get_datetime_formats sends unsupported types to the server", {
   result <- .get_datetime_formats(client = list(), project_token = "project-token", type = "INVALID")
   expect_equal(captured_args$type, "invalid")
   expect_equal(result$format, "yyyy-MM-dd")
+})
+
+test_that(".do_command records trace IDs from successful JSON payloads", {
+  trace_state <- new.env(parent = emptyenv())
+  payload <- list(
+    to_pybytes = function() {
+      list(decode = function(encoding) {
+        '{"formats":["yyyy-MM-dd"],"trace_id":"trace-action-1"}'
+      })
+    }
+  )
+  mockery::stub(.do_command, "reticulate::import", function(...) {
+    list(Action = function(command, body) list())
+  })
+  mockery::stub(.do_command, ".get_flight_options", function() list())
+  mockery::stub(.do_command, "reticulate::iterate", function(iterator, callback) {
+    callback(iterator)
+  })
+
+  result <- .do_command(
+    client = list(do_action = function(action, options) list(body = payload)),
+    command = "get_datetime_formats",
+    trace_state = trace_state
+  )
+
+  expect_equal(trace_state$trace_id, "trace-action-1")
+  expect_equal(result[[1]]$formats, "yyyy-MM-dd")
+  expect_null(result[[1]]$trace_id)
 })
 
 test_that(".get_datetime_formats result maps cleanly to publish datetime_formats payload", {

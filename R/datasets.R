@@ -89,7 +89,7 @@ StudyEnvironment <- setRefClass(
 #' @return The app_metadata list or NULL if not present
 #' @keywords internal
 #' @noRd
-.extract_app_metadata <- function(item) {
+.extract_app_metadata <- function(item, trace_state = NULL) {
   if (is.null(item)) return(NULL)
 
   meta <- item$app_metadata
@@ -101,6 +101,10 @@ StudyEnvironment <- setRefClass(
   if (is.null(meta_str)) return(NULL)
 
   meta_list <- jsonlite::fromJSON(meta_str, simplifyDataFrame = FALSE)
+
+  if (is.list(meta_list) && !is.null(meta_list$trace_id)) {
+    .record_trace_id(trace_state, meta_list$trace_id)
+  }
 
   return(meta_list)
 }
@@ -115,7 +119,7 @@ StudyEnvironment <- setRefClass(
 #' @return The data object with $frame property attached if it's a dataset, otherwise returns data unchanged
 #' @keywords internal
 #' @noRd
-.attach_dataset_frame <- function(data, client) {
+.attach_dataset_frame <- function(data, client, trace_state = NULL) {
   # Only attach frame if this is a dataset (has dataset_uuid)
   if (is.null(data) || is.null(data$dataset_uuid)) {
     return(data)
@@ -128,7 +132,7 @@ StudyEnvironment <- setRefClass(
     dataset_name = data$dataset_name
   )
   
-  data$frame <- dataconnect_tbl(client, base_params)
+  data$frame <- dataconnect_tbl(client, base_params, trace_state)
   return(data)
 }
 
@@ -139,12 +143,14 @@ StudyEnvironment <- setRefClass(
 #' @return A list of extracted data items
 #' @keywords internal
 #' @noRd
-.process_iterator <- function(py_iter, client = NULL) {
+.process_iterator <- function(py_iter, client = NULL, trace_state = NULL) {
   results <- list()
 
   tryCatch({
     # Process each FlightInfo object
     reticulate::iterate(py_iter, function(item) {
+
+      .extract_app_metadata(item, trace_state)
 
       data <- .extract_data(item)
 
@@ -153,16 +159,7 @@ StudyEnvironment <- setRefClass(
         # Add frame property if client is provided and this looks like a dataset
         if (!is.null(client) && !is.null(data$dataset_uuid)) {
           
-          # Create the base parameters needed for dataconnect_tbl
-          base_params <- list(
-            study_uuid = data$study_uuid,
-            study_env_uuid = data$study_env_uuid,
-            dataset_uuid = data$dataset_uuid,
-            dataset_name = data$dataset_name
-          )
-
-          # Add the frame property as a dataconnect_tbl
-          data$frame <- dataconnect_tbl(client, base_params)
+          data <- .attach_dataset_frame(data, client, trace_state)
         }
         
         results <<- c(results, list(data))
@@ -183,7 +180,7 @@ StudyEnvironment <- setRefClass(
 #' @return A list of flights matching the criteria, with frame properties added for datasets
 #' @keywords internal
 #' @noRd
-.get_flights <- function(client, criteria) {
+.get_flights <- function(client, criteria, trace_state = NULL) {
 
   all_results <- list()
 
@@ -192,7 +189,7 @@ StudyEnvironment <- setRefClass(
   py_iter <- flight_result$flights
 
   # Process the iterator, passing client for frame creation
-  processed <- .process_iterator(py_iter, client)
+  processed <- .process_iterator(py_iter, client, trace_state)
 
   if (length(processed) > 0) {
     all_results <- c(all_results, processed)
@@ -210,7 +207,7 @@ StudyEnvironment <- setRefClass(
 #' @return An Arrow Table, or NULL if no data is returned
 #' @keywords internal
 #' @noRd
-.get_data <- function(client, ticket, chunked = FALSE, chunk_callback = NULL) {
+.get_data <- function(client, ticket, chunked = FALSE, chunk_callback = NULL, trace_state = NULL) {
   tryCatch({
     # Convert ticket to proper format if needed
     if(is.character(ticket)) {
@@ -223,6 +220,11 @@ StudyEnvironment <- setRefClass(
     options <- .get_flight_options()
     # Get the reader
     reader <- client$do_get(ticket, options=options)
+    trace_id <- tryCatch(
+      reticulate::py_to_r(reticulate::py$`_dc_extract_schema_trace_id`(reader$schema)),
+      error = function(e) NULL
+    )
+    .record_trace_id(trace_state, trace_id)
 
     if(chunked) {
       # Process in chunks
@@ -362,7 +364,7 @@ StudyEnvironment <- setRefClass(
 #' @return An Arrow Table with the raw dataset data, or NULL if no data is returned
 #' @keywords internal
 #' @noRd
-.get_dataset_raw <- function(client, ticket_data, chunked = FALSE, chunk_callback = NULL) {
+.get_dataset_raw <- function(client, ticket_data, chunked = FALSE, chunk_callback = NULL, trace_state = NULL) {
   if(is.null(ticket_data) || length(ticket_data) < 1) {
     stop("Ticket must be provided")
   }
@@ -379,7 +381,7 @@ StudyEnvironment <- setRefClass(
   catalog_schema <- .get_catalog_schema(client, ticket_data)
 
   # Get the data
-  result <- .get_data(client, ticket, chunked = chunked, chunk_callback = chunk_callback)
+  result <- .get_data(client, ticket, chunked = chunked, chunk_callback = chunk_callback, trace_state = trace_state)
 
   # Apply catalog type corrections (e.g., cast double to integer where catalog expects integer)
   if (!is.null(result) && !is.null(catalog_schema)) {
@@ -427,7 +429,8 @@ StudyEnvironment <- setRefClass(
 #' @noRd
 .get_studies <- function(
   client,
-  search_study_name = ""
+  search_study_name = "",
+  trace_state = NULL
 ) {
   criteria <- list(
     flight_type = "STUDIES",
@@ -442,6 +445,8 @@ StudyEnvironment <- setRefClass(
 
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
+
+      .extract_app_metadata(item, trace_state)
 
       if (is_first_item) {
         if (!is.null(item$total_records)) {
@@ -498,7 +503,8 @@ StudyEnvironment <- setRefClass(
   study_environment_uuid,
   search_dataset_name,
   page,
-  page_size
+  page_size,
+  trace_state = NULL
 ) {
   criteria <- list(
     flight_type = "DATASETS",
@@ -523,7 +529,7 @@ StudyEnvironment <- setRefClass(
   tryCatch({
     reticulate::iterate(py_iter, function(item) {
       if (first_item) {
-        app_metadata <- .extract_app_metadata(item)
+        app_metadata <- .extract_app_metadata(item, trace_state)
 
         if (!is.null(app_metadata) && !is.null(app_metadata$pagination)) {
 
@@ -550,7 +556,7 @@ StudyEnvironment <- setRefClass(
       data <- .extract_data(item)
 
       if (!is.null(data)) {
-        data <- .attach_dataset_frame(data, client)
+        data <- .attach_dataset_frame(data, client, trace_state)
         datasets[[length(datasets) + 1]] <<- data
       }
 
@@ -574,7 +580,7 @@ StudyEnvironment <- setRefClass(
 #' @return A list of dataset version records
 #' @keywords internal
 #' @noRd
-.get_dataset_versions <- function(client, dataset_uuid) {
+.get_dataset_versions <- function(client, dataset_uuid, trace_state = NULL) {
 
   criteria <- list(
     flight_type = "VERSIONS",
@@ -582,5 +588,5 @@ StudyEnvironment <- setRefClass(
   )
 
   # need not set page_size as Arrow Flight Server does not support pagination
-  return(.get_flights(client, criteria))
+  return(.get_flights(client, criteria, trace_state))
 }
