@@ -8,6 +8,7 @@ library(jsonlite)
 
 # Directly source the file we need to test
 source("../../R/error_handler.R")
+source("../../R/table.R")
 
 # Test: Valid error message with proper format including all fields
 test_that(".parse_dataconnect_error parses complete error messages correctly", {
@@ -50,6 +51,27 @@ test_that(".parse_dataconnect_error parses basic error messages correctly", {
   expect_equal(result$message, "Resource not found")
   expect_null(result$timestamp)
   expect_null(result$details)
+})
+
+test_that("structured error trace IDs are retained and printed", {
+  raw_error <- paste0(
+    'RES_002::{"error_code":"RES_002","message":"Request failed",',
+    '"details":[{"field":"dataset_uuid",',
+    '"expected":"Review and provide the correct dataset_uuid."}],',
+    '"trace_id":"trace-server-456"}'
+  )
+
+  error <- tryCatch(
+    .throw_dataconnect_error(.parse_dataconnect_error(raw_error)),
+    dataconnect_error = identity
+  )
+
+  expect_equal(error$trace_id, "trace-server-456")
+  printed <- capture.output(print(error))
+  expect_equal(tail(printed, 2), c(
+    "    Expected: Review and provide the correct dataset_uuid.",
+    "    Trace ID: trace-server-456"
+  ))
 })
 
 # Test: Error message without :: delimiter
@@ -136,6 +158,50 @@ test_that(".parse_dataconnect_error handles multiple delimiters", {
   expect_s3_class(result, "DataConnectError")
   expect_equal(result$error_code, "ERR_CONNECT")
   expect_equal(result$message, "Failed to connect to server::port")
+})
+
+test_that(".parse_dataconnect_error finds payload after gRPC IPv6 debug context", {
+  error_json <- paste0(
+    '{"error_code":"VAL_007","message":"Required input parameters are missing or invalid",',
+    '"timestamp":"2026-10-05T10:19:22.422365+00:00",',
+    '"details":[{"field":"config","message":"Config validation failed in dry publish.",',
+    '"expected":"Ensure that the dataset name, key columns, and source datasets are valid."}],',
+    '"trace_id":"trace-583f90d5250b271c72802814d94f47ad"}'
+  )
+  escaped_json <- as.character(jsonlite::toJSON(error_json, auto_unbox = TRUE))
+  escaped_json <- substr(escaped_json, 2, nchar(escaped_json) - 1)
+  error_message <- paste0(
+    'UNKNOWN:Error received from peer ipv6:%5B::1%5D:5007 {created_time:"2026-10-05T10:19:22.4546385+00:00", ',
+    'grpc_status:2, grpc_message:"VAL_007::', escaped_json, '"}. Detail: Failed'
+  )
+
+  result <- .parse_dataconnect_error(error_message)
+
+  expect_equal(result$error_code, "VAL_007")
+  expect_equal(result$message, "Required input parameters are missing or invalid")
+  expect_equal(result$details[[1]]$field, "config")
+  expect_equal(result$trace_id, "trace-583f90d5250b271c72802814d94f47ad")
+})
+
+test_that(".parse_dataconnect_error keeps top-level fields when a gRPC-wrapped message contains quotes", {
+  error_json <- paste0(
+    '{"error_code":"VAL_007","message":"Required input \\"config\\" is invalid",',
+    '"details":[{"field":"config","message":"Invalid \\"dataset_name\\"","expected":"A valid name."}],',
+    '"trace_id":"trace-quoted-123"}'
+  )
+  escaped_json <- as.character(jsonlite::toJSON(error_json, auto_unbox = TRUE))
+  escaped_json <- substr(escaped_json, 2, nchar(escaped_json) - 1)
+  error_message <- paste0(
+    'UNKNOWN:Error received from peer ipv6:%5B::1%5D:5007 {grpc_status:2, grpc_message:"VAL_007::',
+    escaped_json, '"}. Detail: Failed'
+  )
+
+  result <- .parse_dataconnect_error(error_message)
+
+  expect_equal(result$error_code, "VAL_007")
+  expect_equal(result$message, 'Required input "config" is invalid')
+  expect_equal(result$details[[1]]$message, 'Invalid "dataset_name"')
+  expect_equal(result$trace_id, "trace-quoted-123")
 })
 
 # Test: Error message with whitespace in JSON
@@ -395,6 +461,121 @@ test_that(".throw_dataconnect_error throws a dataconnect_error condition with al
   )
 })
 
+test_that("client trace IDs are attached to errors and printed", {
+  trace_state <- new.env(parent = emptyenv())
+  error <- tryCatch(
+    .with_trace_id(trace_state, {
+      trace_state$trace_id <- "trace-rpc-123"
+      stop(structure(
+        list(message = "request failed"),
+        class = c("dataconnect_error", "DataConnectError", "error", "condition")
+      ))
+    }),
+    error = identity
+  )
+
+  expect_s3_class(error, "dataconnect_error")
+  expect_equal(error$trace_id, "trace-rpc-123")
+  expect_identical(conditionMessage(error), "request failed\nTrace ID: trace-rpc-123")
+  printed <- capture.output(print(error))
+  expect_equal(sum(grepl("trace-rpc-123", printed, fixed = TRUE)), 1L)
+  expect_equal(tail(printed, 1), "Trace ID: trace-rpc-123")
+})
+
+test_that("header trace ID replaces a different payload trace ID in the message", {
+  trace_state <- new.env(parent = emptyenv())
+  error <- tryCatch(
+    .with_trace_id(trace_state, {
+      trace_state$trace_id <- "trace-header"
+      stop(structure(
+        list(message = "request failed\nTrace ID: trace-payload", trace_id = "trace-payload"),
+        class = c("dataconnect_error", "DataConnectError", "error", "condition")
+      ))
+    }),
+    error = identity
+  )
+
+  expect_equal(error$trace_id, "trace-header")
+  expect_false(grepl("trace-payload", conditionMessage(error), fixed = TRUE))
+  expect_equal(lengths(regmatches(conditionMessage(error), gregexpr("Trace ID:", conditionMessage(error)))), 1L)
+  printed <- capture.output(print(error))
+  expect_equal(sum(grepl("Trace ID:", printed, fixed = TRUE)), 1L)
+})
+
+test_that("errors without a trace ID from the current operation stay untagged", {
+  trace_state <- new.env(parent = emptyenv())
+  trace_state$trace_id <- "trace-old-123"
+  error <- tryCatch(
+    .with_trace_id(trace_state, stop(structure(
+      list(message = "request failed"),
+      class = c("dataconnect_error", "DataConnectError", "error", "condition")
+    ))),
+    error = identity
+  )
+
+  expect_null(error$trace_id)
+  expect_false(grepl("trace-old-123", conditionMessage(error), fixed = TRUE))
+})
+
+test_that("client wrapper resets its trace state so stale IDs are not attached", {
+  MockClient <- setRefClass(
+    "MockTraceClient",
+    fields = list(.trace_state = "ANY"),
+    methods = list(
+      initialize = function() {
+        .self$.trace_state <- new.env(parent = emptyenv())
+        makeActiveBinding("trace_id", function(value) {
+          if (!missing(value)) stop("trace_id is read-only")
+          .self$.trace_state$trace_id
+        }, .self)
+      }
+    )
+  )
+  client <- MockClient$new()
+  client$.trace_state$trace_id <- "trace-old-123"
+
+  error <- tryCatch(
+    .with_trace_id(client, stop(structure(
+      list(message = "request failed"),
+      class = c("dataconnect_error", "DataConnectError", "error", "condition")
+    ))),
+    error = identity
+  )
+
+  expect_null(client$trace_id)
+  expect_null(error$trace_id)
+  expect_false(grepl("trace-old-123", conditionMessage(error), fixed = TRUE))
+})
+
+test_that("client errors without a trace ID retain their original class", {
+  client <- list(trace_id = NULL)
+  error <- tryCatch(
+    .with_trace_id(client, stop(structure(
+      list(message = "request failed"),
+      class = c("dataconnect_error", "DataConnectError", "error", "condition")
+    ))),
+    error = identity
+  )
+
+  expect_s3_class(error, "dataconnect_error")
+  expect_null(error$trace_id)
+})
+
+test_that("print.dataconnect_error does not repeat a trace ID already in the message", {
+  error <- structure(
+    list(
+      message = "Request failed\n    Trace ID: trace-print-123",
+      trace_id = "trace-print-123",
+      details = list()
+    ),
+    class = c("dataconnect_error", "DataConnectError", "error", "condition")
+  )
+
+  printed <- capture.output(print(error))
+
+  expect_equal(sum(grepl("Trace ID: trace-print-123", printed, fixed = TRUE)), 1L)
+})
+
 test_that("server validation details appear in the thrown message", {
   raw_error <- paste0(
     'VAL_007::{"error_code":"VAL_007","message":"Required input parameters are missing or invalid.",',
@@ -609,6 +790,18 @@ test_that(".normalize_enodia_error output is parseable by .parse_dataconnect_err
   expect_length(result$details, 1)
   expect_s3_class(result$details[[1]], "ErrorDetail")
   expect_equal(result$details[[1]]$field, "token")
+})
+
+test_that(".normalize_enodia_error preserves a structured trace ID", {
+  msg <- paste0(
+    'FlightUnauthenticatedError: AUTH_001::{"error_code":"AUTH_001",',
+    '"message":"Authentication failed","trace_id":"auth-trace"}'
+  )
+
+  result <- .parse_dataconnect_error(msg)
+
+  expect_equal(result$error_code, "AUTH_E_001")
+  expect_equal(result$trace_id, "auth-trace")
 })
 
 # Test: Timestamp is valid ISO 8601 format

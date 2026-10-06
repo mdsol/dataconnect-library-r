@@ -199,40 +199,48 @@ test_that(".get_flight_options omits the public IP header and preserves other he
 
 test_that(".connect builds a grpc+tcp URI when use_tls is FALSE", {
   captured_uri <- NULL
+  mock_client <- "mock_client"
+  mock_trace_state <- new.env(parent = emptyenv())
   mockery::stub(.connect, ".get_client", function(uri, use_tls) {
     captured_uri <<- uri
-    "mock_client"
+    list(client = mock_client, trace_state = mock_trace_state)
   })
 
   result <- .connect("localhost", 8815)
 
   expect_equal(captured_uri, "grpc+tcp://localhost:8815")
-  expect_equal(result, "mock_client")
+  expect_identical(result$client, mock_client)
+  expect_identical(result$trace_state, mock_trace_state)
 })
 
 test_that(".connect builds a grpc+tls URI when use_tls is TRUE", {
   captured_uri <- NULL
   captured_tls <- NULL
+  mock_client <- "mock_client_tls"
+  mock_trace_state <- new.env(parent = emptyenv())
   mockery::stub(.connect, ".get_client", function(uri, use_tls) {
     captured_uri <<- uri
     captured_tls <<- use_tls
-    "mock_client_tls"
+    list(client = mock_client, trace_state = mock_trace_state)
   })
 
   result <- .connect("dummy.imedidata.com", 443, use_tls = TRUE)
 
   expect_equal(captured_uri, "grpc+tls://dummy.imedidata.com:443")
   expect_true(captured_tls)
-  expect_equal(result, "mock_client_tls")
+  expect_identical(result$client, mock_client)
+  expect_identical(result$trace_state, mock_trace_state)
 })
 
-test_that(".connect returns the client from .get_client", {
+test_that(".connect returns the client and trace state from .get_client", {
   mock_client <- structure(list(), class = "MockFlightClient")
-  mockery::stub(.connect, ".get_client", function(uri, use_tls) mock_client)
+  mock_trace_state <- new.env(parent = emptyenv())
+  connection <- list(client = mock_client, trace_state = mock_trace_state)
+  mockery::stub(.connect, ".get_client", function(uri, use_tls) connection)
 
   result <- .connect("host", 1234)
 
-  expect_identical(result, mock_client)
+  expect_identical(result, connection)
 })
 
 # ── .get_client ────────────────────────────────────────────────────────────
@@ -244,4 +252,95 @@ test_that(".get_client stops when PyArrow is not available", {
     .get_client("grpc+tcp://localhost:8815", FALSE),
     "PyArrow module is not available"
   )
+})
+
+test_that("client trace middleware extracts IDs from escaped IPv6 gRPC errors", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  connection <- .get_client("grpc+tcp://127.0.0.1:5005", FALSE)
+  trace_state <- connection$trace_state
+  middleware_class <- reticulate::py_eval("_DataConnectTraceMiddleware", convert = FALSE)
+  middleware <- middleware_class(trace_state)
+  trace_id <- "trace-583f90d5250b271c72802814d94f47ad"
+  payload <- as.character(jsonlite::toJSON(
+    list(
+      error_code = "VAL_007",
+      message = 'Invalid "dataset_name"',
+      trace_id = trace_id
+    ),
+    auto_unbox = TRUE
+  ))
+  escaped_payload <- as.character(jsonlite::toJSON(payload, auto_unbox = TRUE))
+  escaped_payload <- substr(escaped_payload, 2, nchar(escaped_payload) - 1)
+  error_message <- paste0(
+    'UNKNOWN:Error received from peer ipv6:%5B::1%5D:5007 {created_time:"2026-10-05T10:19:22.4546385+00:00", ',
+    'grpc_status:2, grpc_message:"VAL_007::', escaped_payload, '"}. Detail: Failed'
+  )
+
+  runtime_error_class <- reticulate::py_eval("RuntimeError", convert = FALSE)
+  middleware$call_completed(runtime_error_class(error_message))
+
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), trace_id)
+})
+
+test_that("client trace middleware extracts string and bytes response headers", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  state_class <- reticulate::py_eval("_DataConnectTraceState", convert = FALSE)
+  middleware_class <- reticulate::py_eval("_DataConnectTraceMiddleware", convert = FALSE)
+  cases <- list(
+    list(headers = "{'x-dataconnect-trace-id': ['trace-string-string']}", expected = "trace-string-string"),
+    list(headers = "{'x-dataconnect-trace-id': [b'trace-string-bytes']}", expected = "trace-string-bytes"),
+    list(headers = "{b'x-dataconnect-trace-id': ['trace-bytes-string']}", expected = "trace-bytes-string"),
+    list(headers = "{b'x-dataconnect-trace-id': [b'trace-bytes-bytes']}", expected = "trace-bytes-bytes")
+  )
+
+  for (case in cases) {
+    trace_state <- state_class()
+    middleware <- middleware_class(trace_state)
+    headers <- reticulate::py_eval(case$headers, convert = FALSE)
+
+    middleware$received_headers(headers)
+
+    expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), case$expected)
+  }
+})
+
+test_that("client trace middleware keeps header IDs over payload IDs", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  state_class <- reticulate::py_eval("_DataConnectTraceState", convert = FALSE)
+  middleware_class <- reticulate::py_eval("_DataConnectTraceMiddleware", convert = FALSE)
+  trace_state <- state_class()
+  middleware <- middleware_class(trace_state)
+  middleware$received_headers(reticulate::py_eval(
+    "{'x-dataconnect-trace-id': ['header-trace']} ",
+    convert = FALSE
+  ))
+  runtime_error_class <- reticulate::py_eval("RuntimeError", convert = FALSE)
+
+  middleware$call_completed(runtime_error_class('AUTH_001::{"trace_id":"payload-trace"}'))
+
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "header-trace")
+})
+
+test_that("client trace middleware resets state for each call", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  state_class <- reticulate::py_eval("_DataConnectTraceState", convert = FALSE)
+  factory_class <- reticulate::py_eval("_DataConnectTraceMiddlewareFactory", convert = FALSE)
+  trace_state <- state_class()
+  factory <- factory_class(trace_state)
+
+  first_middleware <- factory$start_call(NULL)
+  first_middleware$received_headers(reticulate::py_eval(
+    "{'x-dataconnect-trace-id': ['first-trace']} ",
+    convert = FALSE
+  ))
+  expect_equal(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")), "first-trace")
+
+  second_middleware <- factory$start_call(NULL)
+  second_middleware$call_completed(NULL)
+
+  expect_null(reticulate::py_to_r(reticulate::py_get_attr(trace_state, "trace_id")))
 })
