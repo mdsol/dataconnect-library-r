@@ -153,20 +153,7 @@ print.dataconnect_error <- function(x, ...) {
 #' @keywords internal
 .throw_dataconnect_error <- function(dataconnect_error, call = sys.call(-1)) {
 
-  message <- dataconnect_error$message
-  if (length(dataconnect_error$details) > 0) {
-    detail_text <- vapply(dataconnect_error$details, function(detail) {
-      parts <- unlist(detail[c("field", "message", "expected")], use.names = FALSE)
-      paste(parts[!is.na(parts) & nzchar(parts)], collapse = ": ")
-    }, character(1))
-    detail_text <- detail_text[nzchar(detail_text)]
-    if (length(detail_text) > 0) {
-      message <- paste(message, paste(detail_text, collapse = "; "))
-    }
-  }
-  formatted_error <- dataconnect_error
-  formatted_error$message <- message
-  message <- paste(capture.output(print.DataConnectError(formatted_error)), collapse = "\n")
+  message <- paste(capture.output(print.DataConnectError(dataconnect_error)), collapse = "\n")
 
   # Create a condition that is a DataConnectError with all fields directly
   # accessible. Users can catch this and access error_code, timestamp,
