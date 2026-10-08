@@ -79,13 +79,14 @@ print.ErrorDetail <- function(x, ...) {
 #'
 #' @noRd
 #' @keywords internal
-DataConnectError <- function(error_code, message, timestamp = NULL, details = NULL) {
+DataConnectError <- function(error_code, message, timestamp = NULL, details = NULL, trace_id = NULL) {
   structure(
     list(
       error_code = error_code,
       message = message,
       timestamp = timestamp,
-      details = details  # List of ErrorDetail objects
+      details = details,  # List of ErrorDetail objects
+      trace_id = trace_id
     ),
     class = "DataConnectError"
   )
@@ -120,6 +121,12 @@ print.DataConnectError <- function(x, ...) {
       }
     }
   }
+
+  if (!is.null(x$trace_id) && length(x$trace_id) == 1L &&
+      !is.na(x$trace_id) && nzchar(x$trace_id)) {
+    trace_indent <- if (!is.null(x$details) && length(x$details) > 0) "    " else ""
+    cat(trace_indent, "Trace ID: ", x$trace_id, "\n", sep = "")
+  }
   
   invisible(x)
 }
@@ -135,6 +142,13 @@ print.DataConnectError <- function(x, ...) {
 #' @keywords internal
 print.dataconnect_error <- function(x, ...) {
   cat(x$message, "\n", sep = "")
+  trace_indent <- if (!is.null(x$details) && length(x$details) > 0) "    " else ""
+  trace_line <- paste0("Trace ID: ", x$trace_id)
+  if (!is.null(x$trace_id) && length(x$trace_id) == 1L &&
+      !is.na(x$trace_id) && nzchar(x$trace_id) &&
+      !endsWith(x$message, trace_line)) {
+    cat(trace_indent, trace_line, "\n", sep = "")
+  }
   invisible(x)
 }
 
@@ -164,7 +178,8 @@ print.dataconnect_error <- function(x, ...) {
       error_code = dataconnect_error$error_code,
       message = message,
       timestamp = dataconnect_error$timestamp,
-      details = dataconnect_error$details
+      details = dataconnect_error$details,
+      trace_id = dataconnect_error$trace_id
     ),
     class = c("dataconnect_error", "DataConnectError", "error", "condition")
   )
@@ -186,9 +201,53 @@ print.dataconnect_error <- function(x, ...) {
 #' @noRd
 #' @keywords internal
 .extract_json_object <- function(text) {
-  text <- gsub("\\\\\\\"", "\"", text) # Replacing excessive slashes from response
-  text <- gsub("(?<!\\\\)\\\\'", "'", text, perl = TRUE) # single quote escape sequences are not valid JSON, so we can unescape them for parsing while preserving escaped backslashes
+  # Single-quote escapes are not valid JSON; unescape them while preserving escaped backslashes.
+  text <- gsub("(?<!\\\\)\\\\'", "'", text, perl = TRUE)
 
+  is_json_object <- function(candidate) {
+    regexpr("\\{", candidate)[1] > 0 &&
+      isTRUE(tryCatch(jsonlite::validate(candidate), error = function(e) FALSE))
+  }
+
+  candidate <- .scan_json_object(text)
+  if (is_json_object(candidate)) {
+    return(candidate)
+  }
+
+  # Payload still inside a gRPC-escaped string: decode that layer, keeping JSON escapes in values.
+  decoded <- .decode_escaped_json_string(text)
+  if (!is.null(decoded)) {
+    decoded_candidate <- .scan_json_object(decoded)
+    if (is_json_object(decoded_candidate)) {
+      return(decoded_candidate)
+    }
+  }
+
+  # Legacy fallback for payloads with excess backslash escaping.
+  .scan_json_object(gsub("\\\\\\\"", "\"", text))
+}
+
+# Decode the string layer that starts at the first `{` and ends at the first unescaped quote.
+.decode_escaped_json_string <- function(text) {
+  first_brace <- regexpr("\\{", text)[1]
+  if (first_brace < 1) {
+    return(NULL)
+  }
+
+  body <- substr(text, first_brace, nchar(text))
+  closing_quote <- regexpr("(?<!\\\\)(?:\\\\\\\\)*\"", body, perl = TRUE)
+  if (closing_quote < 1) {
+    return(NULL)
+  }
+
+  closing_pos <- closing_quote + attr(closing_quote, "match.length") - 1
+  tryCatch(
+    jsonlite::fromJSON(paste0('"', substr(body, 1, closing_pos - 1), '"')),
+    error = function(e) NULL
+  )
+}
+
+.scan_json_object <- function(text) {
   first_brace <- regexpr("\\{", text)[1]
 
   if (first_brace < 1) {
@@ -350,6 +409,26 @@ print.dataconnect_error <- function(x, ...) {
     detail_expected <- auth_detail_msg
   }
 
+  # Retain trace context if the wrapped error already contains a structured payload.
+  trace_id <- NULL
+  delimiter_positions <- gregexpr("::", error_message, fixed = TRUE)[[1]]
+  if (delimiter_positions[1] > 0) {
+    for (delimiter_position in delimiter_positions) {
+      payload_text <- substr(error_message, delimiter_position + 2, nchar(error_message))
+      json_part <- .extract_json_object(payload_text)
+      original_payload <- tryCatch(
+        jsonlite::fromJSON(json_part, simplifyDataFrame = FALSE),
+        error = function(e) NULL
+      )
+      if (is.list(original_payload)) {
+        trace_id <- original_payload$trace_id
+        if (!is.null(trace_id)) {
+          break
+        }
+      }
+    }
+  }
+
   # Build the PREFIX::JSON string that .parse_dataconnect_error() already handles.
   # Uses jsonlite::toJSON with auto_unbox = TRUE so scalar values are not wrapped
   # in arrays and R NA values (detail_msg) are serialized as JSON null.
@@ -362,6 +441,9 @@ print.dataconnect_error <- function(x, ...) {
       list(field = "token", message = detail_msg, expected = detail_expected)
     )
   )
+  if (!is.null(trace_id)) {
+    payload$trace_id <- trace_id
+  }
   json_payload <- as.character(jsonlite::toJSON(payload, auto_unbox = TRUE))
 
   paste0(error_code, "::", json_payload)
@@ -416,10 +498,12 @@ print.dataconnect_error <- function(x, ...) {
   # The :: delimiter separates the prefix from the JSON payload
   if (grepl("::", error_message, fixed = TRUE)) {
     
-    # Split the error message into parts using :: as the delimiter
-    # Only split on the first occurrence to handle :: within the JSON payload
-    # fixed = TRUE ensures :: is treated as a literal string, not a regex
-    first_delimiter_pos <- regexpr("::", error_message, fixed = TRUE)[1]
+    # Prefer the delimiter immediately before JSON. gRPC debug context can
+    # contain earlier `::` sequences, such as an IPv6 address.
+    first_delimiter_pos <- regexpr("::(?=\\s*\\{)", error_message, perl = TRUE)[1]
+    if (first_delimiter_pos < 0) {
+      first_delimiter_pos <- regexpr("::", error_message, fixed = TRUE)[1]
+    }
     parts <- c(
       substr(error_message, 1, first_delimiter_pos - 1),
       substr(error_message, first_delimiter_pos + 2, nchar(error_message))
@@ -464,7 +548,8 @@ print.dataconnect_error <- function(x, ...) {
           error_code = if (!is.null(error_data$error_code)) error_data$error_code else "UNKNOWN",
           message = if (!is.null(error_data$message)) error_data$message else unknown_error,
           timestamp = error_data$timestamp,  # NULL if not present
-          details = parsed_details          # List of ErrorDetail objects or NULL
+          details = parsed_details,          # List of ErrorDetail objects or NULL
+          trace_id = error_data$trace_id
         ))
       }, error = function(e) {
         # If JSON parsing fails, return a DataConnectError with the original message

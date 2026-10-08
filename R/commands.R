@@ -10,7 +10,7 @@
 #' Returns NULL if an error occurs during execution.
 #' @keywords internal
 #' @noRd
-.do_command <- function(client, command, args = list(), body = NULL) {
+.do_command <- function(client, command, args = list(), body = NULL, trace_state = NULL) {
   if(is.null(command) || command == "") {
     stop("Command must be provided")
   }
@@ -30,6 +30,7 @@
   action <- pa_flight$Action(command, action_body)
 
   options <- .get_flight_options()
+
   # Execute command
   tryCatch({
     result_iterator <- client$do_action(action, options = options)
@@ -46,6 +47,10 @@
 
           # Parse JSON
           result_data <- jsonlite::fromJSON(body_str)
+          if (is.list(result_data) && !is.null(result_data$trace_id)) {
+            .record_trace_id(trace_state, result_data$trace_id)
+            result_data$trace_id <- NULL
+          }
           response <<- c(response, list(result_data))
         }, error = function(e) {
           # If not JSON or can't decode, add as raw
@@ -56,6 +61,10 @@
         tryCatch({
           item_str <- reticulate::py_to_r(result)
           item_json <- jsonlite::fromJSON(item_str)
+          if (is.list(item_json) && !is.null(item_json$trace_id)) {
+            .record_trace_id(trace_state, item_json$trace_id)
+            item_json$trace_id <- NULL
+          }
           response <<- c(response, list(item_json))
         }, error = function(e) {
           # If not JSON, just add as raw
@@ -73,7 +82,7 @@
 
 #' Retrieve supported datetime formats from the Arrow Flight server
 #'
-#' Returns a structured data frame with the following columns:
+#' Returns a structured data frame of formats with the following columns:
 #' \itemize{
 #'   \item \code{index}: 1-based position in the returned format list.
 #'   \item \code{format}: Date or datetime format string.
@@ -86,7 +95,7 @@
 #' @return A data.frame with columns \code{index}, \code{format}, and \code{type}
 #' @keywords internal
 #' @noRd
-.get_datetime_formats <- function(client, project_token, type = "all") {
+.get_datetime_formats <- function(client, project_token, type = "all", trace_state = NULL) {
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -104,7 +113,8 @@
   result <- .do_command(
     client = client,
     command = "get_datetime_formats",
-    args = list(project_token = project_token, type = normalized_type)
+    args = list(project_token = project_token, type = normalized_type),
+    trace_state = trace_state
   )
 
   if (is.null(result) || length(result) == 0 || is.null(result[[1]])) {
@@ -161,7 +171,7 @@
 #'   \item{error_message}{A descriptive error message.}
 #' @keywords internal
 #' @noRd
-.do_put_command <- function(client, config, data) {
+.do_put_command <- function(client, config, data, trace_state = NULL) {
   if (is.null(client)) {
     stop("Client must be provided")
   }
@@ -228,6 +238,10 @@
       stop("No response received from server after do_put")
     }
     result <- jsonlite::fromJSON(result_str)
+    if (is.list(result) && !is.null(result$trace_id)) {
+      .record_trace_id(trace_state, result$trace_id)
+      result$trace_id <- NULL
+    }
 
     # The server emits the canonical envelope (success/metadata/metrics/checks/errors)
     # for both dry_publish and publish.

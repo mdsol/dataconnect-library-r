@@ -32,7 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN wget --quiet https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh \
     && /bin/bash miniforge.sh -b -p /opt/conda \
     && rm miniforge.sh \
-    && conda install -y -c conda-forge pyarrow \
+    && conda install -y -c conda-forge pyarrow libarrow-flight \
+    && python -c "import pyarrow.flight" \
     && conda clean -afy
 
 # Configure R to use conda libraries first by setting LD_LIBRARY_PATH in Renviron

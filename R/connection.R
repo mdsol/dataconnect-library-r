@@ -212,7 +212,7 @@ def create_flight_options_with_network_info():
 #' passed explicitly.
 #' @param uri The URI (protocol://host:port) of the Arrow Flight Server
 #' @param use_tls Whether to use TLS
-#' @return A FlightClient object
+#' @return A list containing the Flight client and its trace state.
 #' @keywords internal
 #' @noRd
 .get_client <- function(uri, use_tls) {
@@ -223,8 +223,83 @@ def create_flight_options_with_network_info():
 
   is_windows <- (Sys.info()["sysname"] == "Windows")
 
-  # Import PyArrow
-  pa <- reticulate::import("pyarrow")
+  reticulate::py_run_string('
+import json as _dc_json
+import pyarrow.flight as _dc_flight
+
+def _dc_extract_error_payload(message):
+    decoder = _dc_json.JSONDecoder()
+    delimiter_pos = message.find("::")
+    while delimiter_pos >= 0:
+      payload_text = message[delimiter_pos + 2:]
+      brace_pos = payload_text.find("{")
+      while brace_pos >= 0:
+        candidate_text = payload_text[brace_pos:]
+        try:
+          payload, _ = decoder.raw_decode(candidate_text)
+        except _dc_json.JSONDecodeError:
+          try:
+            decoded_text, _ = decoder.raw_decode(chr(34) + candidate_text + chr(34))
+            payload, _ = decoder.raw_decode(decoded_text)
+          except _dc_json.JSONDecodeError:
+            payload = None
+        if isinstance(payload, dict) and ("error_code" in payload or "trace_id" in payload):
+          return payload
+        brace_pos = payload_text.find("{", brace_pos + 1)
+      delimiter_pos = message.find("::", delimiter_pos + 2)
+    return None
+
+class _DataConnectTraceState:
+    def __init__(self):
+      self.trace_id = None
+
+class _DataConnectTraceMiddleware(_dc_flight.ClientMiddleware):
+    def __init__(self, state):
+      self._state = state
+
+    def received_headers(self, headers):
+      values = headers.get("x-dataconnect-trace-id")
+      if values is None:
+        values = headers.get(b"x-dataconnect-trace-id")
+      if isinstance(values, (list, tuple)):
+        value = values[0] if values else None
+      else:
+        value = values
+      if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+      if value:
+        self._state.trace_id = value
+
+    def call_completed(self, exception):
+      if exception is None:
+        return
+      payload = _dc_extract_error_payload(str(exception))
+      if isinstance(payload, dict):
+        trace_id = payload.get("trace_id")
+        if self._state.trace_id is None and trace_id:
+          self._state.trace_id = trace_id
+
+class _DataConnectTraceMiddlewareFactory(_dc_flight.ClientMiddlewareFactory):
+    def __init__(self, state):
+      self._state = state
+
+    def start_call(self, _info):
+      self._state.trace_id = None
+      return _DataConnectTraceMiddleware(self._state)
+
+def _dc_create_flight_client(uri, tls_root_certs=None):
+    state = _DataConnectTraceState()
+    options = {"middleware": [_DataConnectTraceMiddlewareFactory(state)]}
+    if tls_root_certs is not None:
+      options["tls_root_certs"] = tls_root_certs
+    return (_dc_flight.FlightClient(uri, **options), state)
+
+def _dc_extract_schema_trace_id(schema):
+    value = schema.metadata.get(b"trace_id")
+    if isinstance(value, bytes):
+      return value.decode("utf-8", errors="replace")
+    return value
+  ')
 
   if (use_tls && is_windows) {
 
@@ -252,12 +327,12 @@ def create_flight_options_with_network_info():
 
     pem_certs <- paste0(unlist(lapply(root_certs_raw, to_pem)), collapse="\n")
 
-    client <- pa$flight$FlightClient(uri, tls_root_certs = pem_certs)
+    client <- reticulate::py$`_dc_create_flight_client`(uri, tls_root_certs = pem_certs)
   } else {
-    client <- pa$flight$FlightClient(uri)
+    client <- reticulate::py$`_dc_create_flight_client`(uri)
   }
 
-  return(client)
+  return(list(client = client[[1]], trace_state = client[[2]]))
 }
 
 #' Connect to an Arrow Flight server
@@ -265,7 +340,7 @@ def create_flight_options_with_network_info():
 #' @param host The host address
 #' @param port The port number
 #' @param use_tls Whether to use TLS (defaults to FALSE)
-#' @return A FlightClient object
+#' @return A list containing the Flight client and its trace state.
 #' @keywords internal
 #' @noRd
 .connect <- function(host, port, use_tls = FALSE) {

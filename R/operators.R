@@ -42,7 +42,8 @@
       criteria$page <- current_page
 
       # Get iterator for current page
-      py_iter <- .list_flights(client, criteria)
+      flight_result <- .list_flights(client, criteria)
+      py_iter <- flight_result$flights
 
       # Process the iterator for this page
       page_results <- list()
