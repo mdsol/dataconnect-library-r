@@ -16,7 +16,7 @@
   tryCatch({
     # Execute the query
     flights <- client$list_flights(py_bytes, options = options)
-    return(list(flights = flights))
+    return(flights)
   }, error = function(e) {
     parsed_error <- .parse_dataconnect_error(conditionMessage(e))
     .throw_dataconnect_error(parsed_error)
@@ -186,8 +186,7 @@ StudyEnvironment <- setRefClass(
   all_results <- list()
 
   # Get iterator for flights
-  flight_result <- .list_flights(client, criteria)
-  py_iter <- flight_result$flights
+  py_iter <- .list_flights(client, criteria)
 
   # Process the iterator, passing client for frame creation
   processed <- .process_iterator(py_iter, client, trace_state)
@@ -438,8 +437,7 @@ StudyEnvironment <- setRefClass(
     search_study_name = search_study_name
   )
 
-  flight_result <- .list_flights(client, criteria)
-  py_iter <- flight_result$flights
+  py_iter <- .list_flights(client, criteria)
   studies <- list()
   total_records <- 0L
   is_first_item <- TRUE
@@ -515,8 +513,7 @@ StudyEnvironment <- setRefClass(
     page_size = page_size
   )
 
-  flight_result <- .list_flights(client, criteria)
-  py_iter <- flight_result$flights
+  py_iter <- .list_flights(client, criteria)
 
   first_item <- TRUE
   total_records <- 0L

@@ -9,13 +9,13 @@ source("../../R/table.R")
 `%||%` <- function(x, y) if (is.null(x)) y else x
 source("../../R/operators.R")
 
-test_that("%::% unwraps the Flight iterator returned by .list_flights", {
+test_that("%::% iterates the raw Flight iterator returned by .list_flights", {
   flight_iterator <- reticulate::py_eval("iter([{'total_records': 1}])")
   operator_environment <- environment(`%::%`)
   original_list_flights <- get(".list_flights", envir = operator_environment)
   assign(
     ".list_flights",
-    function(client, criteria) list(flights = flight_iterator),
+    function(client, criteria) flight_iterator,
     envir = operator_environment
   )
   on.exit(assign(".list_flights", original_list_flights, envir = operator_environment), add = TRUE)

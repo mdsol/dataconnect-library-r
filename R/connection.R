@@ -212,7 +212,7 @@ def create_flight_options_with_network_info():
 #' passed explicitly.
 #' @param uri The URI (protocol://host:port) of the Arrow Flight Server
 #' @param use_tls Whether to use TLS
-#' @return A list containing the Flight client and its trace state.
+#' @return A FlightClient object
 #' @keywords internal
 #' @noRd
 .get_client <- function(uri, use_tls) {
