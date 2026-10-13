@@ -109,78 +109,29 @@
     return(NULL)
   }
 
-  # Define Python function to get network info and create flight options in one step
-  py_code <- sprintf('
-import socket
-import pyarrow.flight as flight
-import uuid
-
-def create_flight_options_with_network_info():
-    """Get network information and create flight options with headers."""
-    # Initialize network info with fallbacks
-    ip = "NA"
-    mac = "00:00:00:00:00:00"
-
-    # Get local IP - works on all platforms
-    try:
-        # This creates a socket but doesn\'t actually connect
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            # This doesn\'t send any packets, just sets up the routing
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-        except Exception:
-            pass
-        finally:
-            s.close()
-    except Exception:
-        pass
-
-    # Get MAC address - cross-platform approach
-    try:
-        # Try using uuid which is cross-platform
-        mac_int = uuid.getnode()
-        mac_hex = format(mac_int, "012x")
-        mac_formatted = ":".join(mac_hex[i:i+2] for i in range(0, 12, 2))
-
-        # Only use if it seems valid (not a virtual/fallback MAC)
-        if mac_int != 0 and mac_hex != "000000000000" and not mac_formatted.startswith("00:00:00"):
-            mac = mac_formatted
-    except Exception:
-        pass
-
-    # Create flight options with headers
-    headers = []
-
-    # Always include client information (added from R)
-    headers.append((b"%s", b"%s"))
-
-    # Always include local IP (will be "NA" if not found)
-    headers.append((b"x-client-local-ip", ip.encode("utf-8")))
-
-    # Add MAC header only if it\'s not the fallback
-    if mac != "00:00:00:00:00:00":
-        headers.append((b"x-client-mac", mac.encode("utf-8")))
-
-    # Add DATACONNECT_TOKEN if available (using lowercase header)
-    # token is set as a Python module-level variable by R before this function is called
-    if token:
-        headers.append((b"authorization", f"Bearer {token}".encode("utf-8")))
-
-    # Create and return options
-    return flight.FlightCallOptions(headers=headers)
-', client_header_name, client_header_value)
-
-  # Execute the Python code
   tryCatch({
+    pa_flight <- reticulate::import("pyarrow.flight")
+    builtins <- reticulate::import_builtins(convert = FALSE)
+    header <- function(name, value) {
+      reticulate::tuple(builtins$bytes(name, "utf-8"), builtins$bytes(value, "utf-8"))
+    }
+
+    headers <- list(
+      header(client_header_name, client_header_value),
+      header("x-client-local-ip", .get_local_ip())
+    )
+
+    mac <- .get_mac_address()
+    if (!is.null(mac)) {
+      headers <- append(headers, list(header("x-client-mac", mac)))
+    }
+
     token <- Sys.getenv("DATACONNECT_TOKEN", unset = "")
-    reticulate::py_run_string(sprintf("token = '%s'", token))
-    reticulate::py_run_string(py_code)
+    if (nzchar(token)) {
+      headers <- append(headers, list(header("authorization", paste("Bearer", token))))
+    }
 
-    # Call the Python function to get options directly
-    options <- reticulate::py$create_flight_options_with_network_info()
-
-    return(options)
+    return(pa_flight$FlightCallOptions(headers = headers))
   }, error = function(e) {
     warning("Error creating flight options: ", e$message)
 
@@ -223,83 +174,10 @@ def create_flight_options_with_network_info():
 
   is_windows <- (Sys.info()["sysname"] == "Windows")
 
-  reticulate::py_run_string('
-import json as _dc_json
-import pyarrow.flight as _dc_flight
-
-def _dc_extract_error_payload(message):
-    decoder = _dc_json.JSONDecoder()
-    delimiter_pos = message.find("::")
-    while delimiter_pos >= 0:
-      payload_text = message[delimiter_pos + 2:]
-      brace_pos = payload_text.find("{")
-      while brace_pos >= 0:
-        candidate_text = payload_text[brace_pos:]
-        try:
-          payload, _ = decoder.raw_decode(candidate_text)
-        except _dc_json.JSONDecodeError:
-          try:
-            decoded_text, _ = decoder.raw_decode(chr(34) + candidate_text + chr(34))
-            payload, _ = decoder.raw_decode(decoded_text)
-          except _dc_json.JSONDecodeError:
-            payload = None
-        if isinstance(payload, dict) and ("error_code" in payload or "trace_id" in payload):
-          return payload
-        brace_pos = payload_text.find("{", brace_pos + 1)
-      delimiter_pos = message.find("::", delimiter_pos + 2)
-    return None
-
-class _DataConnectTraceState:
-    def __init__(self):
-      self.trace_id = None
-
-class _DataConnectTraceMiddleware(_dc_flight.ClientMiddleware):
-    def __init__(self, state):
-      self._state = state
-
-    def received_headers(self, headers):
-      values = headers.get("x-dataconnect-trace-id")
-      if values is None:
-        values = headers.get(b"x-dataconnect-trace-id")
-      if isinstance(values, (list, tuple)):
-        value = values[0] if values else None
-      else:
-        value = values
-      if isinstance(value, bytes):
-        value = value.decode("utf-8", errors="replace")
-      if value:
-        self._state.trace_id = value
-
-    def call_completed(self, exception):
-      if exception is None:
-        return
-      payload = _dc_extract_error_payload(str(exception))
-      if isinstance(payload, dict):
-        trace_id = payload.get("trace_id")
-        if self._state.trace_id is None and trace_id:
-          self._state.trace_id = trace_id
-
-class _DataConnectTraceMiddlewareFactory(_dc_flight.ClientMiddlewareFactory):
-    def __init__(self, state):
-      self._state = state
-
-    def start_call(self, _info):
-      self._state.trace_id = None
-      return _DataConnectTraceMiddleware(self._state)
-
-def _dc_create_flight_client(uri, tls_root_certs=None):
-    state = _DataConnectTraceState()
-    options = {"middleware": [_DataConnectTraceMiddlewareFactory(state)]}
-    if tls_root_certs is not None:
-      options["tls_root_certs"] = tls_root_certs
-    return (_dc_flight.FlightClient(uri, **options), state)
-
-def _dc_extract_schema_trace_id(schema):
-    value = schema.metadata.get(b"trace_id")
-    if isinstance(value, bytes):
-      return value.decode("utf-8", errors="replace")
-    return value
-  ')
+  pa_flight <- reticulate::import("pyarrow.flight")
+  trace_state <- new.env(parent = emptyenv())
+  trace_state$trace_id <- NULL
+  client_options <- list(middleware = list(.create_trace_middleware_factory(trace_state)))
 
   if (use_tls && is_windows) {
 
@@ -327,12 +205,104 @@ def _dc_extract_schema_trace_id(schema):
 
     pem_certs <- paste0(unlist(lapply(root_certs_raw, to_pem)), collapse="\n")
 
-    client <- reticulate::py$`_dc_create_flight_client`(uri, tls_root_certs = pem_certs)
-  } else {
-    client <- reticulate::py$`_dc_create_flight_client`(uri)
+    client_options$tls_root_certs <- pem_certs
   }
 
-  return(list(client = client[[1]], trace_state = client[[2]]))
+  client <- do.call(pa_flight$FlightClient, c(list(uri), client_options))
+
+  return(list(client = client, trace_state = trace_state))
+}
+
+# pyarrow invokes these R callbacks during each Flight RPC; they must never raise.
+.create_trace_middleware_factory <- function(trace_state) {
+  pa_flight <- reticulate::import("pyarrow.flight")
+
+  middleware_class <- reticulate::PyClass(
+    "DataConnectTraceMiddleware",
+    inherit = pa_flight$ClientMiddleware,
+    defs = list(
+      received_headers = function(self, headers) {
+        trace_id <- tryCatch(.header_trace_id(headers), error = function(e) NULL)
+        if (!is.null(trace_id)) {
+          trace_state$trace_id <- trace_id
+        }
+        NULL
+      },
+      call_completed = function(self, exception) {
+        if (is.null(exception) || inherits(exception, "python.builtin.NoneType")) {
+          return(NULL)
+        }
+        trace_id <- tryCatch(
+          .extract_payload_trace_id(reticulate::py_str(exception)),
+          error = function(e) NULL
+        )
+        .record_trace_id(trace_state, trace_id)
+        NULL
+      }
+    )
+  )
+
+  factory_class <- reticulate::PyClass(
+    "DataConnectTraceMiddlewareFactory",
+    inherit = pa_flight$ClientMiddlewareFactory,
+    defs = list(
+      start_call = function(self, info) {
+        trace_state$trace_id <- NULL
+        middleware_class()
+      }
+    )
+  )
+
+  factory_class()
+}
+
+# Called for both response headers and trailers; returns NULL when the header is absent.
+.header_trace_id <- function(headers) {
+  value <- reticulate::py_to_r(headers)[["x-dataconnect-trace-id"]]
+  if (is.list(value)) {
+    value <- if (length(value) > 0) value[[1]] else NULL
+  }
+  if (inherits(value, "python.builtin.bytes")) {
+    value <- reticulate::py_to_r(value$decode("utf-8", errors = "replace"))
+  }
+  if (is.character(value) && length(value) >= 1 && nzchar(value[[1]])) value[[1]] else NULL
+}
+
+.get_local_ip <- function() {
+  tryCatch({
+    socket <- reticulate::import("socket")
+    s <- socket$socket(socket$AF_INET, socket$SOCK_DGRAM)
+    on.exit(s$close(), add = TRUE)
+    # UDP connect sends no packets; it only selects the outbound interface.
+    s$connect(reticulate::tuple("8.8.8.8", 80L))
+    s$getsockname()[[1]]
+  }, error = function(e) "NA")
+}
+
+.get_mac_address <- function() {
+  tryCatch({
+    uuid <- reticulate::import("uuid", convert = FALSE)
+    mac_hex <- reticulate::import_builtins()$format(uuid$getnode(), "012x")
+    mac <- paste(substring(mac_hex, seq(1, 11, 2), seq(2, 12, 2)), collapse = ":")
+    if (mac_hex == "000000000000" || startsWith(mac, "00:00:00")) NULL else mac
+  }, error = function(e) NULL)
+}
+
+# pyarrow schema metadata is a bytes-keyed dict (or None).
+.extract_schema_trace_id <- function(schema) {
+  metadata <- reticulate::py_get_attr(schema, "metadata")
+  if (inherits(metadata, "python.builtin.NoneType")) {
+    return(NULL)
+  }
+  key <- reticulate::import_builtins(convert = FALSE)$bytes("trace_id", "utf-8")
+  value <- metadata$get(key)
+  if (is.null(value) || inherits(value, "python.builtin.NoneType")) {
+    return(NULL)
+  }
+  if (inherits(value, "python.builtin.bytes")) {
+    value <- value$decode("utf-8", errors = "replace")
+  }
+  reticulate::py_to_r(value)
 }
 
 #' Connect to an Arrow Flight server

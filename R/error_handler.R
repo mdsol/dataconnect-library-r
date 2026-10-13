@@ -227,6 +227,22 @@ print.dataconnect_error <- function(x, ...) {
   .scan_json_object(gsub("\\\\\\\"", "\"", text))
 }
 
+# Return the trace_id from the first `PREFIX::{json}` payload that has one, or NULL.
+.extract_payload_trace_id <- function(message) {
+  delimiter_positions <- gregexpr("::", message, fixed = TRUE)[[1]]
+  for (delimiter_position in delimiter_positions[delimiter_positions > 0]) {
+    payload_text <- substr(message, delimiter_position + 2, nchar(message))
+    payload <- tryCatch(
+      jsonlite::fromJSON(.extract_json_object(payload_text), simplifyDataFrame = FALSE),
+      error = function(e) NULL
+    )
+    if (is.list(payload) && !is.null(payload$trace_id)) {
+      return(payload$trace_id)
+    }
+  }
+  NULL
+}
+
 # Decode the string layer that starts at the first `{` and ends at the first unescaped quote.
 .decode_escaped_json_string <- function(text) {
   first_brace <- regexpr("\\{", text)[1]
@@ -410,24 +426,7 @@ print.dataconnect_error <- function(x, ...) {
   }
 
   # Retain trace context if the wrapped error already contains a structured payload.
-  trace_id <- NULL
-  delimiter_positions <- gregexpr("::", error_message, fixed = TRUE)[[1]]
-  if (delimiter_positions[1] > 0) {
-    for (delimiter_position in delimiter_positions) {
-      payload_text <- substr(error_message, delimiter_position + 2, nchar(error_message))
-      json_part <- .extract_json_object(payload_text)
-      original_payload <- tryCatch(
-        jsonlite::fromJSON(json_part, simplifyDataFrame = FALSE),
-        error = function(e) NULL
-      )
-      if (is.list(original_payload)) {
-        trace_id <- original_payload$trace_id
-        if (!is.null(trace_id)) {
-          break
-        }
-      }
-    }
-  }
+  trace_id <- .extract_payload_trace_id(error_message)
 
   # Build the PREFIX::JSON string that .parse_dataconnect_error() already handles.
   # Uses jsonlite::toJSON with auto_unbox = TRUE so scalar values are not wrapped

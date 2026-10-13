@@ -168,7 +168,7 @@ DataConnectClient <- setRefClass(
         if (!missing(value)) {
           stop("trace_id is read-only")
         }
-        reticulate::py_to_r(.self$.trace_state$trace_id)
+        .self$.trace_state$trace_id
       }, .self)
     },
 

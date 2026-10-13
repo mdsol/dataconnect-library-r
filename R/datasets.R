@@ -221,7 +221,7 @@ StudyEnvironment <- setRefClass(
     # Get the reader
     reader <- client$do_get(ticket, options=options)
     trace_id <- tryCatch(
-      reticulate::py_to_r(reticulate::py$`_dc_extract_schema_trace_id`(reader$schema)),
+      .extract_schema_trace_id(reader$schema),
       error = function(e) NULL
     )
     .record_trace_id(trace_state, trace_id)
