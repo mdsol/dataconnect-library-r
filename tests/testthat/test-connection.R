@@ -7,6 +7,7 @@ library(mockery)
 # Directly source the file we need to test
 source("../../R/connection.R")
 source("../../R/table.R")
+source("../../R/error_handler.R")
 
 # ── .set_dataconnect_token ─────────────────────────────────────────────────
 
