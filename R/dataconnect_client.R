@@ -11,7 +11,7 @@
 #' \describe{
 #'   \item{.client}{Internal client connection object}
 #'   \item{.ns}{Package namespace reference for consistent function access}
-#'   \item{trace_id}{Trace ID from the most recent sequential request, or NULL}
+#'   \item{trace_id}{Trace ID from the most recent request (the last page for paginated iteration)page for paginated iteration), or NULL}
 #' }
 #'
 #' @section Methods:

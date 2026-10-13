@@ -264,6 +264,8 @@
   }
   if (inherits(value, "python.builtin.bytes")) {
     value <- reticulate::py_to_r(value$decode("utf-8", errors = "replace"))
+  } else if (is.raw(value)) {
+    value <- rawToChar(value)
   }
   if (is.character(value) && length(value) >= 1 && nzchar(value[[1]])) value[[1]] else NULL
 }
