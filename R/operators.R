@@ -3,9 +3,12 @@
 #' This operator allows for lazy evaluation of Flight iterators, processing one item at a time
 #' across multiple pages without consuming all results upfront.
 #'
-#' @param iter_or_spec Flight iterator or pagination specification
+#' @param iter_or_spec Flight iterator, or a pagination specification list with
+#'   `client`, `criteria`, and optional `max_pages` (-1 for no limit) and `trace_state`
 #' @param expr An expression to evaluate for each item
-#' @return The result of evaluating the expression on each item
+#' @return A list of the non-NULL results of evaluating `expr` for each item,
+#'   across all pages for a pagination specification. When `trace_state` is
+#'   supplied, it holds the trace ID of the last page requested.
 #' @export
 `%::%` <- function(iter_or_spec, expr) {
   expr_subst <- substitute(expr)
@@ -20,7 +23,8 @@
     # Extract pagination parameters
     client <- iter_or_spec$client
     criteria <- iter_or_spec$criteria
-    max_pages <- iter_or_spec$max_pages %||% -1 # Default to 10 pages
+    max_pages <- iter_or_spec$max_pages %||% -1 # -1 = no page limit
+    trace_state <- iter_or_spec$trace_state
 
     # Ensure page info is in criteria
     if (is.null(criteria$page_size)) {
@@ -60,6 +64,8 @@
             total_records <<- as.numeric(item$total_records)
           }
 
+          .extract_app_metadata(item, trace_state)
+
           extracted_data <- .extract_data(item)
           
           # Add frame property if this looks like a dataset
@@ -73,7 +79,7 @@
             )
             
             # Add the frame property as a dataconnect_tbl
-            extracted_data$frame <- dataconnect_tbl(client, base_params)
+            extracted_data$frame <- dataconnect_tbl(client, base_params, trace_state)
           }
 
           # Bind item to the environment

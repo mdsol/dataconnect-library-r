@@ -72,6 +72,8 @@ tryCatch({
     }
   }
 
+  cat("Trace ID:", dc$trace_id, "\n")
+
 }, dataconnect_error = function(e) {
   # Catch dataconnect specific errors.
   # Instead of printing, exception can be handled programmatically based on the error code or message.
@@ -131,6 +133,7 @@ tryCatch({
     print(to_frame(dataset))
   }
 
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
 
   # Catch dataconnect specific errors.
@@ -177,6 +180,7 @@ tryCatch({
     print(to_frame(dataset_version))
   }
 
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
 
   # Catch dataconnect specific errors.
@@ -200,6 +204,7 @@ tryCatch({
   # Fetching first 3 rows of data
   RAVEdata$frame %>% head(3)
 
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
   print(e)
 }, error = function(e) {
@@ -215,7 +220,8 @@ tryCatch({
   )
   # Fetching the first 6 rows of data
   Derdata$frame %>% head()
-
+  
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
   print(e)
 }, error = function(e) {
@@ -231,6 +237,8 @@ tryCatch({
   
   # Fetching the first 3 rows of data
   ImportData$frame %>% head(3)
+
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
   print(e)
 }, error = function(e){
@@ -247,6 +255,7 @@ tryCatch({
   # Fetching the first 3 rows of data
   CustomData$frame %>% head(3)
 
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e) {
   print(e)
 }, error = function(e)
@@ -352,17 +361,20 @@ all_formats <- dc$get_datetime_formats(
   project_token = myProjectToken,
   type = "all"
 )
+cat("Trace ID:", dc$trace_id, "\n")
 
 # Filter for date-only or datetime-only values when needed.
 date_formats <- dc$get_datetime_formats(
   project_token = myProjectToken,
   type = "date"
 )
+cat("Trace ID:", dc$trace_id, "\n")
 
 datetime_only_formats <- dc$get_datetime_formats(
   project_token = myProjectToken,
   type = "datetime"
 )
+cat("Trace ID:", dc$trace_id, "\n")
 
 # Example mapping used by dry_publish()/publish().
 datetime_formats_list <- list(
@@ -387,7 +399,8 @@ tryCatch({
   )
   
   print(dry_publish_result)
-  
+
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e){
   
   # Catch dataconnect specific errors. 
@@ -419,6 +432,7 @@ tryCatch({
 
   print(publish_result)
   
+  cat("Trace ID:", dc$trace_id, "\n")
 }, dataconnect_error = function(e){
   
   # Catch dataconnect specific errors. 

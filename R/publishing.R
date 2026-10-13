@@ -14,7 +14,7 @@
 #' @return Server validation response
 #' @keywords internal
 #' @noRd
-.dry_publish <- function(client, config, data) {
+.dry_publish <- function(client, config, data, trace_state = NULL) {
 
   # Input validation
   if (is.null(client)) {
@@ -57,7 +57,7 @@
   combined_body <- config_bytes + separator_bytes + schema_bytes
 
   # Use do_command with pre-formatted body
-  result <- .do_command(client, "dry_publish", body = combined_body)
+  result <- .do_command(client, "dry_publish", body = combined_body, trace_state = trace_state)
 
   if (length(result) == 0 || is.null(result[[1]])) {
     warning("No processed result from do_command, returning raw result")
@@ -85,7 +85,7 @@
 #' }
 #' @keywords internal
 #' @noRd
-.publish <- function(client, config, data) {
+.publish <- function(client, config, data, trace_state = NULL) {
   # Input validation
   if (is.null(client)) {
     stop("Client must be provided")
@@ -107,7 +107,7 @@
   }
 
 tryCatch({
-    result <- .do_put_command(client, config, arrow_data)
+    result <- .do_put_command(client, config, arrow_data, trace_state)
     return(result)
   }, error = function(e) {
     parsed_error <- .parse_dataconnect_error(conditionMessage(e))

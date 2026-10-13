@@ -6,6 +6,8 @@ library(mockery)
 
 # Directly source the file we need to test
 source("../../R/connection.R")
+source("../../R/table.R")
+source("../../R/error_handler.R")
 
 # ── .set_dataconnect_token ─────────────────────────────────────────────────
 
@@ -150,9 +152,8 @@ test_that(".get_flight_options returns NULL with warning when reticulate and arr
   )
   expect_null(result)
 })
-test_that(".get_flight_options warns and returns NULL when py_run_string fails and arrow is unavailable", {
-  # Allow requireNamespace("reticulate") to pass but fail py_run_string
-  mockery::stub(.get_flight_options, "reticulate::py_run_string", function(...) stop("python error"))
+test_that(".get_flight_options warns and returns NULL when pyarrow import fails and arrow is unavailable", {
+  mockery::stub(.get_flight_options, "reticulate::import", function(...) stop("python error"))
   mockery::stub(.get_flight_options, "requireNamespace", function(pkg, ...) {
     if (pkg == "arrow") FALSE else TRUE
   })
@@ -164,75 +165,81 @@ test_that(".get_flight_options warns and returns NULL when py_run_string fails a
   expect_null(result)
 })
 
-test_that(".get_flight_options omits the public IP header and preserves other headers on success", {
-  mock_options <- list(
-    headers = list(
-      c("x-client-dataconnect", "R_SDK;1.0.0;"),
-      c("x-client-local-ip", "192.168.1.5"),
-      c("x-client-mac", "aa:bb:cc:dd:ee:ff")
-    )
-  )
-  mockery::stub(.get_flight_options, "requireNamespace", function(pkg, ...) TRUE)
-  # Assert the generated Python source drops the public-IP header while still building local IP/MAC headers.
-  mockery::stub(.get_flight_options, "reticulate::py_run_string", function(code, ...) {
-    expect_false(grepl("x-client-public-ip", code, fixed = TRUE))
-    if (grepl("create_flight_options_with_network_info", code, fixed = TRUE)) {
-      expect_true(grepl("x-client-local-ip", code, fixed = TRUE))
-      expect_true(grepl("x-client-mac", code, fixed = TRUE))
-    }
-    invisible(NULL)
+test_that(".get_flight_options builds client, network and auth headers without a public IP", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+  old_token <- Sys.getenv("DATACONNECT_TOKEN")
+  on.exit(Sys.setenv(DATACONNECT_TOKEN = old_token), add = TRUE)
+  Sys.setenv(DATACONNECT_TOKEN = "tok'en")
+
+  mockery::stub(.get_flight_options, ".get_local_ip", function() "192.168.1.5")
+  mockery::stub(.get_flight_options, ".get_mac_address", function() "aa:bb:cc:dd:ee:ff")
+  mockery::stub(.get_flight_options, "reticulate::import", function(...) {
+    list(FlightCallOptions = function(headers) list(headers = headers))
   })
-  mockery::stub(
-    .get_flight_options,
-    "reticulate::py$create_flight_options_with_network_info",
-    function() mock_options
-  )
 
   result <- .get_flight_options()
 
-  header_names <- vapply(result$headers, function(h) h[[1]], character(1))
-  expect_true("x-client-dataconnect" %in% header_names)
-  expect_true("x-client-local-ip" %in% header_names)
-  expect_false("x-client-public-ip" %in% header_names)
+  decode <- function(b) reticulate::py_to_r(b$decode("utf-8"))
+  headers <- lapply(result$headers, function(h) {
+    parts <- reticulate::py_to_r(h)
+    c(decode(parts[[1]]), decode(parts[[2]]))
+  })
+  header_values <- setNames(
+    vapply(headers, `[`, character(1), 2),
+    vapply(headers, `[`, character(1), 1)
+  )
+  expect_true("x-client-dataconnect" %in% names(header_values))
+  expect_equal(header_values[["x-client-local-ip"]], "192.168.1.5")
+  expect_equal(header_values[["x-client-mac"]], "aa:bb:cc:dd:ee:ff")
+  expect_equal(header_values[["authorization"]], "Bearer tok'en")
+  expect_false("x-client-public-ip" %in% names(header_values))
 })
 # ── .connect ───────────────────────────────────────────────────────────────
 
 test_that(".connect builds a grpc+tcp URI when use_tls is FALSE", {
   captured_uri <- NULL
+  mock_client <- "mock_client"
+  mock_trace_state <- new.env(parent = emptyenv())
   mockery::stub(.connect, ".get_client", function(uri, use_tls) {
     captured_uri <<- uri
-    "mock_client"
+    list(client = mock_client, trace_state = mock_trace_state)
   })
 
   result <- .connect("localhost", 8815)
 
   expect_equal(captured_uri, "grpc+tcp://localhost:8815")
-  expect_equal(result, "mock_client")
+  expect_identical(result$client, mock_client)
+  expect_identical(result$trace_state, mock_trace_state)
 })
 
 test_that(".connect builds a grpc+tls URI when use_tls is TRUE", {
   captured_uri <- NULL
   captured_tls <- NULL
+  mock_client <- "mock_client_tls"
+  mock_trace_state <- new.env(parent = emptyenv())
   mockery::stub(.connect, ".get_client", function(uri, use_tls) {
     captured_uri <<- uri
     captured_tls <<- use_tls
-    "mock_client_tls"
+    list(client = mock_client, trace_state = mock_trace_state)
   })
 
   result <- .connect("dummy.imedidata.com", 443, use_tls = TRUE)
 
   expect_equal(captured_uri, "grpc+tls://dummy.imedidata.com:443")
   expect_true(captured_tls)
-  expect_equal(result, "mock_client_tls")
+  expect_identical(result$client, mock_client)
+  expect_identical(result$trace_state, mock_trace_state)
 })
 
-test_that(".connect returns the client from .get_client", {
+test_that(".connect returns the client and trace state from .get_client", {
   mock_client <- structure(list(), class = "MockFlightClient")
-  mockery::stub(.connect, ".get_client", function(uri, use_tls) mock_client)
+  mock_trace_state <- new.env(parent = emptyenv())
+  connection <- list(client = mock_client, trace_state = mock_trace_state)
+  mockery::stub(.connect, ".get_client", function(uri, use_tls) connection)
 
   result <- .connect("host", 1234)
 
-  expect_identical(result, mock_client)
+  expect_identical(result, connection)
 })
 
 # ── .get_client ────────────────────────────────────────────────────────────
@@ -244,4 +251,103 @@ test_that(".get_client stops when PyArrow is not available", {
     .get_client("grpc+tcp://localhost:8815", FALSE),
     "PyArrow module is not available"
   )
+})
+
+test_that("client trace middleware extracts IDs from escaped IPv6 gRPC errors", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  connection <- .get_client("grpc+tcp://127.0.0.1:5005", FALSE)
+  trace_state <- connection$trace_state
+  middleware <- .create_trace_middleware_factory(trace_state)$start_call(NULL)
+  trace_id <- "trace-583f90d5250b271c72802814d94f47ad"
+  payload <- as.character(jsonlite::toJSON(
+    list(
+      error_code = "VAL_007",
+      message = 'Invalid "dataset_name"',
+      trace_id = trace_id
+    ),
+    auto_unbox = TRUE
+  ))
+  escaped_payload <- as.character(jsonlite::toJSON(payload, auto_unbox = TRUE))
+  escaped_payload <- substr(escaped_payload, 2, nchar(escaped_payload) - 1)
+  error_message <- paste0(
+    'UNKNOWN:Error received from peer ipv6:%5B::1%5D:5007 {created_time:"2026-10-05T10:19:22.4546385+00:00", ',
+    'grpc_status:2, grpc_message:"VAL_007::', escaped_payload, '"}. Detail: Failed'
+  )
+
+  runtime_error_class <- reticulate::py_eval("RuntimeError", convert = FALSE)
+  middleware$call_completed(runtime_error_class(error_message))
+
+  expect_equal(trace_state$trace_id, trace_id)
+})
+
+new_trace_state <- function() {
+  trace_state <- new.env(parent = emptyenv())
+  trace_state$trace_id <- NULL
+  trace_state
+}
+
+test_that("client trace middleware extracts string and bytes response headers", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  cases <- list(
+    list(headers = "{'x-dataconnect-trace-id': ['trace-string']}", expected = "trace-string"),
+    list(headers = "{'x-dataconnect-trace-id': [b'trace-bytes']}", expected = "trace-bytes")
+  )
+
+  for (case in cases) {
+    trace_state <- new_trace_state()
+    middleware <- .create_trace_middleware_factory(trace_state)$start_call(NULL)
+    headers <- reticulate::py_eval(case$headers, convert = FALSE)
+
+    middleware$received_headers(headers)
+
+    expect_equal(trace_state$trace_id, case$expected)
+  }
+})
+
+test_that("client trace middleware ignores trailers without a trace header", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  trace_state <- new_trace_state()
+  middleware <- .create_trace_middleware_factory(trace_state)$start_call(NULL)
+  middleware$received_headers(reticulate::py_eval("{'x-dataconnect-trace-id': ['t-1']}", convert = FALSE))
+  middleware$received_headers(reticulate::py_eval("{'x-arrow-status': ['5']}", convert = FALSE))
+
+  expect_equal(trace_state$trace_id, "t-1")
+})
+
+test_that("client trace middleware keeps header IDs over payload IDs", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  trace_state <- new_trace_state()
+  middleware <- .create_trace_middleware_factory(trace_state)$start_call(NULL)
+  middleware$received_headers(reticulate::py_eval(
+    "{'x-dataconnect-trace-id': ['header-trace']} ",
+    convert = FALSE
+  ))
+  runtime_error_class <- reticulate::py_eval("RuntimeError", convert = FALSE)
+
+  middleware$call_completed(runtime_error_class('AUTH_001::{"trace_id":"payload-trace"}'))
+
+  expect_equal(trace_state$trace_id, "header-trace")
+})
+
+test_that("client trace middleware resets state for each call", {
+  skip_if_not(reticulate::py_module_available("pyarrow"))
+
+  trace_state <- new_trace_state()
+  factory <- .create_trace_middleware_factory(trace_state)
+
+  first_middleware <- factory$start_call(NULL)
+  first_middleware$received_headers(reticulate::py_eval(
+    "{'x-dataconnect-trace-id': ['first-trace']} ",
+    convert = FALSE
+  ))
+  expect_equal(trace_state$trace_id, "first-trace")
+
+  second_middleware <- factory$start_call(NULL)
+  second_middleware$call_completed(NULL)
+
+  expect_null(trace_state$trace_id)
 })
