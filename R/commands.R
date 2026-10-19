@@ -264,6 +264,16 @@
     if (!is.null(result_metadata$dataset_uuid)) {
       metadata$dataset_uuid <- result_metadata$dataset_uuid
     }
+    # Service-provided blinding status; passed through unchanged, omitted for older responses.
+    if (!is.null(result_metadata$blinding_status)) {
+      metadata$blinding_status <- result_metadata$blinding_status
+    }
+
+    # Service-provided warnings; passed through without interpretation.
+    result_warnings <- result$warnings
+    if (is.null(result_warnings)) {
+      result_warnings <- list()
+    }
 
     dry_publish_or_publish_result <- list(
       success = isTRUE(result$success),
@@ -280,6 +290,7 @@
         dataset_is_valid = result_checks$dataset_is_valid
       ),
       errors = result_errors,
+      warnings = result_warnings,
       invalid_records = list()
     )
 
