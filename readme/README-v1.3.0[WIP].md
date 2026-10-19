@@ -31,6 +31,7 @@ Files marked `[WIP]` are under active development and not yet released.
   - [publish()](#publish)
   - [collect()](#collect)
   - [head(n)](#headn)
+- [Errors](#errors)
 - [Acceptable Data Types and Formats](#acceptable-data-types-and-formats)
 - [Reporting known issues ](#reporting-known-issues)
 - [Backend](#backend)
@@ -69,6 +70,11 @@ Follow the instructions in the aforementioned Installation Guide to install the 
   * One row is returned per invalid record regardless of how many errors it has. Errors reported: `null_key_column` (null or empty value in a key column) and `invalid_value` (value not parseable as a valid datetime). 
   * A column that is both a key column and a datetime column with an `NA` value will report both errors in `_invalid_reason`. 
 
+* Blinding support (Data Catalog v2 study environments only):
+  * `blinding_status` is returned by `datasets()` and `dataset_versions()` when the Data Connect backend supplies it, and in `metadata` for `dry_publish()` and `publish()`.
+  * `dry_publish()` and `publish()` results include a `warnings` list.
+  * New error codes: `AUTHZ_003`, `VAL_014`, `VAL_015` and `VAL_016`. See [Errors](#errors).
+
 # Quick Start
 
 For the full quick start guide, see the [Usage Guide](https://github.com/mdsol/dataconnect-library-r/blob/main/vignettes/rLibrary_usage.Rmd)
@@ -105,6 +111,15 @@ dc <-init(token = "<authentication_token>")
 
   #### Publish Concurrency Locking
   * **Publish Locking:** To ensure data integrity, publish execution is concurrency-locked. If you attempt to run `publish()` while another collaborator's publish operation is actively in progress, your operation will be blocked.
+
+#### Blinding
+  * **Applicability:** Blinding applies only to Data Catalog v2 study environments.
+  * **`blinding_status` values:**
+    * `NOT_CONFIGURED`
+    * `NOT_UNBLINDING`
+    * `PARTIALLY_UNBLINDING`
+    * `UNBLINDING`
+  * **`NULL` or absent:** The backend did not return a status, for example on v1.
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -315,6 +330,8 @@ datasets(study_environment_uuid = study_environment_uuid, search_dataset_name = 
 
 Returns a list containing `total_records` (total datasets available across all pages), `pagination` and `datasets` array.
 
+Each dataset includes `blinding_status` (character) when the Data Connect backend returns it. It is absent or `NULL` when the backend returns none, for example on v1. See [Blinding](#blinding).
+
 ### dataset_versions()
 
 ### Description
@@ -335,7 +352,14 @@ dataset_versions(dataset_uuid = dataset_uuid)
 
 ### Output 
 
-Returns all available versions of the dataset.
+Returns all available versions of the dataset. Each version includes:
+
+* `study_uuid`
+* `study_environment_uuid`
+* `dataset_uuid`
+* `dataset_name`
+* `dataset_version`
+* `blinding_status`: returned when the Data Connect backend supplies it; absent or `NULL` otherwise. See [Blinding](#blinding).
 
 ### fetch_data()
 
@@ -432,6 +456,8 @@ Returns the result of publishing validations as a list containing clean, server-
 * **`valid_record_count`**: Number of records that will be successfully published to the dataset in Data Connect (always ≥ 0).
 * **`duplicate_record_count`**: Number of records that are duplicate based on the key fields configured.
 * **`invalid_record_count`**: Records erroring out data validations & will not be published to the dataset in Data Connect
+* **`metadata$blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. Omitted when the backend does not return one. See [Blinding](#blinding).
+* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `FALSE`. Currently the only message is the "partially restricted source" warning.
 
 When SDK validation fails, the returned error also includes _invalid_records:
 * **`invalid_records`**: A table with all original input columns plus `_invalid_reason`.
@@ -467,6 +493,17 @@ When SDK validation fails, the returned error also includes _invalid_records:
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
 
+#### Blinding Failures
+
+These errors apply to `publish()` and `dry_publish()` only.
+
+| Code | Message | Recommended action |
+|:-----|:--------|:-------------------|
+| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
+| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
+| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
+| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
+
 ### publish()
 
 ### Description
@@ -500,10 +537,14 @@ Returns the status of publish as a list containing the final backend execution r
 * **`valid_record_count`**: Number of records that will be successfully published to the dataset in Data Connect
 * **`duplicate_record_count`**: Number of records that are duplicate based on the key fields configured
 * **`invalid_record_count`**: Records erroring out data validations & will not be published to the dataset in Data Connect
+* **`metadata$blinding_status`**: The derived output blinding status, which is the most restrictive status among the source datasets. Omitted when the backend does not return one. See [Blinding](#blinding).
+* **`warnings`**: List of warning strings, empty when there are none. Separate from `errors`; a warning does not make `success` `FALSE`. Currently the only message is the "partially restricted source" warning.
 * **`invalid_records`**: A table with all original input columns plus `_invalid_reason`
 * **`_invalid_reason`**:  Comma-separated validation reasons in the format `column_name:reason`
 * One row is returned per invalid record, even when the record has multiple validation errors
 * The full `_invalid_records` table is accessible programmatically from the error object
+
+Publish failures raise an error and no result is returned.
 
 #### Error codes in `_invalid_reason`
 
@@ -530,6 +571,17 @@ Returns the status of publish as a list containing the final backend execution r
 - Supported error names: `NULL_KEY` (null/empty value in key column), `INVALID_VALUE` (invalid value in key column).
 - A summary is printed to the console for immediate visibility.
 - The full invalid records table is accessible programmatically from the error object.
+
+#### Blinding Failures
+
+These errors apply to `publish()` and `dry_publish()` only.
+
+| Code | Message | Recommended action |
+|:-----|:--------|:-------------------|
+| VAL_014 | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. | Wait until blinding configuration is complete for every source dataset, then retry. |
+| AUTHZ_003 | This project contains an unblinding dataset as a source; unavailable to use for your current role. | Remove the UNBLINDING source dataset from `source_datasets`, or publish with a role that is permitted to use it. |
+| VAL_015 | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. | Use source datasets that keep the previous version's blinding status, or create a new project to publish with a different status. The same code is returned when the previous version cannot be verified; if so, contact Medidata Support. |
+| VAL_016 | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. | Wait until blinding configuration for the study environment is complete, then retry. |
 
 ### collect()
 
@@ -568,7 +620,15 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 
 | Error Code | Type | Scenario                                                                                                                                                                             |
 | :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AUTHZ_001	| Authorization	| Authorization service check failed | 
+| AUTH_000 | Authentication | Authentication failed |
+| AUTH_001 | Authentication - Missing Token | Authentication token is missing from the request. |
+| AUTH_002 | Authentication - Invalid Token | Authentication token is invalid or malformed. |
+| AUTH_003 | Authentication - Expired Token | Authentication token has expired. |
+| AUTH_004 | Authentication - Missing Context | No authentication context found. |
+| AUTHZ_001	| Authorization	| Authorization service check failed |
+| AUTHZ_002 | Authorization- Project Contributor | You are not allowed to publish to this project. Only project owners can publish to a project. |
+| AUTHZ_003 | Authorization- Blinding Policy | This project contains an unblinding dataset as a source; unavailable to use for your current role. | 
+| VAL_001 | Validation- Request Format | Request format is invalid. |
 | VAL_002	| Validation- Page Number	| Page number is not a positive integer 
 | VAL_003	| Validation- Page Size	| Page size is out of range [1, 100] 
 | VAL_004	| Validation- Study Parameter	| Invalid study uuid
@@ -581,6 +641,10 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 | VAL_011	| Validation- Pagination	| Pagination is out of range
 | VAL_012 | Validation- Concurrency | Project actively being published. |
 | VAL_013	| Validation- Formatting Error	| Data validation failed. One or more records contain formatting errors.
+| VAL_014 | Validation- Blinding | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. |
+| VAL_015 | Validation- Blinding | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. |
+| VAL_016 | Validation- Blinding | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. |
+| RES_001 | Resource Exceptions- Not Found | Requested resource not found. |
 | RES_002	| Resource Exceptions- Study Environment  	| No authorized Study Environments found for the authenticated user
 | RES_003	| Resource Exceptions- Invalid parameter | Incorrect UUID combination. 
 | RES_004	| Resource Exceptions- Invalid parameter 	| Incorrect UUID combination.
@@ -588,7 +652,7 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 | RES_006	| Resource Exceptions- Study |	Study Group not found for the Dataset's Study Environment.
 | RES_007	| Resource Exceptions- Client Division | 	Client Division not found for the Dataset's Study Environment.
 | RES_008	| Resource Exceptions- Custom Code Project | Transformation Project is not found. 
-| INT_001	| Internal Application Exception	 | Something went wrong on our end. 
+| INT_001	| Internal Application Exception	 | Something went wrong on our end.
 
 
 
