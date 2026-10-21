@@ -8,6 +8,11 @@ This library is built by Medidata to provide technical users of the Medidata Cli
 
 **Note:** This R library is only compatible with R Studio. We do not guarantee or provide support for other R IDEs.
 
+## Manual Setup Guides
+
+- [Windows (without MiniForge)](guides/manual_sdk_setup_windows.md)
+
+
 # Versioned Documentation
 
 This directory contains documentation snapshots for each release of the `dataconnect` R library.
