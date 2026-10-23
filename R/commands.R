@@ -259,15 +259,15 @@
     metadata <- list(
       dataset_name = result_metadata$dataset_name,
       dataset_version = result_metadata$dataset_version,
-      column_count = result_metadata$column_count
+      column_count = result_metadata$column_count,
+      # Always present for parity with Python client behavior.
+      # Older backend responses may omit this field, which maps to NULL.
+      blinding_status = result_metadata$blinding_status
     )
     if (!is.null(result_metadata$dataset_uuid)) {
       metadata$dataset_uuid <- result_metadata$dataset_uuid
     }
-    # Service-provided blinding status; passed through unchanged, omitted for older responses.
-    if (!is.null(result_metadata$blinding_status)) {
-      metadata$blinding_status <- result_metadata$blinding_status
-    }
+    # Service-provided blinding status is passed through unchanged.
 
     # Service-provided warnings; passed through without interpretation.
     result_warnings <- result$warnings
