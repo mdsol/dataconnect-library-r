@@ -259,15 +259,11 @@
     metadata <- list(
       dataset_name = result_metadata$dataset_name,
       dataset_version = result_metadata$dataset_version,
-      column_count = result_metadata$column_count,
-      # Always present for parity with Python client behavior.
-      # Older backend responses may omit this field, which maps to NULL.
-      blinding_status = result_metadata$blinding_status
+      column_count = result_metadata$column_count
     )
     if (!is.null(result_metadata$dataset_uuid)) {
       metadata$dataset_uuid <- result_metadata$dataset_uuid
     }
-    # Service-provided blinding status is passed through unchanged.
 
     # Service-provided warnings; passed through without interpretation.
     result_warnings <- result$warnings
@@ -290,6 +286,8 @@
         dataset_is_valid = result_checks$dataset_is_valid
       ),
       errors = result_errors,
+      # Top-level, like warnings; NULL when the server omits it.
+      blinding_status = result$blinding_status,
       warnings = result_warnings,
       invalid_records = list()
     )
