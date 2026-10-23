@@ -501,10 +501,10 @@ test_that(".do_put_command correctly aggregates multiple chunked batches of inva
 .envelope_json <- function(blinding = NULL, warnings = NULL) {
   paste0(
     '{"success": true, "metadata": {"dataset_name": "test", "dataset_version": 1, "column_count": 2',
-    if (!is.null(blinding)) paste0(', "blinding_status": ', blinding) else "",
     '}, "metrics": {"total_valid_rows": 2, "total_invalid_rows": 0, "total_duplicate_rows": 0}, ',
     '"checks": {"schema_is_valid": true, "config_is_valid": true, "date_formats_are_valid": true, "dataset_is_valid": true}, ',
     '"errors": []',
+    if (!is.null(blinding)) paste0(', "blinding_status": ', blinding) else "",
     if (!is.null(warnings)) paste0(', "warnings": ', warnings) else "",
     '}'
   )
@@ -516,7 +516,7 @@ for (dry in c(TRUE, FALSE)) {
   test_that(paste0(label, ": blinding_status and warnings are returned as provided"), {
     result <- .run_put_with_json(.envelope_json('"BLINDED"', '["Blinded columns present"]'), dry)
     expect_true(result$success)
-    expect_equal(result$metadata$blinding_status, "BLINDED")
+    expect_equal(result$blinding_status, "BLINDED")
     expect_equal(result$warnings, "Blinded columns present")
     expect_equal(result$metadata$dataset_name, "test")
     expect_equal(result$metrics$total_valid_rows, 2)
@@ -532,7 +532,7 @@ for (dry in c(TRUE, FALSE)) {
   test_that(paste0(label, ": older responses omitting both fields remain compatible"), {
     result <- .run_put_with_json(.envelope_json(), dry)
     expect_true(result$success)
-    expect_null(result$metadata$blinding_status)
+    expect_null(result$blinding_status)
     expect_equal(result$warnings, list())
     expect_equal(result$metadata$column_count, 2)
     expect_equal(result$errors, list())
@@ -540,11 +540,11 @@ for (dry in c(TRUE, FALSE)) {
 
   test_that(paste0(label, ": omitting only one of the new fields is handled"), {
     only_status <- .run_put_with_json(.envelope_json('"UNBLINDED"'), dry)
-    expect_equal(only_status$metadata$blinding_status, "UNBLINDED")
+    expect_equal(only_status$blinding_status, "UNBLINDED")
     expect_equal(only_status$warnings, list())
 
     only_warnings <- .run_put_with_json(.envelope_json(warnings = '["w"]'), dry)
-    expect_null(only_warnings$metadata$blinding_status)
+    expect_null(only_warnings$blinding_status)
     expect_equal(only_warnings$warnings, "w")
   })
 }
