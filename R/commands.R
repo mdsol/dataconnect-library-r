@@ -264,10 +264,6 @@
     if (!is.null(result_metadata$dataset_uuid)) {
       metadata$dataset_uuid <- result_metadata$dataset_uuid
     }
-    # Service-provided blinding status; passed through unchanged, omitted for older responses.
-    if (!is.null(result_metadata$blinding_status)) {
-      metadata$blinding_status <- result_metadata$blinding_status
-    }
 
     # Service-provided warnings; passed through without interpretation.
     result_warnings <- result$warnings
@@ -290,6 +286,8 @@
         dataset_is_valid = result_checks$dataset_is_valid
       ),
       errors = result_errors,
+      # Top-level, like warnings; NULL when the server omits it.
+      blinding_status = result$blinding_status,
       warnings = result_warnings,
       invalid_records = list()
     )
