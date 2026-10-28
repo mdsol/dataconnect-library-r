@@ -1,0 +1,31 @@
+---
+title: "Data Connect Library - Setup (Windows, without MiniForge)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Data Connect Library - Setup (Windows, without MiniForge)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+**Prerequisite: Complete the [Manual SDK Setup for Windows](../../guides/manual_sdk_setup_windows.md) (Python 3.13, pip, pyarrow, R, RStudio, Rtools). Run the steps below in RStudio.**
+
+#### Install pak, if it was not already installed before.
+
+```{r eval=FALSE}
+
+install.packages("pak")
+
+```
+
+#### Install dataconnect library from GitHub
+
+```{r eval=FALSE}
+
+try({remove.packages("dataconnect")}, silent=TRUE)
+
+pak::pak("mdsol/dataconnect-library-r@v1.3.0", upgrade = FALSE)
+
+```
+
+
+***For usage, please refer this [guide](rLibrary_usage_without_miniforge.html).***

@@ -1,0 +1,460 @@
+﻿---
+title: "Data Connect Library - Usage"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Data Connect Library - Usage}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+<!-- Usage guide for Windows setup WITHOUT MiniForge. -->
+
+***Version Note:***
+This vignette reflects the *latest version* of the `dataconnect` R library. 
+If you are using an older version, the functions or parameters described here may differ from your installed version.
+
+***View version-matched documentation:***
+On GitHub, use the branch/tag selector to switch to your version's tag (e.g., `v1.1.0`).
+
+### Check your version
+
+```{r eval=FALSE}
+packageVersion("dataconnect")
+```
+***To set up Data Connect Library on Windows without MiniForge, please follow these [instructions](rLibrary_setup_without_miniforge.html).***
+
+### Preparation
+
+Please restart R session in RStudio before proceeding, if you have just installed the dataconnect R library.
+
+```{r eval=FALSE}
+# Skip this line if RETICULATE_PYTHON is already set in .Renviron / Renviron.site
+# (or in .Rprofile, if it sets it there).
+Sys.setenv(RETICULATE_PYTHON = "<path to python.exe>")
+```
+
+```{r eval=FALSE}
+# Import pyarrow first.
+reticulate::import("pyarrow")
+hasPyarrow <- reticulate::py_module_available("pyarrow")
+hasPyarrow
+```
+
+```{r eval=FALSE}
+# We recommend storing userToken in a separate file in your working directory.
+# This is the user authentication token generated from the Developer Center in iMedidata Platform.
+
+userToken = "usertoken"
+```
+
+```{r eval=FALSE}
+# Load prerequisite libraries
+library(tidyverse)
+```
+
+### Initialize Data Connect connection
+
+```{r eval=FALSE}
+library(dataconnect)
+
+dc <-init(
+  token = userToken)
+
+```
+
+
+### Get all available studies
+
+Get all available studies or search for a study by name.
+
+```{r eval=FALSE}
+
+tryCatch({
+  result <- dc$studies(search_study_name = "")
+
+  cat(sprintf("\n--- Total Studies: %d ---\n\n", result$total_records))
+
+  for (study in result$studies) {
+    envs <- sapply(study$environments, function(e) e$name)
+    envs_list <- paste(envs[nzchar(envs)], collapse = ", ")
+    
+    cat(sprintf("• Study: %s\n", study$name))
+    if (nzchar(envs_list)) {
+      cat(sprintf("  Envs:  %s\n\n", envs_list))
+    } else {
+      cat("  Envs:  (none)\n\n")
+    }
+  }
+
+  cat("Trace ID:", dc$trace_id, "\n")
+
+}, dataconnect_error = function(e) {
+  # Catch dataconnect specific errors.
+  # Instead of printing, exception can be handled programmatically based on the error code or message.
+  print(e)
+
+}, error = function(e) {
+  cat("Error:", e$message, "\n")
+})
+```
+
+### Work with datasets with `dataconnect` library
+
+#### Search datasets in a study environment
+
+Retrieve the study and study environment information from "Developer info" in iMedidata Platform.
+
+```{r eval=FALSE}
+
+PWBStudy = list(
+  PWBStudyId = "studyid",
+  PWBPRODEnvID = "studyenvironmentid"
+)
+
+ExciterStudy = list (
+  ExciterStudyId = "studyid",
+  ExciterPRODEnvID = "studyenvironmentid"
+)
+```
+
+Set search keyword.
+
+```{r eval=FALSE}
+searchName = "datasetname"
+```
+
+Search for a dataset in a specific study environment.
+
+```{r eval=FALSE}
+
+tryCatch({
+
+  datasets <- dc$datasets(
+    study_environment_uuid = ExciterStudy$ExciterPRODEnvID,
+    search_dataset_name = searchName,
+    page = 1,
+    page_size = 5
+  )
+
+  print(paste("Total datasets available across all pages:", datasets$total_records))
+
+  print(sprintf("Page: %s, Page size: %s, Total pages: %s",
+                datasets$pagination$page,
+                datasets$pagination$page_size,
+                datasets$pagination$total_pages))
+
+  for (dataset in datasets$datasets) {
+    print(to_frame(dataset))
+  }
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+
+  # Catch dataconnect specific errors.
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+
+```
+
+#### Identify different versions of a specific dataset
+
+Prepare a list of datasets that are needed.
+
+```{r eval=FALSE}
+# datasetid can be retrieved from search datasets()
+datasetid = list(
+  PWBDerID = "datasetid",
+  PWBImportID = "datasetid",
+  PWBRaveID = "datasetid",
+  PWBCustomID = "datasetid",
+  ExciterDerID = "datasetid",
+  ExciterImportID = "datasetid",
+  ExciterRaveID = "datasetid",
+  ExciterCustomID = "datasetid"
+)
+```
+
+Retrieve other dataset versions if they are available.
+
+```{r eval=FALSE}
+
+tryCatch({
+
+  dataset_versions <- dc$dataset_versions(
+    dataset_uuid = datasetid$ExciterCustomID
+  )
+
+  for (dataset_version in dataset_versions) {
+    print(to_frame(dataset_version))
+  }
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+
+  # Catch dataconnect specific errors.
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+```
+
+#### Fetch records for specific datasets
+
+```{r eval=FALSE}
+tryCatch({
+  RAVEdata <- dc$fetch_data(
+                  dataset_uuid = datasetid$ExciterRaveID
+  )
+  # Fetching first 3 rows of data
+  RAVEdata$frame %>% head(3)
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e) {
+  cat(e$message, "\n")
+})
+
+```
+
+```{r eval=FALSE}
+tryCatch({
+  Derdata <- dc$fetch_data(
+                  dataset_uuid = datasetid$PWBDerID
+  )
+  # Fetching the first 6 rows of data
+  Derdata$frame %>% head()
+  
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e) {
+  cat(e$message, "\n")
+})
+```
+
+```{r eval=FALSE}
+tryCatch({
+  ImportData <- dc$fetch_data(
+                  dataset_uuid = datasetid$PWBImportID
+  )
+  
+  # Fetching the first 3 rows of data
+  ImportData$frame %>% head(3)
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e){
+  cat(e$message, "\n")
+})
+```
+
+```{r eval=FALSE}
+tryCatch({
+  CustomData <- dc$fetch_data(
+                  dataset_uuid = datasetid$ExciterCustomID
+  )
+  
+  # Fetching the first 3 rows of data
+  CustomData$frame %>% head(3)
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e) {
+  print(e)
+}, error = function(e)
+{
+  cat(e$message, "\n")
+})
+```
+
+```{r eval=FALSE}
+# MATERIALIZE LOCALLY: bring the data into memory as a data.frame
+# collect() should return the entirety of the dataset 
+
+Derdf = Derdata$frame %>% collect()
+Importdf = ImportData$frame %>% collect()
+Customdf = CustomData$frame %>% collect()
+```
+
+```{r eval=FALSE}
+# Consider fetching the first few rows of a dataset by using %>% head() if the dataset is extremely large
+
+RAVEdf = RAVEdata$frame %>% head()
+```
+
+### Data Transformation Example Using Dplyr
+
+#### Data transformation using native dplyr capability in R
+
+Materialize the data into the client side memory as a R dataframe.
+
+If you have limited memory allocation, we recommend working on a limited set of records to reduce development time, and then remove record limit during recurring execution.
+
+If you receive an error indicating that you are running out of memory, please reach out to your R IDE provider to increase the memory allocation.
+
+#### Set up: Using dplyr to perform data transformation on materialized data frame
+
+These functions are not provided by the `dataconnect` library. Below are just examples of how common R libraries can be used with the `dataconnect` library. For details on how these libraries can be used, please consult the respective library documentation.
+
+```{r dplyr-basic, eval=FALSE}
+# Pivot Derdf as pivotDF
+pivotDF <- Derdf %>%
+  rename(
+    HCT_result = HCT,
+    plat_result = PLAT,
+    wbc_result = WBC,
+    HCT_unit = HCT_UNIT,
+    plat_unit = PLAT_UNIT,
+    wbc_unit = WBC_UNIT
+  ) %>%
+  pivot_longer(
+    cols = -c(patient_id, site_id, LBTIM),
+    names_to = c("lab_test", ".value"),
+    names_sep = "_"
+  ) %>%
+  rename(
+    lab_result = result,
+    lab_unit = unit
+  )
+
+# Union the datasets together (pivotDF, Importdf) as unionDF
+pivotdf_renamed <- pivotDF %>%
+  rename(
+    subjid = patient_id,
+    siteid = site_id,
+    lbtest = lab_test,
+    lbresn = lab_result,
+    lbresu = lab_unit
+  )
+unionDF <- bind_rows(Importdf, pivotdf_renamed)
+
+# Join the datasets together (unionDF, Customdf) as publishDF
+x = Importdf
+y = unionDF
+publishDF <- full_join(
+  x,
+  y %>% select(subjid, 
+               siteid, 
+               visitnum, 
+               -any_of(
+                 setdiff(
+                   names(x),
+                   c("subjid", "siteid", "visitnum")
+                   )
+                 )
+               ),
+  by = c("subjid" = "subjid", "siteid" = "siteid", "visitnum" = "visitnum")
+)
+```
+
+### Publishing
+
+Set up your project token where the resulting dataset (i.e., publishDF) will be published to. Please make sure it is published to the correct study environment and project. It is recommended to use dry_publish function to validate the result first before publishing the resulting dataset back to Medidata Data Connect.
+
+```{r eval=FALSE}
+# The project token is generated in the Data Connect Transformation Custom Code Project
+
+myProjectToken = "projecttoken"
+```
+
+### Set Datetime formats for the columns with date or timestamp data types
+```{r eval=FALSE}
+# Fetch supported formats from Data Connect.
+all_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "all"
+)
+cat("Trace ID:", dc$trace_id, "\n")
+
+# Filter for date-only or datetime-only values when needed.
+date_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "date"
+)
+cat("Trace ID:", dc$trace_id, "\n")
+
+datetime_only_formats <- dc$get_datetime_formats(
+  project_token = myProjectToken,
+  type = "datetime"
+)
+cat("Trace ID:", dc$trace_id, "\n")
+
+# Example mapping used by dry_publish()/publish().
+datetime_formats_list <- list(
+  "start_date" = "MM/dd/yy",
+  "end_date" = "yyyy-MM-dd",
+  "update_date" = "yyyy-MM-dd HH:mm:ss"
+)
+```
+
+#### Validate the dataset to be published
+
+```{r eval=FALSE}
+# Validating the published dataset. Comment out when set on a recurring schedule.
+tryCatch({
+  dry_publish_result <- dc$dry_publish(
+    project_token = myProjectToken,
+    dataset_name = "projectname",
+    key_columns = list ("field1","field2", "field3"),
+    source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+    data = publishDF,
+    datetime_formats = datetime_formats_list
+  )
+  
+  print(dry_publish_result)
+
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e){
+  
+  # Catch dataconnect specific errors. 
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+
+```
+
+#### Publish
+
+> **Note:** After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
+
+```{r eval=FALSE}
+tryCatch({
+  publish_result <- dc$publish(
+    project_token = myProjectToken,
+    dataset_name = "projectname",
+    key_columns = list ("field1","field2", "field3"),
+    source_datasets = list(datasetid$PWBDerID, datasetid$PWBImportID, datasetid$PWBRaveID),
+    data = publishDF,
+    datetime_formats = datetime_formats_list
+  )
+
+  print(publish_result)
+  
+  cat("Trace ID:", dc$trace_id, "\n")
+}, dataconnect_error = function(e){
+  
+  # Catch dataconnect specific errors. 
+  # Instead of printing the entire error object, we can extract and print specific details such as the error message and code.
+  print(e)
+
+}, error = function(e) {
+
+  # Catch any other errors
+  cat(e$message, "\n")
+})
+```
