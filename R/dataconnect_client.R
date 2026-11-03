@@ -23,7 +23,8 @@
 #'     }
 #'     Returns a list with \code{total_records} (integer) and \code{studies} array.
 #'     Each study has \code{name}, \code{uuid}, and \code{environments} array.
-#'     Each environment has \code{name} and \code{uuid}.
+#'     Each environment has \code{name}, \code{uuid}, and \code{oid}
+#'     (\code{oid} is \code{""} when not provided by the server).
 #'   }
 #'   \item{\code{datasets(study_environment_uuid, search_dataset_name, page, page_size)}}{
 #'     Get all datasets for a specific study environment.

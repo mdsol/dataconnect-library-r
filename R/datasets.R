@@ -27,16 +27,18 @@
 #'
 #' @field uuid UUID of the study environment
 #' @field name Name of the study environment
+#' @field oid OID of the study environment ("" when not provided by the server)
 #' @keywords internal
 #' @noRd
 StudyEnvironment <- setRefClass(
   "StudyEnvironment",
   fields = list(
     uuid = "character",
-    name = "character"
+    name = "character",
+    oid = "character"
   ),
   methods = list(
-    initialize = function(uuid, name) {
+    initialize = function(uuid, name, oid) {
       if (missing(uuid) || is.null(uuid) || is.na(uuid) || trimws(as.character(uuid)) == "" || uuid == "ANY") {
         .self$uuid <<- ""
       } else {
@@ -47,6 +49,12 @@ StudyEnvironment <- setRefClass(
         .self$name <<- ""
       } else {
         .self$name <<- as.character(name)
+      }
+
+      if (missing(oid) || is.null(oid) || is.na(oid) || trimws(as.character(oid)) == "" || oid == "ANY") {
+        .self$oid <<- ""
+      } else {
+        .self$oid <<- as.character(oid)
       }
     }
   )
@@ -463,7 +471,7 @@ StudyEnvironment <- setRefClass(
             return(NULL)
           }
 
-          return(StudyEnvironment$new(uuid = env$uuid, name = env$name))
+          return(StudyEnvironment$new(uuid = env$uuid, name = env$name, oid = env$oid))
         }
 
         data$environments <- Filter(
