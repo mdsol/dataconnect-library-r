@@ -55,6 +55,7 @@ Follow the instructions in the aforementioned Installation Guide to install the 
   * `fetch_data()` no longer returns the `study_uuid` and `study_environment_uuid` fields on the returned dataset object.
 * Pagination removed from `studies()`. The function now returns all studies and their environments in a single response — no page looping required.
   * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
+* `studies()` now returns the study environment OID: each environment includes an `oid` field alongside `name` and `uuid` (empty string when not provided by the server).
 * Updated `valid_rows` calculation in `publish()` and `dry_publish()` to prevent double-counting records that are both invalid and duplicated:
   * `valid_rows = total_rows − invalid_rows − net_duplicate_rows`.
   * `valid_rows` is always ≥ 0. 
@@ -288,7 +289,7 @@ studies(search_study_name = "")
 Returns a list containing `total_records` and a `studies` array. 
 * `total_records` reflects the count of all studies, which the user has access to, and matching the search pattern (if provided). 
 * Each study includes `name`, `uuid`, and an `environments` array. 
-* Each environment includes `name` and `uuid`.
+* Each environment includes `name`, `uuid`, and `oid` (the study environment OID, e.g. `"PROD"`). `oid` is an empty string (`""`) when the server does not provide it.
 
 ### datasets()
 
