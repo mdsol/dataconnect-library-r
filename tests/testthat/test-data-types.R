@@ -168,3 +168,47 @@ test_that(".cast_to_catalog_types skips columns not in data", {
   expect_equal(result$num_columns, 1L)
 })
 
+test_that(".naive_timestamps_to_utc keeps wall-clock values regardless of session timezone", {
+  skip_if_not_installed("arrow")
+
+  old_tz <- Sys.getenv("TZ", unset = NA)
+  Sys.setenv(TZ = "Europe/Kyiv")
+  on.exit(if (is.na(old_tz)) Sys.unsetenv("TZ") else Sys.setenv(TZ = old_tz), add = TRUE)
+
+  values <- as.POSIXct(c("2026-03-01 00:00:00", NA, "2006-03-03 13:45:10"), tz = "UTC")
+  tbl <- arrow::arrow_table(
+    ts_us = arrow::Array$create(values, type = arrow::timestamp("us")),
+    ts_ms = arrow::Array$create(values, type = arrow::timestamp("ms")),
+    id = arrow::Array$create(1:3)
+  )
+
+  result <- .naive_timestamps_to_utc(tbl)
+
+  expect_equal(result$schema$GetFieldByName("ts_us")$type$ToString(), "timestamp[us, tz=UTC]")
+  expect_equal(result$schema$GetFieldByName("ts_ms")$type$ToString(), "timestamp[ms, tz=UTC]")
+  expect_equal(result$schema$GetFieldByName("id")$type$ToString(), "int32")
+
+  df <- as.data.frame(result)
+  expect_equal(
+    format(df$ts_us, "%Y-%m-%d %H:%M:%S"),
+    c("2026-03-01 00:00:00", NA, "2006-03-03 13:45:10")
+  )
+  expect_equal(attr(df$ts_ms, "tzone"), "UTC")
+})
+
+test_that(".naive_timestamps_to_utc leaves timezone-aware timestamps unchanged", {
+  skip_if_not_installed("arrow")
+
+  tbl <- arrow::arrow_table(
+    ts = arrow::Array$create(
+      as.POSIXct("2026-03-01 00:00:00", tz = "UTC"),
+      type = arrow::timestamp("us", timezone = "America/New_York")
+    )
+  )
+
+  result <- .naive_timestamps_to_utc(tbl)
+
+  expect_equal(result$schema$GetFieldByName("ts")$type$ToString(), "timestamp[us, tz=America/New_York]")
+  expect_null(.naive_timestamps_to_utc(NULL))
+})
+
