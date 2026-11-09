@@ -363,6 +363,40 @@ StudyEnvironment <- setRefClass(
   return(table)
 }
 
+#' Mark timezone-naive timestamp columns as UTC
+#'
+#' The server sends timestamps without a timezone. R arrow converts those to
+#' POSIXct without a tzone, which R prints in the session's local timezone,
+#' shifting the displayed values. Tagging them as UTC is metadata-only and
+#' makes R show the same wall-clock values as the Python SDK and the UI.
+#'
+#' @param table An Arrow Table
+#' @return An Arrow Table with naive timestamp columns typed as timestamp[unit, tz=UTC]
+#' @keywords internal
+#' @noRd
+.naive_timestamps_to_utc <- function(table) {
+  if (is.null(table)) {
+    return(table)
+  }
+
+  # Use SetColumn by position: arrow's `[[<-` resolves by name, which breaks on duplicate column names
+  fields <- table$schema$fields
+  for (i in seq_along(fields)) {
+    field <- fields[[i]]
+    field_type <- field$type
+    if (inherits(field_type, "Timestamp") && !nzchar(field_type$timezone())) {
+      utc_type <- arrow::timestamp(field_type$unit(), timezone = "UTC")
+      table <- table$SetColumn(
+        i - 1L,
+        arrow::field(field$name, utc_type, nullable = field$nullable),
+        table$column(i - 1L)$cast(utc_type)
+      )
+    }
+  }
+
+  return(table)
+}
+
 #' Get raw dataset data (internal function)
 #'
 #' @param client A FlightClient object
@@ -395,6 +429,8 @@ StudyEnvironment <- setRefClass(
   if (!is.null(result) && !is.null(catalog_schema)) {
     result <- .cast_to_catalog_types(result, catalog_schema)
   }
+
+  result <- .naive_timestamps_to_utc(result)
 
   return(result)
 }
