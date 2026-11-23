@@ -31,6 +31,7 @@ Files marked `[WIP]` are under active development and not yet released.
   - [publish()](#publish)
   - [collect()](#collect)
   - [head(n)](#headn)
+- [Errors](#errors)
 - [Acceptable Data Types and Formats](#acceptable-data-types-and-formats)
 - [Reporting known issues ](#reporting-known-issues)
 - [Backend](#backend)
@@ -53,22 +54,15 @@ Follow the instructions in the aforementioned Installation Guide to install the 
   * Passing any removed parameter now raises an `unused argument` error instead of a deprecation warning. Update your calls to pass only the required UUID.
   * Because the removed parameters used to come first, **positional calls change meaning**. For example, `client$fetch_data(x)` previously bound `x` to `study_uuid`; it now binds `x` to `dataset_uuid`. Use named arguments to be explicit.
   * `fetch_data()` no longer returns the `study_uuid` and `study_environment_uuid` fields on the returned dataset object.
-* Pagination removed from `studies()`. The function now returns all studies and their environments in a single response — no page looping required.
-  * The `page` and `page_size` parameters are accepted for backward compatibility but have no effect on the output. A deprecation warning is shown if they are passed. 
-* `studies()` now returns the study environment OID: each environment includes an `oid` field alongside `name` and `uuid` (empty string when not provided by the server).
-* Updated `valid_rows` calculation in `publish()` and `dry_publish()` to prevent double-counting records that are both invalid and duplicated:
-  * `valid_rows = total_rows − invalid_rows − net_duplicate_rows`.
-  * `valid_rows` is always ≥ 0. 
-  * `duplicate_rows`: number of rows sharing the same `key_columns` values as at least one other row in the dataset being published. Includes rows that were also counted in `invalid_record_count`.  
-* **key_columns** behavior updated in `publish()` and `dry_publish()`.
-  * Rows with null or missing values in key columns are now flagged as invalid.
-  * If `key_columns` are not provided, deduplication is skipped and
-  `duplicate_rows` returns 0
-* Validation Failure Diagnostics:
-  * When `publish()` or `dry_publish()` fails validation, a structured "**_invalid_records**" table is now returned alongside the error. 
-  * The table contains all original data frame columns plus `_invalid_reason`: a comma-separated string listing every validation error for that record, each prefixed with the column name (`column_name:reason`). 
-  * One row is returned per invalid record regardless of how many errors it has. Errors reported: `null_key_column` (null or empty value in a key column) and `invalid_value` (value not parseable as a valid datetime). 
-  * A column that is both a key column and a datetime column with an `NA` value will report both errors in `_invalid_reason`. 
+
+
+* **Blinding/Unblinding:**
+  * **Note:** This feature is currently in a limited release and is being enabled on an individual, client-by-client basis and is ONLY enabled in Innovate for new studies.
+  * Integrates blinding and masking controls directly into Data Connect R and Python libraries, restricting unblinding datasets, fields, or masking values based on the user’s provisioning role.
+  * Restricts custom code projects and custom transformed datasets for blinded users when a source dataset consisting of unblinding or masked data is used during a publish operation.
+  * `datasets()` includes a `blinding_status` property to indicate whether a dataset is `UNBLINDING`, `NOT_UNBLINDING`, or `PARTIALLY_UNBLINDING`.
+  * Datasets that require blinding configuration but are awaiting user configuration are not available to fetch or use in R/Python functions.
+
 
 # Quick Start
 
@@ -103,9 +97,6 @@ dc <-init(token = "<authentication_token>")
   * **Shared Project Tokens:** Project tokens are project-scoped and can be used by multiple authorized collaborators working on that project. 
   * **Collaborator Capabilities:** Once authorized on a project, any collaborator can use the shared project token to run both `dry_publish()` and `publish()`.
   * **Owner-Only Permissions:** Only **Project Owners** (as designated in the UI) have permission to add or remove collaborators or project owners. Collaborators cannot manage project membership.
-
-  #### Publish Concurrency Locking
-  * **Publish Locking:** To ensure data integrity, publish execution is concurrency-locked. If you attempt to run `publish()` while another collaborator's publish operation is actively in progress, your operation will be blocked.
 
 ```r
 my_project_token <- "<project_token_here>"
@@ -476,6 +467,8 @@ Publish dataset to Data Connect.
 
 > **Note:** After a successful `publish()` call, it can take approximately 15-20 minutes for the dataset to appear in the iMedidata UI under Data Connect > Datasets. This delay is expected and does not indicate an error.
 
+#### Publish Concurrency Locking
+* **Publish Locking:** To ensure data integrity, publish execution is concurrency-locked. If you attempt to run `publish()` while another collaborator's publish operation is actively in progress, your operation will be blocked.
 
 ### Usage
 
@@ -570,6 +563,7 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 | Error Code | Type | Scenario                                                                                                                                                                             |
 | :---------- | :-------- |:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | AUTHZ_001	| Authorization	| Authorization service check failed | 
+| AUTHZ_003 | Authorization - Blinding Policy | This project contains an unblinding dataset as a source; unavailable to use for your current role. |
 | VAL_002	| Validation- Page Number	| Page number is not a positive integer 
 | VAL_003	| Validation- Page Size	| Page size is out of range [1, 100] 
 | VAL_004	| Validation- Study Parameter	| Invalid study uuid
@@ -582,6 +576,9 @@ R Library raises exceptions for many reasons, such as invalid parameters, authen
 | VAL_011	| Validation- Pagination	| Pagination is out of range
 | VAL_012 | Validation- Concurrency | Project actively being published. |
 | VAL_013	| Validation- Formatting Error	| Data validation failed. One or more records contain formatting errors.
+| VAL_014 | Validation - Blinding | One or more source datasets are pending blinding configuration. Publishing is blocked until configuration is complete for all source datasets. |
+| VAL_015 | Validation - Blinding | Publishing this version would change the dataset's blinding status from the previous version. A new version must retain the previous version's blinding status. Create a new project to use a different blinding status. |
+| VAL_016 | Validation - Blinding | This study environment is pending blinding configuration. Requests to this study environment are blocked until configuration is complete. |
 | RES_002	| Resource Exceptions- Study Environment  	| No authorized Study Environments found for the authenticated user
 | RES_003	| Resource Exceptions- Invalid parameter | Incorrect UUID combination. 
 | RES_004	| Resource Exceptions- Invalid parameter 	| Incorrect UUID combination.
